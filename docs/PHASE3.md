@@ -23,6 +23,7 @@ published package and deletes duplicate logic from both hosts.
 | M18 | Move orchestrators; delete env bridge; single conformance suite in core CI | done |
 | M19 | DB helpers + render-log in core | done |
 | M20 | Bundle assembly (`bundle-assembler`, storyboard validate/yaml, tar) in core | done |
+| M21 | Planner pure helpers (`preflight`, `planner-prompt`, `output-extract`) in core | done |
 
 ## Extraction waves (summary)
 

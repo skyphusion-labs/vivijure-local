@@ -5,7 +5,7 @@ import { assembleBundle, type AssembleBundleArgs } from "../bundle-assembler.js"
 import { listCast } from "../cast-db.js";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
-import { discoverModules, servingForHook } from "@skyphusion-labs/vivijure-core";
+import { discoverModules, resolveClipDurationFloor, servingForHook } from "@skyphusion-labs/vivijure-core";
 import {
   checkCastBindingsReady,
   checkDurationGrid,
@@ -88,8 +88,17 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
         );
         const mod = motionModules.find((m) => m.name === motionBackend);
         if (mod?.duration_grid) {
+          const floorFraction = resolveClipDurationFloor(
+            platform.vars.FILM_CLIP_DURATION_FLOOR as string | undefined,
+          );
           issues.push(
-            ...checkDurationGrid(validated.value, mod.duration_grid, quality, mod.name),
+            ...checkDurationGrid(
+              validated.value,
+              mod.duration_grid,
+              quality,
+              mod.name,
+              floorFraction,
+            ),
           );
         }
       }
