@@ -136,9 +136,12 @@ localhost-only dev):
 
 ```bash
 npm run rotate:minio-creds          # writes S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY to .env
-npm run sync:tunnel-secrets         # push into platform_secrets (presign uses DB values)
+npm run sync:tunnel-secrets:compose # upsert .env into platform_secrets (studio Docker volume DB)
 docker compose up -d --force-recreate minio minio-init studio
 ```
+
+When studio runs in compose, secrets live in the `studio-data` volume (`/app/vivijure-local/data/studio.db`).
+Use `sync:tunnel-secrets:compose` (not host `sync:tunnel-secrets`) so the running studio picks up new S3 creds.
 
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
 the root user password changes.

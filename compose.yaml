@@ -69,6 +69,11 @@ x-module-health-url: &module-health-url
   retries: 6
   start_period: 20s
 
+x-ai-gateway-env: &ai-gateway-env
+  CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+  GATEWAY_ID: ${GATEWAY_ID:-skyphusion-llm}
+  CF_AIG_TOKEN: ${CF_AIG_TOKEN:-}
+
 services:
   minio:
     image: minio/minio:latest
@@ -280,9 +285,7 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9158/module.json"]
     environment:
-      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
-      GATEWAY_ID: ${GATEWAY_ID:-vivijure}
-      CF_AIG_TOKEN: ${CF_AIG_TOKEN:-}
+      <<: *ai-gateway-env
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
 
   module-narration-gen:
@@ -336,6 +339,7 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9140/module.json"]
     environment:
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
+      <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -350,6 +354,7 @@ services:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9141/module.json"]
     environment:
+      <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
