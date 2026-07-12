@@ -21,6 +21,8 @@ import { registerM7Routes } from "./routes/m7.js";
 import { registerM9Routes } from "./routes/m9-render-api.js";
 import { registerM10Routes } from "./routes/m10-chat.js";
 import { registerM11DemoRoutes } from "./routes/m11-demo.js";
+import { registerM12Routes } from "./routes/m12-planner-extra.js";
+import { registerM13Routes } from "./routes/m13-render-history.js";
 import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
 import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 import { resolveStudioPage } from "./studio-pages.js";
@@ -96,6 +98,8 @@ export function createApp(host: SettingsHost): Hono {
   registerM9Routes(app, platform);
   registerM10Routes(app, host);
   registerM11DemoRoutes(app, platform);
+  registerM12Routes(app, platform);
+  registerM13Routes(app, platform);
   registerSettingsRoutes(app, host);
 
   app.get("*", async (c, next) => {

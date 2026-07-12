@@ -116,7 +116,9 @@ the studio container.
 | Variable | Compose value | Purpose |
 |----------|---------------|---------|
 | `S3_ENDPOINT` | `http://minio:9000` | SDK endpoint (in-network) |
-| `S3_PRESIGN_ENDPOINT` | `http://minio:9000` | Host embedded in presigned URLs for CPU containers |
+| `S3_PRESIGN_ENDPOINT` | `http://minio:9000` (override in `.env`) | Host embedded in presigned URLs |
+| `S3_FETCH_ALLOW_HOSTS` | `minio` | CPU container SSRF allowlist for presigned fetches |
+| `S3_ALLOW_HTTP_FETCH` | `true` | Set `false` when presign uses HTTPS (cloudflared) |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials |
 | `S3_BUCKET` | `vivijure` | Render + bundle bucket |
 | `S3_REGION` | `us-east-1` | SigV4 region |
@@ -124,8 +126,12 @@ the studio container.
 
 Swap to Cloudflare R2 or AWS S3 by changing `S3_*` only (see `.env.example`).
 
-CPU containers receive `ALLOW_HTTP_FETCH=true` and `ALLOWED_FETCH_HOSTS=minio` so they can fetch
-presigned MinIO URLs. Production R2 deploys keep HTTPS-only guards.
+CPU containers receive `ALLOW_HTTP_FETCH` and `ALLOWED_FETCH_HOSTS` from compose so they can fetch
+presigned MinIO URLs. When MinIO is exposed via **cloudflared** for RunPod or remote GPU backends,
+set `S3_PRESIGN_ENDPOINT` to the tunnel HTTPS URL and extend `S3_FETCH_ALLOW_HOSTS` to include that
+hostname. Full guide: [MINIO-TUNNEL.md](MINIO-TUNNEL.md).
+
+Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
 ### Module sidecars
 

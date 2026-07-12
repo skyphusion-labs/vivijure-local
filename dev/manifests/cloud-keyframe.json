@@ -1,0 +1,52 @@
+{
+  "name": "cloud-keyframe",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "keyframe"
+  ],
+  "provides": [
+    {
+      "id": "cloud-keyframe",
+      "label": "Cloud Keyframe (reference-conditioned, GPUless)"
+    }
+  ],
+  "config_schema": {
+    "model": {
+      "type": "enum",
+      "values": [
+        "@cf/black-forest-labs/flux-2-klein-9b",
+        "google/nano-banana-pro",
+        "@cf/black-forest-labs/flux-2-klein-4b",
+        "@cf/black-forest-labs/flux-2-dev"
+      ],
+      "default": "@cf/black-forest-labs/flux-2-klein-9b",
+      "label": "image model (FLUX-2 klein-9b cheap/fast; nano-banana-pro quality)"
+    },
+    "width": {
+      "type": "int",
+      "default": 1344,
+      "min": 512,
+      "max": 1536,
+      "label": "width"
+    },
+    "height": {
+      "type": "int",
+      "default": 768,
+      "min": 512,
+      "max": 1536,
+      "label": "height"
+    },
+    "refs_per_slot": {
+      "type": "int",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "label": "reference images per character"
+    }
+  },
+  "ui": {
+    "section": "keyframe",
+    "order": 20
+  }
+}

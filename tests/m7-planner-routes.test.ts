@@ -91,7 +91,7 @@ describe("GET /api/storyboard/models", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { models: Array<{ id: string }> };
     expect(body.models.length).toBeGreaterThan(0);
-    expect(body.models.some((m) => m.id.includes("claude") || m.id.includes("llama"))).toBe(true);
+    expect(body.models.some((m) => m.id === "plan-enhance")).toBe(true);
   });
 });
 
@@ -128,7 +128,7 @@ describe("POST /api/storyboard/plan", () => {
       method: "POST",
       body: JSON.stringify({
         brief: "A quiet harbor at dawn.",
-        model: "anthropic/claude-opus-4-8",
+        model: "plan-enhance",
         characters: [],
       }),
     });
@@ -144,7 +144,7 @@ describe("POST /api/storyboard/plan", () => {
       method: "POST",
       body: JSON.stringify({
         brief: "Test #mock-fail branch",
-        model: "anthropic/claude-opus-4-8",
+        model: "plan-enhance",
         characters: [],
       }),
     });
@@ -173,7 +173,7 @@ describe("POST /api/storyboard/plan", () => {
       method: "POST",
       body: JSON.stringify({
         brief: "A quiet harbor at dawn.",
-        model: "anthropic/claude-opus-4-8",
+        model: "plan-enhance",
         characters: [],
       }),
     });
@@ -189,7 +189,7 @@ describe("POST /api/storyboard/refine", () => {
       body: JSON.stringify({
         storyboard: validStoryboard,
         message: "Add a third shot on the dock.",
-        model: "anthropic/claude-opus-4-8",
+        model: "plan-enhance",
       }),
     });
     expect(res.status).toBe(200);

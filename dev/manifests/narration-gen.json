@@ -1,0 +1,88 @@
+{
+  "name": "narration-gen",
+  "version": "0.2.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "score"
+  ],
+  "provides": [
+    {
+      "id": "minimax-speech",
+      "label": "MiniMax Speech 02 HD (RunPod)"
+    }
+  ],
+  "config_schema": {
+    "text": {
+      "type": "string",
+      "default": "",
+      "label": "narration script (blank = derive from storyboard)"
+    },
+    "voice_id": {
+      "type": "string",
+      "default": "Wise_Woman",
+      "label": "voice id"
+    },
+    "emotion": {
+      "type": "enum",
+      "values": [
+        "happy",
+        "sad",
+        "angry",
+        "fearful",
+        "disgusted",
+        "surprised",
+        "neutral"
+      ],
+      "default": "neutral",
+      "label": "emotion"
+    },
+    "format": {
+      "type": "enum",
+      "values": [
+        "mp3",
+        "flac",
+        "wav"
+      ],
+      "default": "mp3",
+      "label": "audio format"
+    },
+    "pitch": {
+      "type": "int",
+      "default": 0,
+      "min": -12,
+      "max": 12,
+      "label": "pitch"
+    },
+    "speed": {
+      "type": "float",
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "label": "speed"
+    },
+    "volume": {
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 10,
+      "label": "volume"
+    },
+    "sample_rate": {
+      "type": "enum",
+      "values": [
+        "8000",
+        "16000",
+        "22050",
+        "24000",
+        "32000",
+        "44100"
+      ],
+      "default": "44100",
+      "label": "sample rate"
+    }
+  },
+  "ui": {
+    "section": "score",
+    "order": 20
+  }
+}

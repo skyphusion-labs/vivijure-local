@@ -34,7 +34,9 @@ import {
   updateProjectMeta,
 } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
-import { isValidVoiceId, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
+import { isValidVoiceId, VOICE_CATALOG, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
+import { authEnvFromPlatform } from "../http.js";
+import { catalogForDeploy } from "../auth-gate.js";
 import {
   handleCastTrainLora,
   handleCastLoraStatus,
@@ -74,6 +76,12 @@ function tailAfter(pathname: string, prefix: string): string {
 export function registerM3Routes(app: Hono, platform: Platform): void {
   const db = () => dbEnvFromPlatform(platform);
   const media = () => castMediaEnv(platform);
+
+  app.get("/api/voices", (c) =>
+    handle(c, async () =>
+      json({ voices: catalogForDeploy(authEnvFromPlatform(platform), VOICE_CATALOG) }),
+    ),
+  );
 
   // --- projects ---
   app.get("/api/storyboard/projects", (c) =>

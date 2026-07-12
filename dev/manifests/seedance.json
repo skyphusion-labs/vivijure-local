@@ -1,0 +1,58 @@
+{
+  "name": "seedance",
+  "version": "0.2.2",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "motion.backend"
+  ],
+  "provides": [
+    {
+      "id": "i2v-cloud",
+      "label": "Seedance V1.5 Pro (cloud i2v)"
+    }
+  ],
+  "config_schema": {
+    "resolution": {
+      "type": "enum",
+      "values": [
+        "480p",
+        "720p"
+      ],
+      "default": "720p",
+      "label": "resolution"
+    },
+    "aspect_ratio": {
+      "type": "enum",
+      "values": [
+        "16:9",
+        "9:16",
+        "1:1"
+      ],
+      "default": "16:9",
+      "label": "aspect ratio"
+    },
+    "camera_fixed": {
+      "type": "bool",
+      "default": false,
+      "label": "lock camera"
+    },
+    "generate_audio": {
+      "type": "bool",
+      "default": false,
+      "label": "generate audio"
+    },
+    "seed": {
+      "type": "int",
+      "default": -1,
+      "min": -1,
+      "label": "seed (-1 = random)"
+    }
+  },
+  "ui": {
+    "section": "motion",
+    "order": 10,
+    "locality": "cloud",
+    "cost": "Pay per render",
+    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+  }
+}
