@@ -12,8 +12,7 @@ import type {
   FinishInput,
   FinishOutput,
 } from "@skyphusion-labs/vivijure-core";
-import type { RunpodModuleEnv } from "./env.js";
-import { runpodConfigured } from "./env.js";
+import { runpodConfigured, resolveRunpodEndpointId, type RunpodModuleEnv } from "./env.js";
 import {
   authHeader,
   cancelRunpodJobBestEffort,
@@ -45,9 +44,12 @@ import {
 } from "./finish-core.js";
 import { invokeFixedMotion, pollFixedMotion, FIXED_MOTION } from "./fixed-motion.js";
 
-async function runpodCreds(env: RunpodModuleEnv): Promise<{ apiKey: string; endpointId: string } | null> {
-  if (!runpodConfigured(env)) return null;
-  return { apiKey: env.RUNPOD_API_KEY!, endpointId: env.RUNPOD_ENDPOINT_ID! };
+async function runpodCreds(
+  env: RunpodModuleEnv,
+  moduleName: string,
+): Promise<{ apiKey: string; endpointId: string } | null> {
+  if (!runpodConfigured(env, moduleName)) return null;
+  return { apiKey: env.RUNPOD_API_KEY!, endpointId: resolveRunpodEndpointId(moduleName, env)! };
 }
 
 export async function invokeKeyframeRunpod(
@@ -58,7 +60,7 @@ export async function invokeKeyframeRunpod(
   if (!input?.project || !input.bundle_key) {
     return { ok: false, error: "keyframe: input needs project and bundle_key" };
   }
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, "keyframe");
   if (!creds) return { ok: false, error: "keyframe: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   const base = runpodBase(creds.endpointId);
   try {
@@ -87,7 +89,7 @@ export async function pollKeyframeRunpod(
 ): Promise<PollResponse<KeyframeOutput>> {
   const st = decodeKeyframePoll(body.poll);
   if (!st) return { ok: false, error: "keyframe: bad poll token" };
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, "keyframe");
   if (!creds) return { ok: false, error: "keyframe: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   const base = runpodBase(creds.endpointId);
   let httpStatus = 0;
@@ -128,7 +130,7 @@ export async function invokeOwnGpu(
   if (!input?.prompt || !input.shot_id) {
     return { ok: false, error: "motion.backend: input needs shot_id and prompt" };
   }
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, "own-gpu");
   if (!creds) return { ok: false, error: "own-gpu: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   const base = runpodBase(creds.endpointId);
   try {
@@ -161,7 +163,7 @@ export async function pollOwnGpu(
 ): Promise<PollResponse<MotionBackendOutput>> {
   const st = decodeI2vPoll(body.poll);
   if (!st) return { ok: false, error: "own-gpu: bad poll token" };
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, "own-gpu");
   if (!creds) return { ok: false, error: "own-gpu: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   const base = runpodBase(creds.endpointId);
   let httpStatus = 0;
@@ -202,7 +204,7 @@ async function invokeFinish(
   if (moduleName === "finish-rife" && !cfg.interpolate && cfg.face_restore === "none") {
     return { ok: true, output: passthroughOutput(input, "nothing-enabled", { degraded: false }) };
   }
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, moduleName);
   if (!creds) {
     return { ok: true, output: passthroughOutput(input, "no-runpod-secrets") };
   }
@@ -243,7 +245,7 @@ async function pollFinish(
 ): Promise<PollResponse<FinishOutput>> {
   const st = decodeFinishPoll(body.poll);
   if (!st) return { ok: false, error: `${moduleName}: bad poll token` };
-  const creds = await runpodCreds(env);
+  const creds = await runpodCreds(env, moduleName);
   if (!creds) return { ok: false, error: `${moduleName}: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured` };
   const base = runpodBase(creds.endpointId);
   let httpStatus = 0;
@@ -273,10 +275,10 @@ export async function cancelRunpodPoll(
   env: RunpodModuleEnv,
   body: CancelRequest,
 ): Promise<CancelResponse> {
-  const creds = await runpodCreds(env);
-  if (!creds) return { ok: false, error: "RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   const st = decodeI2vPoll(body.poll) ?? decodeKeyframePoll(body.poll) ?? decodeFinishPoll(body.poll);
   if (!st) return { ok: false, error: "bad poll token" };
+  const creds = await runpodCreds(env, "");
+  if (!creds) return { ok: false, error: "RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
   await cancelRunpodJobBestEffort(creds.apiKey, runpodBase(creds.endpointId), st.jobId);
   return { ok: true };
 }

@@ -16,19 +16,22 @@ import type {
   SpeechOutput,
 } from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
-import { MIN_PNG, buildSilentWav } from "../../dev/minimal-media.js";
+import { buildSilentWav } from "../../dev/minimal-media.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import type { ChainModuleEnv } from "./chain-env.js";
 import {
+  FLAG_FALLBACK_MODEL,
   MODELS,
   buildState as buildCastState,
   decodePoll as decodeCastPoll,
   encodePoll as encodeCastPoll,
+  isFlaggedError,
   readOutput as readCastOutput,
   refKey,
   stateKey as castStateKey,
   type CastImageState,
 } from "./cast-image-core.js";
+import { generateCastImage } from "./cast-image-gen.js";
 import {
   AUDIO_MIME,
   appliedTags as dialogueAppliedTags,
@@ -54,6 +57,23 @@ import {
 } from "./plan-enhance-core.js";
 import { direct as directPlanEnhance } from "./plan-enhance-provider.js";
 import { coerceConfig as coerceSpeechConfig, processSpeechLocal } from "./speech-upscale-core.js";
+import {
+  buildRunPodBody,
+  decodeSpeechPoll,
+  encodeSpeechPoll,
+  parseSpeechBackendOutput,
+  passthroughOutput as speechPassthrough,
+  successRunpodOutput,
+} from "./speech-upscale-core.js";
+import { speechRunpodConfigured, speechRunpodEndpointId } from "./chain-env.js";
+import {
+  authHeader,
+  cancelRunpodJobBestEffort,
+  classifyGoneState,
+  runpodBase,
+  runpodJobGone,
+  terminalErrorInOutput,
+} from "../runpod/shared.js";
 
 export type ChainModuleName =
   | "plan-enhance"
@@ -242,7 +262,10 @@ export async function invokeCastImage(
   return { ok: true, pending: true, poll: encodeCastPoll({ cast_id: input.cast_id, job_id }) };
 }
 
+const CAST_IMAGE_PER_POLL = 1;
+
 export async function pollCastImage(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   body: PollRequest,
 ): Promise<PollResponse<CastImageOutput>> {
@@ -253,11 +276,40 @@ export async function pollCastImage(
   if (!state) return { ok: false, error: "cast.image: run state not found (expired or bad token)" };
   if (state.prompts.length === 0) return { ok: true, output: readCastOutput(state) };
 
-  const key = refKey(state.cast_id, state.done.length + 1, "png");
-  await store.put(key, MIN_PNG, { httpMetadata: { contentType: "image/png" } });
-  state.done.push({ key, mime: "image/png" });
-  state.prompts.shift();
-  await writeJson(store, sk, state);
+  for (let i = 0; i < CAST_IMAGE_PER_POLL && state.prompts.length > 0; i++) {
+    const prompt = state.prompts[0];
+    let img: { bytes: Uint8Array; mime: string };
+    try {
+      img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+    } catch (e) {
+      if (isFlaggedError((e as Error).message) && state.model !== FLAG_FALLBACK_MODEL) {
+        state.model = FLAG_FALLBACK_MODEL;
+        state.fallback_used = true;
+        try {
+          img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+        } catch (e2) {
+          return { ok: false, error: "cast.image: generation failed (post-fallback): " + (e2 as Error).message };
+        }
+      } else {
+        return { ok: false, error: "cast.image: generation failed: " + (e as Error).message };
+      }
+    }
+    const ext = img.mime.includes("jpeg") ? "jpg" : img.mime.includes("webp") ? "webp" : "png";
+    const key = refKey(state.cast_id, state.done.length + 1, ext);
+    try {
+      await store.put(key, img.bytes, { httpMetadata: { contentType: img.mime } });
+    } catch (e) {
+      return { ok: false, error: "cast.image: store put failed: " + (e as Error).message };
+    }
+    state.done.push({ key, mime: img.mime });
+    state.prompts.shift();
+  }
+
+  try {
+    await writeJson(store, sk, state);
+  } catch {
+    /* best-effort: next poll re-reads prior state */
+  }
 
   return state.prompts.length === 0
     ? { ok: true, output: readCastOutput(state) }
@@ -337,6 +389,7 @@ export async function pollDialogueGen(
 }
 
 export async function invokeSpeechUpscale(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   req: InvokeRequest<SpeechInput>,
 ): Promise<InvokeResponse<SpeechOutput>> {
@@ -345,12 +398,87 @@ export async function invokeSpeechUpscale(
     return { ok: false, error: "speech-upscale: input needs shot_id and audio_key" };
   }
   const cfg = coerceSpeechConfig(req.config);
-  const output = await processSpeechLocal(store, input, cfg);
-  return { ok: true, output };
+  if (!cfg.enable) {
+    return { ok: true, output: speechPassthrough(input, "disabled") };
+  }
+  if (!speechRunpodConfigured(env)) {
+    const output = await processSpeechLocal(store, input, cfg);
+    return { ok: true, output };
+  }
+  const apiKey = env.RUNPOD_API_KEY!;
+  const endpointId = speechRunpodEndpointId(env)!;
+  const base = runpodBase(endpointId);
+  try {
+    const r = await fetch(`${base}/run`, {
+      method: "POST",
+      headers: { ...authHeader(apiKey), "content-type": "application/json" },
+      body: JSON.stringify(buildRunPodBody(input, cfg)),
+    });
+    if (!r.ok) {
+      return { ok: true, output: speechPassthrough(input, "runpod-run-failed", `HTTP ${r.status}`) };
+    }
+    const jobId = ((await r.json()) as { id?: string }).id;
+    if (!jobId) return { ok: true, output: speechPassthrough(input, "no-jobid") };
+    return {
+      ok: true,
+      pending: true,
+      poll: encodeSpeechPoll({
+        jobId,
+        shotId: input.shot_id,
+        audioKey: input.audio_key,
+        submittedAt: Date.now(),
+      }),
+    };
+  } catch (e) {
+    return { ok: true, output: speechPassthrough(input, "exception", (e as Error).message) };
+  }
 }
 
-export async function pollSpeechUpscale(_body: PollRequest): Promise<PollResponse<SpeechOutput>> {
-  return { ok: false, error: "speech-upscale local mock completes synchronously on /invoke" };
+export async function pollSpeechUpscale(
+  env: ChainModuleEnv,
+  body: PollRequest,
+): Promise<PollResponse<SpeechOutput>> {
+  const st = decodeSpeechPoll(body.poll);
+  if (!st) return { ok: false, error: "speech-upscale: bad poll token" };
+  if (!speechRunpodConfigured(env)) {
+    return { ok: false, error: "speech-upscale local mock completes synchronously on /invoke" };
+  }
+  const apiKey = env.RUNPOD_API_KEY!;
+  const endpointId = speechRunpodEndpointId(env)!;
+  const base = runpodBase(endpointId);
+  let httpStatus = 0;
+  let s: { status?: string; output?: unknown; error?: unknown };
+  try {
+    const resp = await fetch(`${base}/status/${st.jobId}`, { headers: authHeader(apiKey) });
+    httpStatus = resp.status;
+    s = (await resp.json()) as typeof s;
+  } catch {
+    return { ok: true, pending: true };
+  }
+  const passthrough = (reason: string, detail?: string) => ({
+    ok: true as const,
+    output: speechPassthrough({ shot_id: st.shotId, audio_key: st.audioKey }, reason, detail),
+  });
+  if (runpodJobGone(httpStatus, s)) {
+    if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
+      return passthrough("endpoint-gone");
+    }
+    return { ok: true, pending: true };
+  }
+  if (s.status === "FAILED") {
+    return passthrough("endpoint-failed", JSON.stringify(s.error ?? s).slice(0, 160));
+  }
+  if (s.status !== "COMPLETED") {
+    const backendErr = terminalErrorInOutput(s.output);
+    if (backendErr) {
+      await cancelRunpodJobBestEffort(apiKey, base, st.jobId);
+      return passthrough("endpoint-error", backendErr.slice(0, 160));
+    }
+    return { ok: true, pending: true };
+  }
+  const out = parseSpeechBackendOutput(s.output);
+  if (!out?.output_key) return passthrough("no-output-key");
+  return { ok: true, output: successRunpodOutput(st, out) };
 }
 
 export async function invokeNotifyEmail(

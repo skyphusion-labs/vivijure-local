@@ -126,13 +126,7 @@ async function generateImageBytes(
       form.append(`input_image_${refIdx}`, blob, att.filename || `ref-${refIdx}.png`);
       refIdx++;
     }
-    const formResponse = new Response(form);
-    runParams = {
-      multipart: {
-        body: formResponse.body!,
-        contentType: formResponse.headers.get("content-type")!,
-      },
-    };
+    runParams = { formData: form };
   } else {
     const params: Record<string, unknown> = {
       prompt: args.user_input,

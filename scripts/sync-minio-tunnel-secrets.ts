@@ -20,6 +20,11 @@ const TUNNEL_KEYS = [
   "GATEWAY_ID",
   "CF_AIG_TOKEN",
   "PLANNER_AI_MOCK",
+  "RUNPOD_API_KEY",
+  "RUNPOD_ENDPOINT_ID",
+  "VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID",
+  "MUSETALK_RUNPOD_ENDPOINT_ID",
+  "AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID",
 ] as const;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));

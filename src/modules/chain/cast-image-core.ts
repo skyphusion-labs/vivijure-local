@@ -18,6 +18,12 @@ export const TRAINING_PROMPTS: readonly string[] = [
 
 export const FLAG_FALLBACK_MODEL = "google/nano-banana-pro";
 
+/** Safety-flag errors from the image model warrant retry / nano-banana fallback. */
+export function isFlaggedError(msg: unknown): boolean {
+  const s = String(msg || "").toLowerCase();
+  return s.includes("3030") || s.includes("has been flagged") || s.includes("choose another prompt");
+}
+
 export const MODELS = [
   "@cf/black-forest-labs/flux-2-klein-9b",
   "google/nano-banana-pro",

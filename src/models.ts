@@ -46,6 +46,15 @@ export const MODELS: ModelEntry[] = [
     streaming: true,
   },
   {
+    id: "anthropic/claude-sonnet-5",
+    label: "Claude Sonnet 5 (Anthropic)",
+    group: "Chat · Anthropic",
+    type: "chat",
+    capabilities: ["vision"],
+    provider: "anthropic",
+    streaming: true,
+  },
+  {
     id: "anthropic/claude-sonnet-4-6",
     label: "Claude Sonnet 4.6 (Anthropic)",
     group: "Chat · Anthropic",

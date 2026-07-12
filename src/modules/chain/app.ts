@@ -60,7 +60,7 @@ export function createChainModuleApp(
     }
     if (moduleName === "speech-upscale") {
       if (req.hook !== "speech") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
-      return c.json(await invokeSpeechUpscale(store, req as InvokeRequest<SpeechInput>));
+      return c.json(await invokeSpeechUpscale(env, store, req as InvokeRequest<SpeechInput>));
     }
     if (req.hook !== "notify") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
     return c.json(await invokeNotifyEmail(req as InvokeRequest<NotifyInput>));
@@ -79,9 +79,9 @@ export function createChainModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
-    if (moduleName === "cast-image") return c.json(await pollCastImage(store, body));
+    if (moduleName === "cast-image") return c.json(await pollCastImage(env, store, body));
     if (moduleName === "dialogue-gen") return c.json(await pollDialogueGen(store, body));
-    return c.json(await pollSpeechUpscale(body));
+    return c.json(await pollSpeechUpscale(env, body));
   });
 
   app.post("/cancel", (c) => c.json({ ok: false, error: `${name} does not support /cancel` }));

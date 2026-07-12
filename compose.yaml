@@ -56,6 +56,9 @@ x-runpod-module: &runpod-module
   environment:
     RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
     RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+    VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+    MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
+    AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
     S3_ENDPOINT: http://minio:9000
     S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
     S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -383,6 +386,9 @@ services:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9143/module.json"]
     environment:
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+      AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
