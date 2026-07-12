@@ -1,0 +1,57 @@
+{
+  "name": "beat-sync",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "score"
+  ],
+  "provides": [
+    {
+      "id": "librosa-beat-sync",
+      "label": "Beat sync (librosa, fleet VPC)"
+    }
+  ],
+  "config_schema": {
+    "clip_seconds": {
+      "type": "float",
+      "default": 8,
+      "min": 0.5,
+      "max": 60,
+      "label": "target seconds per shot"
+    },
+    "mode": {
+      "type": "enum",
+      "values": [
+        "beat",
+        "duration"
+      ],
+      "default": "beat",
+      "label": "timing mode"
+    },
+    "min_scene_s": {
+      "type": "float",
+      "default": 2.5,
+      "min": 0.5,
+      "max": 30,
+      "label": "minimum shot length (beat mode)"
+    },
+    "max_scene_s": {
+      "type": "float",
+      "default": 12,
+      "min": 1,
+      "max": 60,
+      "label": "maximum shot length (beat mode)"
+    },
+    "force_shots": {
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 50,
+      "label": "force shot count (duration mode; 0 = auto)"
+    }
+  },
+  "ui": {
+    "section": "score",
+    "order": 30
+  }
+}

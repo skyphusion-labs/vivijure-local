@@ -9,8 +9,12 @@ import { artifactKeyFromPath, handleServeArtifact, handleUpload } from "./artifa
 import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
+import { isDemoMode } from "./auth-gate.js";
+import { discoverModules, modulesResponse } from "./modules/registry.js";
 import type { Platform } from "./platform/index.js";
+import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
+import { renderConfigProjection } from "./render-module-config.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -32,16 +36,16 @@ export function createApp(platform: Platform): Hono {
 
   app.get("/api/whoami", (c) => c.json({ user: "studio" }));
 
-  app.get("/api/modules", (c) =>
-    c.json({
-      api: "vivijure-module/2",
-      modules: [],
-      hooks: {},
-      catalog: [],
-      render: { quality_tiers: [], default_tier: "final" },
-      host: { edition: "local" },
-    }),
-  );
+  app.get("/api/modules", async (c) => {
+    const env = moduleEnvFromPlatform(platform);
+    const modules = await discoverModules(env, { cacheTtlMs: 60_000 });
+    return c.json(
+      modulesResponse(modules, renderConfigProjection(), {
+        dispatch: false,
+        ...(isDemoMode(authEnv()) ? { readonly: true } : {}),
+      }),
+    );
+  });
 
   const store = () => platform.renders as ArtifactStore;
 

@@ -8,7 +8,7 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 - [x] `GET /health`
 - [x] `GET /api/whoami` (token-gated in `AUTH_MODE=token`, same as upstream)
-- [ ] `GET /api/modules`
+- [x] `GET /api/modules`
 
 ## Projects
 
@@ -84,7 +84,7 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 ## Module contract (conformance)
 
 - [ ] All hooks in `vivijure-module/2` pass `npm run conformance` against local sidecars
-- [ ] `GET /api/modules` projection matches upstream shape (modules, hooks, catalog, render tiers)
+- [x] `GET /api/modules` projection matches upstream shape (modules, hooks, catalog, render tiers)
 
 ## Auth modes
 

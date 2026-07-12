@@ -1,0 +1,49 @@
+{
+  "name": "finish-lipsync",
+  "version": "0.1.4",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "finish"
+  ],
+  "provides": [
+    {
+      "id": "lipsync",
+      "label": "Lip-sync to dialogue (MuseTalk)"
+    }
+  ],
+  "config_schema": {
+    "version": {
+      "type": "enum",
+      "values": [
+        "v15",
+        "v1"
+      ],
+      "default": "v15",
+      "label": "MuseTalk version (v15 = v1.5, best)"
+    },
+    "bbox_shift": {
+      "type": "int",
+      "default": 0,
+      "min": -20,
+      "max": 20,
+      "label": "mouth crop shift"
+    }
+  },
+  "ui": {
+    "section": "finish",
+    "icon": "mic",
+    "order": 15
+  },
+  "finish_artifacts": {
+    "output_key": {
+      "kind": "append_suffix",
+      "suffix": "_ls"
+    },
+    "applied": [
+      {
+        "tag": "lipsync:{version|v15}"
+      }
+    ]
+  },
+  "finish_consumes_audio": true
+}

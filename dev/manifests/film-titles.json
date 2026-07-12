@@ -1,0 +1,49 @@
+{
+  "name": "film-titles",
+  "version": "0.2.0",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "film.finish"
+  ],
+  "provides": [
+    {
+      "id": "film-titles",
+      "label": "Title + credit cards on the finished film"
+    }
+  ],
+  "config_schema": {
+    "font": {
+      "type": "string",
+      "default": "DejaVu Sans",
+      "label": "card font (installed in the video-finish container)"
+    },
+    "color": {
+      "type": "string",
+      "default": "white",
+      "label": "card text color (name or #rrggbb)"
+    },
+    "bg": {
+      "type": "string",
+      "default": "black",
+      "label": "card background color"
+    },
+    "title_seconds": {
+      "type": "int",
+      "default": 3,
+      "min": 1,
+      "max": 15,
+      "label": "title card duration (s)"
+    },
+    "credit_seconds": {
+      "type": "int",
+      "default": 5,
+      "min": 1,
+      "max": 30,
+      "label": "credit card duration (s)"
+    }
+  },
+  "ui": {
+    "section": "film.finish",
+    "order": 10
+  }
+}

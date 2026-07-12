@@ -1,0 +1,42 @@
+{
+  "name": "audio-master",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "master"
+  ],
+  "provides": [
+    {
+      "id": "master",
+      "label": "Master film audio (loudness + music upscale)"
+    }
+  ],
+  "config_schema": {
+    "target_lufs": {
+      "type": "float",
+      "default": -14,
+      "min": -24,
+      "max": -9,
+      "label": "loudness target (LUFS)"
+    },
+    "upscale": {
+      "type": "bool",
+      "default": true,
+      "label": "music upscale (soxr 48k + air lift)"
+    },
+    "format": {
+      "type": "enum",
+      "values": [
+        "wav",
+        "mp3"
+      ],
+      "default": "wav",
+      "label": "output format"
+    }
+  },
+  "ui": {
+    "section": "master",
+    "icon": "sliders",
+    "order": 10
+  }
+}

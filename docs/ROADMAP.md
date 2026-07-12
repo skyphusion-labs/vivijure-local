@@ -10,7 +10,7 @@
 | M1 | SQLite + migrations applied; `GET /health`, `GET /api/whoami` + auth gate | done |
 | M2 | Object store + `GET /api/artifact/*`, `POST /api/upload` | done |
 | M3 | Projects, cast, prefs CRUD | done |
-| M4 | `GET /api/modules` with HTTP sidecar discovery |
+| M4 | `GET /api/modules` with HTTP sidecar discovery | done |
 | M5 | Film submit/poll (`POST /api/storyboard/render`, poll loop) with `local-gpu` |
 | M6 | CPU container chain (finish, beat-sync, mux, master) |
 | M7 | Planner + preflight (BYOK or mock) |

@@ -25,6 +25,20 @@ npm run dev                   # studio API + UI (default :8790)
 
 Full render path requires CPU containers (`compose.yaml`), module sidecars, and a GPU backend. See `docs/ARCHITECTURE.md`.
 
+### Module catalog dev (M4)
+
+Sidecars speak HTTP instead of CF service bindings. Sync manifests from a sibling `vivijure` clone, start the fleet, source env, then run the studio:
+
+```bash
+npm run module-manifests          # writes dev/manifests/*.json from ../vivijure
+npm run module-fleet              # manifest-only sidecars on :9101+
+set -a; source dev/module-fleet.env; set +a
+npm run dev
+npm run module-fleet:stop         # when done
+```
+
+Or set `MODULE_KEYFRAME_URL`, `MODULE_LOCAL_GPU_URL`, etc. in `.env` manually (see `.env.example`).
+
 ## What is copied verbatim from vivijure
 
 - `public/` -- planner / cast / settings UI (projection from `GET /api/modules`)

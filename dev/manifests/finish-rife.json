@@ -1,0 +1,83 @@
+{
+  "name": "finish-rife",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "finish"
+  ],
+  "provides": [
+    {
+      "id": "interpolate",
+      "label": "Smooth motion (RIFE frame interpolation)"
+    },
+    {
+      "id": "face_restore",
+      "label": "Relock faces (GFPGAN)"
+    }
+  ],
+  "config_schema": {
+    "interpolate": {
+      "type": "bool",
+      "default": true,
+      "label": "smooth motion"
+    },
+    "interpolation_factor": {
+      "type": "int",
+      "default": 2,
+      "min": 1,
+      "max": 8,
+      "label": "smoothness",
+      "enum_labels": {
+        "1": "off",
+        "2": "2x",
+        "4": "4x",
+        "8": "8x"
+      }
+    },
+    "face_restore": {
+      "type": "enum",
+      "values": [
+        "none",
+        "gfpgan",
+        "codeformer"
+      ],
+      "default": "none",
+      "label": "face restore"
+    },
+    "face_fidelity": {
+      "type": "float",
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "label": "fidelity (0 = max restore, 1 = max fidelity)"
+    },
+    "only_faces": {
+      "type": "bool",
+      "default": true,
+      "label": "faces only (leave background untouched)"
+    }
+  },
+  "ui": {
+    "section": "finish",
+    "icon": "wand",
+    "order": 10
+  },
+  "finish_artifacts": {
+    "output_key": {
+      "kind": "shot_named",
+      "filename": "_finished.mp4"
+    },
+    "applied": [
+      {
+        "when": {
+          "knob": "interpolate",
+          "equals": false
+        },
+        "tag": "noop:interpolate-off"
+      },
+      {
+        "tag": "interpolate:{interpolation_factor|2}x"
+      }
+    ]
+  }
+}

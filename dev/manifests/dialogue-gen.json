@@ -1,0 +1,19 @@
+{
+  "name": "dialogue-gen",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "dialogue"
+  ],
+  "provides": [
+    {
+      "id": "aura1",
+      "label": "Dialogue voices (Deepgram Aura-1)"
+    }
+  ],
+  "ui": {
+    "section": "dialogue",
+    "icon": "mic",
+    "order": 10
+  }
+}

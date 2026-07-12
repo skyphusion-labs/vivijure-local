@@ -1,0 +1,78 @@
+{
+  "name": "subtitle",
+  "version": "0.2.0",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "film.finish"
+  ],
+  "provides": [
+    {
+      "id": "subtitle",
+      "label": "Time-synced dialogue captions (burned-in + .srt)"
+    }
+  ],
+  "config_schema": {
+    "enabled": {
+      "type": "bool",
+      "default": true,
+      "label": "burn captions onto the finished film"
+    },
+    "mode": {
+      "type": "enum",
+      "values": [
+        "burn",
+        "sidecar",
+        "both"
+      ],
+      "default": "burn",
+      "label": "burned-in, soft .srt sidecar, or both"
+    },
+    "font": {
+      "type": "string",
+      "default": "DejaVu Sans",
+      "label": "caption font (installed in the video-finish container)"
+    },
+    "font_size": {
+      "type": "int",
+      "default": 28,
+      "min": 8,
+      "max": 120,
+      "label": "caption font size (px)"
+    },
+    "color": {
+      "type": "string",
+      "default": "white",
+      "label": "caption text color (white / black / yellow, or ASS &HBBGGRR)"
+    },
+    "position": {
+      "type": "enum",
+      "values": [
+        "bottom",
+        "top",
+        "middle"
+      ],
+      "default": "bottom",
+      "label": "caption position"
+    },
+    "box_style": {
+      "type": "enum",
+      "values": [
+        "outline",
+        "box"
+      ],
+      "default": "outline",
+      "label": "outline text or opaque box behind it"
+    },
+    "margin_v": {
+      "type": "int",
+      "default": 36,
+      "min": 0,
+      "max": 400,
+      "label": "vertical margin from the frame edge (px)"
+    }
+  },
+  "ui": {
+    "section": "film.finish",
+    "order": 5
+  }
+}

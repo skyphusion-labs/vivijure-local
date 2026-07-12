@@ -7,3 +7,5 @@ data/
 
 # CPU media connector token (if copied from vivijure deploy)
 containers/tunnel.env
+dev/module-fleet.pids
+dev/module-fleet.env

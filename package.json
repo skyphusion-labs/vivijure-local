@@ -22,7 +22,10 @@
     "start": "node --import tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "module-manifests": "tsx scripts/sync-module-manifests.ts",
+    "module-fleet": "bash scripts/dev-module-fleet.sh",
+    "module-fleet:stop": "bash scripts/stop-module-fleet.sh"
   },
   "engines": {
     "node": ">=22.5.0"
