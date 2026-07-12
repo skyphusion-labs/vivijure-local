@@ -2,11 +2,15 @@ import type { OrchestratorEnv } from "./platform/orchestrator-context.js";
 import { readTar } from "./tar.js";
 import { parseShotDurations } from "./shot-durations-parse.js";
 
+function chunkForStream(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  const chunk = bytes.slice();
+  return chunk as Uint8Array<ArrayBuffer>;
+}
+
 export async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
   const cs = new CompressionStream("gzip");
   const writer = cs.writable.getWriter();
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  void writer.write(ab).then(() => writer.close());
+  void writer.write(chunkForStream(bytes)).then(() => writer.close());
   const reader = cs.readable.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -28,8 +32,7 @@ export async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
 export async function gunzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
   const ds = new DecompressionStream("gzip");
   const writer = ds.writable.getWriter();
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  void writer.write(ab).then(() => writer.close());
+  void writer.write(chunkForStream(bytes)).then(() => writer.close());
   const reader = ds.readable.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;

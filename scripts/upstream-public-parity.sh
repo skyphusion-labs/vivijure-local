@@ -41,6 +41,14 @@ if [[ $STRICT -eq 1 ]]; then
   TRACKED+=(migrations)
 fi
 
+# vivijure-local overlays on upstream public/ (platform secrets Settings UI).
+# Sync the rest of public/ verbatim; merge these by hand when upstream touches them.
+LOCAL_PUBLIC_SKIP=(
+  public/settings.html
+  public/settings.js
+  public/styles.css
+)
+
 fail=0
 for rel in "${TRACKED[@]}"; do
   if [[ ! -e "$UP/$rel" ]]; then
@@ -51,6 +59,41 @@ for rel in "${TRACKED[@]}"; do
   if [[ ! -e "$ROOT/$rel" ]]; then
     echo "upstream-public-parity: missing local: $rel" >&2
     fail=1
+    continue
+  fi
+  if [[ "$rel" == "public" ]]; then
+    drift_files=()
+    while IFS= read -r base; do
+      [[ -z "$base" ]] && continue
+      local_rel="public/$base"
+      skip=0
+      for s in "${LOCAL_PUBLIC_SKIP[@]}"; do
+        [[ "$local_rel" == "$s" ]] && skip=1 && break
+      done
+      if [[ $skip -eq 1 ]]; then
+        echo "upstream-public-parity: SKIP (local overlay) $local_rel"
+        continue
+      fi
+      if [[ ! -f "$UP/public/$base" ]]; then
+        echo "upstream-public-parity: DRIFT missing upstream public/$base" >&2
+        drift_files+=("$base")
+        continue
+      fi
+      if ! diff -q "$UP/public/$base" "$ROOT/public/$base" >/dev/null 2>&1; then
+        drift_files+=("$base")
+      fi
+    done < <(cd "$ROOT/public" && find . -type f | sed 's|^\./||' | sort)
+    if [[ ${#drift_files[@]} -gt 0 ]]; then
+      echo "upstream-public-parity: DRIFT public (vivijure main vs this repo)" >&2
+      for base in "${drift_files[@]}"; do
+        echo "Files $UP/public/$base and $ROOT/public/$base differ" >&2
+      done
+      echo "--- unified diff (first 120 lines) ---" >&2
+      diff -ru "$UP/public" "$ROOT/public" 2>&1 | grep -vE 'settings\.(html|js)|styles\.css' | head -120 >&2 || true
+      fail=1
+    else
+      echo "upstream-public-parity: OK public (excluding ${#LOCAL_PUBLIC_SKIP[@]} local overlays)"
+    fi
     continue
   fi
   if diff -rq "$UP/$rel" "$ROOT/$rel" >/dev/null 2>&1; then
