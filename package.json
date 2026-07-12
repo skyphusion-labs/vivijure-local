@@ -17,10 +17,13 @@
     "agpl"
   ],
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node --import tsx src/server.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck -w @skyphusion-labs/vivijure-core",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=cobertura --coverage.reporter=text",
     "migrate": "tsx scripts/migrate.ts",
@@ -36,7 +39,8 @@
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
     "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
     "upstream:parity": "bash scripts/upstream-public-parity.sh ../vivijure",
-    "upstream:parity:verbatim": "bash scripts/upstream-public-parity.sh ../vivijure --verbatim"
+    "upstream:parity:verbatim": "bash scripts/upstream-public-parity.sh ../vivijure --verbatim",
+    "sync:platform-icd": "cp src/platform/types.ts packages/vivijure-core/src/platform/types.ts"
   },
   "engines": {
     "node": ">=22.5.0"

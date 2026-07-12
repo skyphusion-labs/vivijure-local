@@ -1,0 +1,55 @@
+# Platform interface (frozen ICD v1)
+
+This document freezes the **host adapter contract** between Vivijure orchestration logic
+(`vivijure-core`) and a runtime (`vivijure-local` Node host, `vivijure` Cloudflare host).
+
+**Source of truth:** `src/platform/types.ts` (must stay free of Node/Workers imports so it can lift
+into `vivijure-core` unchanged).
+
+**Version:** `PLATFORM_ICD_VERSION = 1` (bump only with a coordinated major across both hosts).
+
+## Aggregated surface
+
+| Field | Role | CF binding | Local implementation |
+|-------|------|------------|----------------------|
+| `db` | Metadata (projects, cast, renders rows) | D1 `DB` | SQLite (`src/platform/sqlite.ts`) |
+| `renders` | Film job docs, clips, bundles | R2 `R2_RENDERS` | S3/MinIO or filesystem |
+| `chatBucket` | Chat-side artifacts | R2 `R2` | Same store or alias |
+| `presigner` | Presigned GET/PUT for modules/CPU | `r2-presign.ts` | S3 SigV4 or local token URLs |
+| `secrets` | API keys, tokens | Secrets Store + wrangler | `.env` / chezmoi |
+| `modules` | Module invoke transport | `MODULE_*` service bindings | HTTP sidecars (`MODULE_*_URL`) |
+| `rateLimiter` | Spend guard (optional) | Durable Object / KV | In-memory (local v1) |
+| `scheduler` | Render sweep cron (optional) | `scheduled()` | `node-cron` (when wired) |
+| `vars` | Plain config (`AUTH_MODE`, storage backend, etc.) | Worker env | `process.env` subset |
+
+## Legacy env bridge
+
+Ported orchestrators still expect a Cloudflare-shaped `Env` bag (`DB`, `R2_RENDERS`, `R2`, binding
+keys). Hosts build that via:
+
+- `platformAsEnv(platform)` -- generic record
+- `orchestratorEnvFromPlatform(platform)` -- adds `wrapR2Bucket`, VPC URL injection (local)
+
+**Phase 3 goal:** shrink and delete the env bridge as `vivijure-core` takes `Platform` directly.
+
+## Host obligations
+
+1. Implement every **required** `Platform` field before film render routes go live.
+2. Mirror upstream `CONTRACT.md` HTTP behavior; platform adapters must not change wire shapes.
+3. Module transport: `listBindings()` returns installed `MODULE_*` names; `resolve()` returns a
+   `FetcherLike` that speaks `vivijure-module/2` over HTTP or service binding.
+4. Object store: `get` / `put` / `head` / `delete` semantics match R2 subset used by orchestrators.
+
+## Non-goals (v1 ICD)
+
+- Workers for Platforms dynamic dispatch (CF-only; local uses static sidecar URLs).
+- CF Access identity on `Platform` (auth stays host-router concern).
+- Tail / Loki observability bindings.
+
+## Change control
+
+1. Edit `src/platform/types.ts`.
+2. Bump `PLATFORM_ICD_VERSION` and this doc.
+3. Update `tests/platform-contract.test.ts`.
+4. Land in both `vivijure-local` and `vivijure-core` before either host ships a release that depends
+   on the new shape.

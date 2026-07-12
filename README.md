@@ -72,7 +72,7 @@ flowchart LR
 | [docs/constellation.md](docs/constellation.md) | How this repo fits the Vivijure map |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Platform adapters and module transport |
 | [docs/PARITY.md](docs/PARITY.md) | API route checklist vs upstream |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones, exit criterion, v2.0 extraction plan |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones; [PHASE3.md](docs/PHASE3.md) shared-core extraction |
 
 ## Strategy
 

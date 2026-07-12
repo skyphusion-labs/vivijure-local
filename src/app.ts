@@ -31,7 +31,7 @@ export function createApp(platform: Platform): Hono {
     c.json({
       ok: true,
       service: "vivijure-studio",
-      phase: 2,
+      phase: 3,
       storage: platform.vars.STORAGE_BACKEND ?? "unknown",
     }),
   );
