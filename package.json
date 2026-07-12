@@ -33,7 +33,8 @@
     "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
     "conformance": "vitest run tests/conformance.test.ts tests/conformance.live.test.ts",
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
-    "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts"
+    "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
+    "lint:house-style": "bash scripts/check-no-unicode-dashes.sh"
   },
   "engines": {
     "node": ">=22.5.0"
