@@ -3,6 +3,8 @@ name: docker-build
 # Build-only smoke for compose images on GitHub-hosted runners. Catches Dockerfile /
 # dependency drift the vitest suite never exercises. No registry push in v1 (add GHCR
 # publish on version tags when the repo is public).
+#
+# Studio image build context is the parent dir (sibling vivijure-core required).
 
 on:
   push:
@@ -15,7 +17,6 @@ on:
       - containers/**
       - package.json
       - package-lock.json
-      - packages/**
       - .github/workflows/docker-build.yml
 
 permissions:
@@ -32,6 +33,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+
+      - uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure-core
+          path: vivijure-core
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
@@ -39,7 +47,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
         with:
           context: .
-          file: Dockerfile
+          file: vivijure-local/Dockerfile
           push: false
           tags: ghcr.io/skyphusion-labs/vivijure-local-studio:ci
           cache-from: type=gha
@@ -60,14 +68,16 @@ jobs:
           - audio-master
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Build CPU container image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
         with:
-          context: ./containers/${{ matrix.image }}
-          file: ./containers/${{ matrix.image }}/Dockerfile
+          context: ./vivijure-local/containers/${{ matrix.image }}
+          file: ./vivijure-local/containers/${{ matrix.image }}/Dockerfile
           push: false
           tags: ghcr.io/skyphusion-labs/vivijure-local-${{ matrix.image }}:ci
           cache-from: type=gha

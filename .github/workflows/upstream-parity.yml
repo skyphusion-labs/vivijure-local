@@ -21,12 +21,15 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
 
       - uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/vivijure
           ref: main
-          path: .upstream/vivijure
+          path: vivijure-local/.upstream/vivijure
 
       - name: Diff public/ against vivijure main
+        working-directory: vivijure-local
         run: bash scripts/upstream-public-parity.sh .upstream/vivijure

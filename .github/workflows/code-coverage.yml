@@ -24,32 +24,47 @@ jobs:
     name: coverage
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout vivijure-local
         uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+
+      - name: Checkout vivijure-core
+        uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure-core
+          path: vivijure-core
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: vivijure-local/package-lock.json
+
+      - name: Install vivijure-core
+        working-directory: vivijure-core
+        run: npm ci
 
       - name: Install dependencies
+        working-directory: vivijure-local
         run: npm ci
 
       - name: Run tests with coverage
+        working-directory: vivijure-local
         run: npx vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=cobertura --coverage.reporter=text
 
       - name: Upload coverage to GitHub Code Coverage
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
         with:
-          file: ./coverage/cobertura-coverage.xml
+          file: ./vivijure-local/coverage/cobertura-coverage.xml
           language: javascript
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: coverage/
+          path: vivijure-local/coverage/
           if-no-files-found: warn
           retention-days: 14

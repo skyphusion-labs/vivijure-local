@@ -49,7 +49,7 @@
 | Milestone | Deliverable | Status |
 |-----------|-------------|--------|
 | M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | in progress |
-| M14 | `packages/vivijure-core` scaffold | in progress |
+| M14 | `vivijure-core` standalone repo | done |
 | M15 | Extraction inventory (`docs/core-extraction-inventory.md`) | in progress |
 | M16 | Wave 0 into package (`types`, conformance, structured-events, beat-sync-types) | done |
 | M17 | Registry + film-model in core; hosts depend on package | done |

@@ -28,9 +28,13 @@ echo "sync from $UP -> $DEST"
 copy_if_missing "public"
 copy_if_missing "migrations"
 if [[ -f "$UP/src/modules/types.ts" ]]; then
-  mkdir -p "$DEST/packages/vivijure-core/src/modules"
-  cp "$UP/src/modules/types.ts" "$DEST/packages/vivijure-core/src/modules/types.ts"
-  echo "copied: src/modules/types.ts -> packages/vivijure-core/src/modules/types.ts"
+  CORE="${DEST}/../vivijure-core"
+  if [[ -d "$CORE/src/modules" ]]; then
+    cp "$UP/src/modules/types.ts" "$CORE/src/modules/types.ts"
+    echo "copied: src/modules/types.ts -> ../vivijure-core/src/modules/types.ts"
+  else
+    echo "skip: ../vivijure-core not found (clone sibling repo first)" >&2
+  fi
 fi
 
 # Port batches (create parent dirs; force-copy into staging for manual merge)
