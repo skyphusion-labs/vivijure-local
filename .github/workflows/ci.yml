@@ -3,6 +3,8 @@ name: ci
 # Typecheck + test + module conformance on every push and PR. Required check name is
 # `ci` (aviation-grade ruleset); typecheck is a step inside this job, not a separate check.
 # vivijure-local is PUBLIC; runs on GitHub-hosted ubuntu-latest (fork-safe).
+#
+# Requires sibling checkout of skyphusion-labs/vivijure-core (file:../vivijure-core).
 
 on:
   push:
@@ -23,14 +25,32 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+      - name: Checkout vivijure-core
+        uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure-core
+          path: vivijure-core
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
-      - run: npm ci
+          cache-dependency-path: |
+            vivijure-local/package-lock.json
+            vivijure-core/package-lock.json
+      - name: Install vivijure-core
+        working-directory: vivijure-core
+        run: npm ci
+      - name: Install vivijure-local
+        working-directory: vivijure-local
+        run: npm ci
       - name: Typecheck
+        working-directory: vivijure-local
         run: npm run typecheck
       - name: Test
+        working-directory: vivijure-local
         run: npm test
       - name: Module conformance
+        working-directory: vivijure-local
         run: npm run conformance

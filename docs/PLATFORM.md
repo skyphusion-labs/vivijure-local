@@ -3,8 +3,8 @@
 This document freezes the **host adapter contract** between Vivijure orchestration logic
 (`vivijure-core`) and a runtime (`vivijure-local` Node host, `vivijure` Cloudflare host).
 
-**Source of truth:** `src/platform/types.ts` (must stay free of Node/Workers imports so it can lift
-into `vivijure-core` unchanged).
+**Source of truth:** [`vivijure-core`](../vivijure-core) `src/platform/types.ts` (this host re-exports via
+`src/platform/types.ts`).
 
 **Version:** `PLATFORM_ICD_VERSION = 1` (bump only with a coordinated major across both hosts).
 

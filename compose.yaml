@@ -34,7 +34,9 @@ x-cpu-service: &cpu-service
     ALLOWED_FETCH_HOSTS: minio
 
 x-module-sidecar: &module-sidecar
-  build: .
+  build:
+    context: ..
+    dockerfile: vivijure-local/Dockerfile
   image: vivijure-local-studio:local
   restart: unless-stopped
   networks: [studio]
@@ -187,7 +189,9 @@ services:
       VIDEO_FINISH_URL: http://video-finish:8000
 
   studio:
-    build: .
+    build:
+      context: ..
+      dockerfile: vivijure-local/Dockerfile
     image: vivijure-local-studio:local
     ports:
       - "127.0.0.1:8790:8790"
@@ -197,7 +201,7 @@ services:
     environment:
       PORT: "8790"
       PUBLIC_BASE_URL: http://127.0.0.1:8790
-      DATABASE_PATH: /app/data/studio.db
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       AUTH_MODE: ${AUTH_MODE:-token}
       STUDIO_API_TOKEN: ${STUDIO_API_TOKEN:-change-me-local-dev-only}
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
@@ -225,7 +229,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - studio-data:/app/data
+      - studio-data:/app/vivijure-local/data
     networks: [studio]
     restart: unless-stopped
     depends_on:

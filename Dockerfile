@@ -1,16 +1,23 @@
 # vivijure-local studio + module sidecar image
+#
+# Build context MUST be the parent directory containing sibling repos:
+#   docker build -f vivijure-local/Dockerfile -t vivijure-local-studio:local ..
+# compose.yaml sets context: .. and dockerfile: vivijure-local/Dockerfile
+
 FROM node:22-bookworm-slim
 
-WORKDIR /app
+WORKDIR /app/vivijure-local
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
-COPY packages/vivijure-core/package.json packages/vivijure-core/
+# Sibling vivijure-core (file:../vivijure-core in package.json)
+COPY vivijure-core /app/vivijure-core
+
+COPY vivijure-local/package.json vivijure-local/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY vivijure-local .
 
 ENV NODE_ENV=production
 EXPOSE 8790

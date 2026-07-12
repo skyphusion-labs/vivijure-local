@@ -17,14 +17,11 @@
     "agpl"
   ],
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node --import tsx src/server.ts",
-    "typecheck": "tsc --noEmit && npm run typecheck -w @skyphusion-labs/vivijure-core",
-    "test": "vitest run && npm run test -w @skyphusion-labs/vivijure-core",
+    "typecheck": "tsc --noEmit && npm run typecheck --prefix ../vivijure-core",
+    "test": "vitest run && npm run test --prefix ../vivijure-core",
     "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=cobertura --coverage.reporter=text",
     "migrate": "tsx scripts/migrate.ts",
     "bootstrap:secrets": "tsx scripts/bootstrap-secrets.ts",
@@ -37,18 +34,18 @@
     "compose:down": "docker compose down",
     "compose:logs": "docker compose logs -f studio",
     "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
-    "conformance": "npm run test -w @skyphusion-labs/vivijure-core -- tests/conformance.test.ts",
+    "conformance": "npm run test --prefix ../vivijure-core -- tests/conformance.test.ts",
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
     "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
     "upstream:parity": "bash scripts/upstream-public-parity.sh ../vivijure",
     "upstream:parity:verbatim": "bash scripts/upstream-public-parity.sh ../vivijure --verbatim",
-    "sync:platform-icd": "cp src/platform/types.ts packages/vivijure-core/src/platform/types.ts"
+    "sync:module-types": "npm run sync:module-types --prefix ../vivijure-core"
   },
   "engines": {
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "@skyphusion-labs/vivijure-core": "workspace:*",
+    "@skyphusion-labs/vivijure-core": "file:../vivijure-core",
     "@aws-sdk/client-s3": "^3.830.0",
     "@hono/node-server": "^1.14.3",
     "dotenv": "^17.4.2",

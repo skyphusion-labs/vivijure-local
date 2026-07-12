@@ -15,7 +15,7 @@ alwaysApply: true
 npm run upstream:parity
 ```
 
-2. If the branch touches `migrations/`, `packages/vivijure-core/src/modules/types.ts`, or large upstream ports, also run:
+2. If the branch touches `migrations/`, `../vivijure-core/src/modules/types.ts`, or large upstream ports, also run:
 
 ```bash
 npm run upstream:parity:verbatim
