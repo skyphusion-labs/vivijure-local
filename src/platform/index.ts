@@ -8,3 +8,5 @@ export { S3ObjectStore, S3ObjectPresigner } from "./s3-store.js";
 export { presignS3WithConfig, uriEncode, type S3PresignConfig } from "./s3-presign.js";
 export { createStorage, type ArtifactStore, type StorageBundle } from "./create-storage.js";
 export { moduleEnvFromPlatform } from "./module-env.js";
+export { orchestratorEnvFromPlatform } from "./orchestrator-env.js";
+export { wrapR2Bucket, asFetcher } from "./r2-adapter.js";

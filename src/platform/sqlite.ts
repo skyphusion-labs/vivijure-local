@@ -67,6 +67,21 @@ class SqliteDatabase implements DatabaseIface {
   prepare(query: string): PreparedStatement {
     return new SqliteStatement(this.db, query);
   }
+
+  async batch(statements: PreparedStatement[]): Promise<unknown[]> {
+    this.db.exec("BEGIN");
+    try {
+      const out: unknown[] = [];
+      for (const stmt of statements) {
+        out.push(await stmt.run());
+      }
+      this.db.exec("COMMIT");
+      return out;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
 }
 
 export function openDatabase(path: string): DatabaseIface {

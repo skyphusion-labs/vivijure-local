@@ -39,6 +39,8 @@ npm run module-fleet:stop         # when done
 
 Or set `MODULE_KEYFRAME_URL`, `MODULE_LOCAL_GPU_URL`, etc. in `.env` manually (see `.env.example`).
 
+**M5 render path:** `POST /api/storyboard/render` starts a `film-*` job (keyframe then `local-gpu` motion when modules are bound). Poll with `GET /api/storyboard/render/:jobId`. Job state lives in object storage; history rows land in SQLite `renders`.
+
 ## What is copied verbatim from vivijure
 
 - `public/` -- planner / cast / settings UI (projection from `GET /api/modules`)

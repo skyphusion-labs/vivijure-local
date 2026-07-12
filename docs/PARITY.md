@@ -48,8 +48,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Render (storyboard aliases)
 
-- [ ] `POST /api/storyboard/render`
-- [ ] `GET /api/storyboard/render/:jobId`
+- [x] `POST /api/storyboard/render`
+- [x] `GET /api/storyboard/render/:jobId`
 - [ ] `POST /api/storyboard/render/scatter`
 - [ ] `GET /api/storyboard/render/scatter/:jobId`
 

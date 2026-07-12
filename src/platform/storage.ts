@@ -1,6 +1,6 @@
 // Filesystem object store (v1 default). Keys match R2 layout: renders/<project>/...
 
-import { readFile, mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, mkdir, rm, stat, writeFile, readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ObjectHead, ObjectPresigner, ObjectStore } from "./types.js";
 
@@ -101,6 +101,31 @@ export class FilesystemObjectStore implements ObjectStore {
 
   async delete(key: string): Promise<void> {
     await rm(this.path(key), { force: true });
+  }
+
+  async list(prefix: string): Promise<{ keys: string[] }> {
+    const keys: string[] = [];
+    const base = join(this.root, prefix.replace(/^\/+/, ""));
+    const walk = async (dir: string, rel: string) => {
+      let entries;
+      try {
+        entries = await readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const ent of entries) {
+        if (ent.name.endsWith(".content-type")) continue;
+        const p = join(dir, ent.name);
+        const relKey = rel ? `${rel}/${ent.name}` : ent.name;
+        if (ent.isDirectory()) await walk(p, relKey);
+        else {
+          const fullKey = (prefix.endsWith("/") ? prefix : prefix + "/") + relKey;
+          keys.push(fullKey.replace(/\/+/g, "/"));
+        }
+      }
+    };
+    await walk(base, "");
+    return { keys: keys.sort() };
   }
 }
 

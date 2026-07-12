@@ -14,6 +14,7 @@ import { discoverModules, modulesResponse } from "./modules/registry.js";
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
+import { registerM5Routes } from "./routes/m5.js";
 import { renderConfigProjection } from "./render-module-config.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
@@ -73,6 +74,7 @@ export function createApp(platform: Platform): Hono {
   app.on(["GET", "HEAD"], "/api/artifact/*", serveArtifact);
 
   registerM3Routes(app, platform);
+  registerM5Routes(app, platform);
 
   app.get("*", async (c, next) => {
     const asset = resolveStudioPage(c.req.path);

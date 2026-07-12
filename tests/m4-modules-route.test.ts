@@ -61,9 +61,11 @@ function testPlatform(modules: ModuleTransport): Platform {
 }
 
 function modulesReq(app: ReturnType<typeof createApp>): Promise<Response> {
-  return app.request("/api/modules", {
-    headers: { authorization: `Bearer ${SECRET}` },
-  });
+  return Promise.resolve(
+    app.request("/api/modules", {
+      headers: { authorization: `Bearer ${SECRET}` },
+    }),
+  );
 }
 
 afterEach(() => {

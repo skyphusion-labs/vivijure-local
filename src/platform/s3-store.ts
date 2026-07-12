@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -142,6 +143,26 @@ export class S3ObjectStore implements ObjectStore {
 
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async list(prefix: string): Promise<{ keys: string[] }> {
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+      const out = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: token,
+          MaxKeys: 1000,
+        }),
+      );
+      for (const o of out.Contents ?? []) {
+        if (o.Key) keys.push(o.Key);
+      }
+      token = out.IsTruncated ? out.NextContinuationToken : undefined;
+    } while (token);
+    return { keys };
   }
 }
 
