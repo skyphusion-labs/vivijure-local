@@ -1,6 +1,9 @@
 export interface RunpodModuleEnv {
   RUNPOD_API_KEY?: string;
   RUNPOD_ENDPOINT_ID?: string;
+  VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
+  MUSETALK_RUNPOD_ENDPOINT_ID?: string;
+  AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
   S3_ENDPOINT?: string;
   S3_ACCESS_KEY_ID?: string;
   S3_SECRET_ACCESS_KEY?: string;
@@ -9,10 +12,23 @@ export interface RunpodModuleEnv {
   S3_FORCE_PATH_STYLE?: string;
 }
 
+export function resolveRunpodEndpointId(moduleName: string, env: RunpodModuleEnv): string | undefined {
+  if (moduleName === "finish-upscale") {
+    return env.VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
+  }
+  if (moduleName === "finish-lipsync") {
+    return env.MUSETALK_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
+  }
+  return env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
+}
+
 export function runpodModuleEnvFromProcess(env: NodeJS.ProcessEnv): RunpodModuleEnv {
   return {
     RUNPOD_API_KEY: env.RUNPOD_API_KEY?.trim() || undefined,
     RUNPOD_ENDPOINT_ID: env.RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: env.VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    MUSETALK_RUNPOD_ENDPOINT_ID: env.MUSETALK_RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: env.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     S3_ENDPOINT: env.S3_ENDPOINT,
     S3_ACCESS_KEY_ID: env.S3_ACCESS_KEY_ID,
     S3_SECRET_ACCESS_KEY: env.S3_SECRET_ACCESS_KEY,
@@ -22,6 +38,6 @@ export function runpodModuleEnvFromProcess(env: NodeJS.ProcessEnv): RunpodModule
   };
 }
 
-export function runpodConfigured(env: RunpodModuleEnv): boolean {
-  return Boolean(env.RUNPOD_API_KEY && env.RUNPOD_ENDPOINT_ID);
+export function runpodConfigured(env: RunpodModuleEnv, moduleName = ""): boolean {
+  return Boolean(env.RUNPOD_API_KEY && resolveRunpodEndpointId(moduleName, env));
 }

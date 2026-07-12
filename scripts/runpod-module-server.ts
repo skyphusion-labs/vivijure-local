@@ -32,7 +32,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string
 const env = runpodModuleEnvFromProcess(process.env);
 const storage = createStorage(process.env);
 
-const useKeyframeMock = moduleName === "keyframe" && !runpodConfigured(env);
+const useKeyframeMock = moduleName === "keyframe" && !runpodConfigured(env, "keyframe");
 let app;
 if (useKeyframeMock) {
   const mockApp = createGpuMockModuleApp(manifest, "keyframe", storage.renders);
