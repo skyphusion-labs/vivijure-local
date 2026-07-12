@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import * as structured from "../src/structured-events.js";
+import * as structured from "@skyphusion-labs/vivijure-core";
 
 describe("film phase observability", () => {
   afterEach(() => {

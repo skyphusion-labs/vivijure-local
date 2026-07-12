@@ -3,7 +3,7 @@
 // (riding the same cast-row fetch) the per-slot dialogue voice. The studio is single-user, so the cast
 // lookup is not really identity-scoped; voice comes free off the row we already read for the LoRA.
 
-import type { Env } from "./orchestrator-env.js";
+import type { Env } from "@skyphusion-labs/vivijure-core/platform";
 import { getCastById, getCastIdByPublicId } from "./cast-db.js";
 import { isPublicId } from "./public-id.js";
 import { refreshTrainingLora } from "./cast-lora-train.js";

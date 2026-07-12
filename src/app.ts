@@ -10,20 +10,22 @@ import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
 import { isDemoMode } from "./auth-gate.js";
-import { discoverModules, modulesResponse } from "./modules/registry.js";
+import { discoverModules, modulesResponse } from "@skyphusion-labs/vivijure-core";
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
 import { registerM5Routes } from "./routes/m5.js";
 import { registerM6Routes } from "./routes/m6.js";
 import { registerM7Routes } from "./routes/m7.js";
+import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
 import { renderConfigProjection } from "./render-module-config.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export const repoRoot = join(__dirname, "..");
 
-export function createApp(platform: Platform): Hono {
+export function createApp(host: SettingsHost): Hono {
+  const platform = host.platform;
   const authEnv = () => authEnvFromPlatform(platform);
   const app = new Hono();
 
@@ -85,7 +87,8 @@ export function createApp(platform: Platform): Hono {
   registerM3Routes(app, platform);
   registerM5Routes(app, platform);
   registerM6Routes(app, platform);
-  registerM7Routes(app, platform);
+  registerM7Routes(app, host);
+  registerSettingsRoutes(app, host);
 
   app.get("*", async (c, next) => {
     const asset = resolveStudioPage(c.req.path);

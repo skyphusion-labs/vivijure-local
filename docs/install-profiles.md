@@ -7,7 +7,7 @@ GPU modules, MinIO for artifacts, no optional finish satellites.
 ## Default (demo)
 
 ```bash
-cp .env.example .env   # set STUDIO_API_TOKEN
+npm run install:studio
 docker compose up -d --build
 ```
 

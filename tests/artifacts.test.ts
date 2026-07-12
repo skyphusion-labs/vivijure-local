@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,7 +56,7 @@ describe("M2 artifacts", () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "vj-m2-"));
-    app = createApp(makePlatform(dir));
+    app = createApp(testSettingsHost(makePlatform(dir)));
   });
 
   afterEach(() => {

@@ -9,7 +9,7 @@
  * Exits non-zero when any sidecar fails runLiveConformance.
  */
 import { HttpFetcher } from "../src/platform/http-fetcher.js";
-import { allPass, failures, runLiveConformance } from "../src/modules/conformance.js";
+import { allPass, failures, runLiveConformance } from "@skyphusion-labs/vivijure-core";
 
 const MODULE_URL_RE = /^MODULE_[A-Z0-9_]+_URL$/;
 

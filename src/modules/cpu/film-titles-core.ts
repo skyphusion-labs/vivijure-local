@@ -1,7 +1,7 @@
 // Pure film-titles logic: config coercion + the /film-titles container request body, plus the
 // passthrough output. No I/O here, so it unit-tests without the runtime, the container, or ffmpeg.
 
-import type { FilmFinishInput, FilmFinishOutput } from "../types.js";
+import type { FilmFinishInput, FilmFinishOutput } from "@skyphusion-labs/vivijure-core";
 
 export interface TitlesConfig {
   font: string;

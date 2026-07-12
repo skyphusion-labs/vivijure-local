@@ -1,6 +1,6 @@
 // CPU module invoke/poll handlers (ported from vivijure module workers).
 
-import type { BeatSyncOutput } from "../../beat-sync-types.js";
+import type { BeatSyncOutput } from "@skyphusion-labs/vivijure-core";
 import type {
   FilmFinishInput,
   FilmFinishOutput,
@@ -11,7 +11,7 @@ import type {
   PollRequest,
   PollResponse,
   ScoreInput,
-} from "../types.js";
+} from "@skyphusion-labs/vivijure-core";
 import {
   appliedTags,
   buildAnalyzeBody,

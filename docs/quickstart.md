@@ -32,12 +32,12 @@ You do **not** need:
 ```bash
 git clone https://github.com/skyphusion-labs/vivijure-local
 cd vivijure-local
-cp .env.example .env          # set STUDIO_API_TOKEN to something you will remember
-npm run compose:up              # docker compose up -d --build
+npm run install:studio      # mint token, seed platform_secrets, write .studio-token
+npm run compose:up          # docker compose up -d --build
 curl -fsS http://127.0.0.1:8790/health
 ```
 
-Open **http://127.0.0.1:8790** in a browser. Paste your `STUDIO_API_TOKEN` when the UI asks.
+Open **http://127.0.0.1:8790** in a browser. Paste the token from `.studio-token` when the UI asks.
 
 | Service | URL |
 |---------|-----|
@@ -50,8 +50,12 @@ Stop the stack: `npm run compose:down`
 
 ## Your login: the studio API token
 
-Compose defaults `STUDIO_API_TOKEN=change-me-local-dev-only`. Change that in `.env` before you
-expose the stack beyond localhost.
+`npm run install:studio` mints a random token, writes it to `.studio-token` (mode `0600`), updates
+`.env`, and seeds `platform_secrets` in the studio database. The running studio also bootstraps any
+missing secret rows from env on startup (compose defaults for storage and module URLs land in the DB
+the first time the container starts).
+
+Compose still passes `STUDIO_API_TOKEN` through env for bootstrap; after seeding, the DB value wins.
 
 The studio **fails closed**: every `/api/*` request needs `Authorization: Bearer <token>`. The UI
 stores the token in your browser only. API callers send the same header.
@@ -59,8 +63,10 @@ stores the token in your browser only. API callers send the same header.
 Mint a new token any time:
 
 ```bash
+npm run install:studio   # mint + seed DB; re-run only rotates .env when still on the placeholder
+# or rotate manually:
 openssl rand -hex 32
-# paste the value into .env as STUDIO_API_TOKEN, then: docker compose up -d studio
+# paste into .env as STUDIO_API_TOKEN, run npm run bootstrap:secrets, then: docker compose up -d studio
 ```
 
 ## What compose starts

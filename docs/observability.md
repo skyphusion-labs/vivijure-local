@@ -24,7 +24,7 @@ fields carry context (`film_id`, `project`, `job_id`, `shot_id`, etc.). This mat
 `{"ev": ...}` convention documented in upstream vivijure (`docs/observability.md` in the `skyphusion-labs/vivijure` repo)
 so greps and smoke tests can be ported later.
 
-Implementation: `src/structured-events.ts` (`emitStructuredEvent`).
+Implementation: `@skyphusion-labs/vivijure-core` (`emitStructuredEvent`).
 
 ## Event catalog (Phase 2)
 

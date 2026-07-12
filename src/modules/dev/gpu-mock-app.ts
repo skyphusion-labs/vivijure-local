@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { InvokeRequest, KeyframeInput, MotionBackendInput, PollRequest } from "../types.js";
+import type { InvokeRequest, KeyframeInput, MotionBackendInput, PollRequest } from "@skyphusion-labs/vivijure-core";
 import {
   invokeKeyframeMock,
   invokeLocalGpuMock,

@@ -13,8 +13,8 @@ import {
   type FinishPoll,
 } from "../src/modules/cpu/film-titles-core.js";
 import { createCpuModuleApp } from "../src/modules/cpu/app.js";
-import type { FilmFinishInput } from "../src/modules/types.js";
-import { checkHookOutput } from "../src/modules/conformance.js";
+import type { FilmFinishInput } from "@skyphusion-labs/vivijure-core";
+import { checkHookOutput } from "@skyphusion-labs/vivijure-core";
 
 type FilmFinishTestInput = FilmFinishInput & { width?: number; height?: number; fps?: number };
 

@@ -15,12 +15,14 @@ published package and deletes duplicate logic from both hosts.
 
 | ID | Deliverable | Status |
 |----|-------------|--------|
-| M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | in progress |
-| M14 | `packages/vivijure-core` scaffold (platform + module types export) | in progress |
-| M15 | Extraction inventory + wave plan (`docs/core-extraction-inventory.md`) | in progress |
-| M16 | Move dependency-free core (`types`, `conformance`, `structured-events`) into package | pending |
-| M17 | Move registry + film-model; hosts depend on `@skyphusion-labs/vivijure-core` | pending |
-| M18 | Move orchestrators; delete env bridge; single conformance suite in core CI | pending |
+| M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | done |
+| M14 | `packages/vivijure-core` scaffold (platform + module types export) | done |
+| M15 | Extraction inventory + wave plan (`docs/core-extraction-inventory.md`) | done |
+| M16 | Move dependency-free core (`types`, `conformance`, `structured-events`, `beat-sync-types`) into package | done |
+| M17 | Move registry + film-model; hosts depend on `@skyphusion-labs/vivijure-core` | done |
+| M18 | Move orchestrators; delete env bridge; single conformance suite in core CI | done |
+| M19 | DB helpers + render-log in core | done |
+| M20 | Bundle assembly (`bundle-assembler`, storyboard validate/yaml, tar) in core | done |
 
 ## Extraction waves (summary)
 

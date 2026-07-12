@@ -1,19 +1,19 @@
 // Planner beat analysis via the installed beat-sync score module (registry-driven).
 
-import type { OrchestratorEnv } from "./orchestrator-env.js";
+import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
 import {
   discoverModules,
   invokeModule,
   resolveFetcher,
   servingForHook,
   validateConfig,
-} from "./modules/registry.js";
+} from "@skyphusion-labs/vivijure-core";
 import type {
   AudioAnalyzeRequest,
   AudioBeatPlan,
   BeatSyncOutput,
-} from "./beat-sync-types.js";
-import type { RegisteredModule, ScoreInput } from "./modules/types.js";
+} from "@skyphusion-labs/vivijure-core";
+import type { RegisteredModule, ScoreInput } from "@skyphusion-labs/vivijure-core";
 import { presignR2Get } from "./r2-presign.js";
 import { parseAudioBeatPlan } from "./modules/cpu/beat-sync-core.js";
 
@@ -141,4 +141,4 @@ export async function analyzeAudioBeats(
   return { ok: true, plan: direct.plan, module: "core-vpc" };
 }
 
-export type { AudioAnalyzeRequest, AudioBeatPlan } from "./beat-sync-types.js";
+export type { AudioAnalyzeRequest, AudioBeatPlan } from "@skyphusion-labs/vivijure-core";

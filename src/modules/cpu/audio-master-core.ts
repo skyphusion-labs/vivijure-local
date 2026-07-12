@@ -2,7 +2,7 @@
 // response, and shape an honest soft-degrade passthrough. No I/O here -- so the contract is unit-tested
 // without runtime or spend (mirrors finish-upscale/src/finish.ts and subtitle/src/subtitle.ts).
 
-import type { MasterInput, MasterOutput } from "../types.js";
+import type { MasterInput, MasterOutput } from "@skyphusion-labs/vivijure-core";
 
 /** Passthrough MasterOutput that records WHY the bed went through unmastered, so a real failure
  *  (misconfig / container down) is never indistinguishable from a legitimate no-op -- the silent-degrade

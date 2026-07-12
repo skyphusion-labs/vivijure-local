@@ -2,7 +2,7 @@
 # Fail when copy surfaces drift from skyphusion-labs/vivijure main.
 #
 # Default (CI): public/ only -- the studio UI projection must not go stale while CF-native v1 ships.
-# Optional --verbatim: also migrations/ and src/modules/types.ts (scripts/sync-from-vivijure.sh).
+# Optional --verbatim: also migrations/ and packages/vivijure-core/src/modules/types.ts (scripts/sync-from-vivijure.sh).
 #
 #   VIVIJURE_SRC=../vivijure npm run upstream:parity
 #   VIVIJURE_SRC=../vivijure npm run upstream:parity:verbatim
@@ -38,7 +38,7 @@ fi
 
 TRACKED=(public)
 if [[ $STRICT -eq 1 ]]; then
-  TRACKED+=(migrations src/modules/types.ts)
+  TRACKED+=(migrations)
 fi
 
 fail=0
@@ -63,6 +63,25 @@ for rel in "${TRACKED[@]}"; do
   diff -ru "$UP/$rel" "$ROOT/$rel" 2>&1 | head -120 >&2 || true
   fail=1
 done
+
+if [[ $STRICT -eq 1 ]]; then
+  up_types="src/modules/types.ts"
+  local_types="packages/vivijure-core/src/modules/types.ts"
+  label="module contract (vivijure $up_types vs core $local_types)"
+  if [[ ! -e "$UP/$up_types" ]]; then
+    echo "upstream-public-parity: missing upstream: $up_types" >&2
+    fail=1
+  elif [[ ! -e "$ROOT/$local_types" ]]; then
+    echo "upstream-public-parity: missing local: $local_types" >&2
+    fail=1
+  elif diff -q "$UP/$up_types" "$ROOT/$local_types" >/dev/null 2>&1; then
+    echo "upstream-public-parity: OK $label"
+  else
+    echo "upstream-public-parity: DRIFT $label" >&2
+    diff -ru "$UP/$up_types" "$ROOT/$local_types" 2>&1 | head -120 >&2 || true
+    fail=1
+  fi
+fi
 
 if [[ $fail -ne 0 ]]; then
   echo "upstream-public-parity: FAIL -- run scripts/sync-from-vivijure.sh, merge, and commit" >&2

@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
 import type { FetcherLike, ModuleTransport, Platform } from "../src/platform/types.js";
 import { FilesystemObjectStore, LocalObjectPresigner } from "../src/platform/storage.js";
@@ -7,8 +8,8 @@ import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MODULE_API } from "../src/modules/types.js";
-import { _resetModuleDiscoveryCache } from "../src/modules/registry.js";
+import { MODULE_API } from "@skyphusion-labs/vivijure-core";
+import { _resetModuleDiscoveryCache } from "@skyphusion-labs/vivijure-core";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 let dir: string;
@@ -62,7 +63,7 @@ afterEach(() => {
 
 describe("POST /api/storyboard/render", () => {
   it("returns 503 when no keyframe module is bound", async () => {
-    const app = createApp(testPlatform(new EmptyModuleTransport()));
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
     const res = await authJson(app, "/api/storyboard/render", {
       method: "POST",
       body: JSON.stringify({
@@ -90,7 +91,7 @@ describe("POST /api/storyboard/render", () => {
             ),
         }) satisfies FetcherLike,
     };
-    const app = createApp(testPlatform(transport));
+    const app = createApp(testSettingsHost(testPlatform(transport)));
     const res = await authJson(app, "/api/storyboard/render", {
       method: "POST",
       body: JSON.stringify({ bundleKey: "bundles/demo.tar.gz", scenes: [] }),
@@ -101,7 +102,7 @@ describe("POST /api/storyboard/render", () => {
 
 describe("GET /api/storyboard/render/:jobId", () => {
   it("returns 404 for non-film job ids", async () => {
-    const app = createApp(testPlatform(new EmptyModuleTransport()));
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
     const res = await authJson(app, "/api/storyboard/render/runpod-legacy-id");
     expect(res.status).toBe(404);
   });

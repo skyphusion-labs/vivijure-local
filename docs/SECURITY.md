@@ -43,7 +43,7 @@ missing token, or wrong token denies the request.
 openssl rand -hex 32
 ```
 
-Put the value in `.env` as `STUDIO_API_TOKEN`, then restart the studio container:
+Put the value in `.env` as `STUDIO_API_TOKEN` (or run `npm run install:studio`, which mints it and seeds `platform_secrets`), then restart the studio container:
 
 ```bash
 docker compose up -d studio
@@ -52,7 +52,7 @@ docker compose up -d studio
 The UI asks for the token on first load and keeps it in browser storage only. Treat the token like
 a root password.
 
-Unlike upstream `deploy.sh`, nothing prints the token automatically; you choose it in `.env`.
+Unlike upstream `deploy.sh`, the local install writes the operator token to `.studio-token` (mode `0600`) and seeds the SQLite secrets table; it is not printed to the terminal. The Settings page does **not** expose or rotate this token (first-visit GUI setup would let anyone who reaches the URL mint GPU spend before auth is locked down).
 
 ---
 
@@ -77,9 +77,10 @@ metadata.
 
 | Secret | Where it lives |
 |--------|----------------|
-| `STUDIO_API_TOKEN` | `.env` (gitignored); compose env |
-| `S3_*` credentials | `.env`; MinIO defaults are dev-only |
-| Planner keys (`CF_AIG_TOKEN`, `ANTHROPIC_API_KEY`) | `.env` when live planner enabled |
+| `STUDIO_API_TOKEN` | `.studio-token` + `platform_secrets` (install seeds; not in Settings GUI) |
+| `S3_*` / R2 credentials | Settings GUI and/or `.env`; MinIO defaults are dev-only |
+| `CF_AIG_TOKEN`, `GATEWAY_ID`, `ANTHROPIC_API_KEY` | Settings GUI when live planner enabled |
+| `RUNPOD_API_KEY`, `RUNPOD_ENDPOINT_ID` | Settings GUI when RunPod modules bound |
 | RunPod / module secrets | Module sidecar env or upstream module deploy |
 
 Never commit `.env`. Never paste live secrets into issues or public chats.

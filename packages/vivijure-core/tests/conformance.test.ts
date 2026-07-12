@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { checkManifest, checkInvokeResponse, checkCancelResponse, checkHookOutput, hookOutputViolation, allPass, failures } from "../src/modules/conformance";
+import {
+  checkManifest,
+  checkInvokeResponse,
+  checkCancelResponse,
+  checkHookOutput,
+  hookOutputViolation,
+  allPass,
+  failures,
+} from "../src/modules/conformance.js";
 
 const goodManifest = {
   name: "demo",
@@ -185,15 +193,14 @@ describe("hookOutputViolation (terminal-seam guard, #345)", () => {
   });
   it("returns a traceable reason (module id + hook + detail) for a malformed output", () => {
     const reason = hookOutputViolation("finish-upscale", "finish", { shot_id: "s" });
-    expect(reason).toContain("finish-upscale"); // the module id, for the event channel
-    expect(reason).toContain("finish");         // the hook
-    expect(reason).toContain("clip_key");        // the specific field that broke
+    expect(reason).toContain("finish-upscale");
+    expect(reason).toContain("finish");
+    expect(reason).toContain("clip_key");
   });
   it("catches an envelope-correct but empty payload", () => {
     expect(hookOutputViolation("m", "master", {})).not.toBeNull();
   });
   it("does not flag a legitimate soft-degrade (passthrough carries the required fields)", () => {
-    // an honest master degrade: ok:true, audio_key passed through, applied:[], plus a degraded reason
     const degraded = { audio_key: "renders/p/audio/bed.wav", applied: [], degraded: "container unreachable" };
     expect(hookOutputViolation("audio-master", "master", degraded)).toBeNull();
   });

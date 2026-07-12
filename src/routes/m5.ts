@@ -9,7 +9,12 @@ import {
   motionBackendPreflightError,
   motionConfigPreflightError,
   servingForHook,
-} from "../modules/registry.js";
+} from "@skyphusion-labs/vivijure-core";
+import {
+  noopExecutionContext,
+  orchestratorContextFromPlatform,
+  type OrchestratorEnv,
+} from "@skyphusion-labs/vivijure-core/platform";
 import { advanceFilmJob, startFilmJob } from "../film-orchestrator.js";
 import {
   filmJobToPollView,
@@ -18,8 +23,6 @@ import {
   mapRenderOverridesToModuleConfigs,
   normalizeFilmScenes,
 } from "../film-render-bridge.js";
-import { noopExecutionContext } from "../orchestrator-env.js";
-import { orchestratorEnvFromPlatform } from "../platform/orchestrator-env.js";
 import type { Platform } from "../platform/types.js";
 import { isPublicId } from "../public-id.js";
 import { readKeyframeDone } from "../render-progress.js";
@@ -34,7 +37,7 @@ import {
 } from "../renders-db.js";
 import { getProjectIdByPublicId } from "../storyboard-projects-db.js";
 import { isSafeBundleKey } from "../shared.js";
-import { emitStructuredEvent } from "../structured-events.js";
+import { emitStructuredEvent } from "@skyphusion-labs/vivijure-core";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -59,7 +62,7 @@ async function resolveProjectRef(platform: Platform, raw: unknown): Promise<numb
   return getProjectIdByPublicId({ DB: platform.db }, raw);
 }
 
-async function insertRenderBestEffort(env: ReturnType<typeof orchestratorEnvFromPlatform>, row: NewRenderRow) {
+async function insertRenderBestEffort(env: OrchestratorEnv, row: NewRenderRow) {
   try {
     await insertRender(env, row);
   } catch (e) {
@@ -73,7 +76,7 @@ async function insertRenderBestEffort(env: ReturnType<typeof orchestratorEnvFrom
 }
 
 export function registerM5Routes(app: Hono, platform: Platform): void {
-  const env = () => orchestratorEnvFromPlatform(platform);
+  const env = () => orchestratorContextFromPlatform(platform);
 
   app.post("/api/storyboard/render", async (c) => {
     try {

@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
 import type { ModuleTransport, Platform } from "../src/platform/types.js";
 import { FilesystemObjectStore, LocalObjectPresigner } from "../src/platform/storage.js";
@@ -59,7 +60,7 @@ afterEach(() => {
 
 describe("POST /api/storyboard/bundle", () => {
   it("returns 201 with bundleKey on success", async () => {
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/bundle", {
       method: "POST",
       body: JSON.stringify({
@@ -84,7 +85,7 @@ describe("POST /api/storyboard/bundle", () => {
   });
 
   it("returns 400 when characterRefs is missing", async () => {
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/bundle", {
       method: "POST",
       body: JSON.stringify({ storyboard: { title: "x", scenes: [] } }),

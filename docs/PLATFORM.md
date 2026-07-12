@@ -16,21 +16,22 @@ into `vivijure-core` unchanged).
 | `renders` | Film job docs, clips, bundles | R2 `R2_RENDERS` | S3/MinIO or filesystem |
 | `chatBucket` | Chat-side artifacts | R2 `R2` | Same store or alias |
 | `presigner` | Presigned GET/PUT for modules/CPU | `r2-presign.ts` | S3 SigV4 or local token URLs |
-| `secrets` | API keys, tokens | Secrets Store + wrangler | `.env` / chezmoi |
+| `secrets` | API keys, tokens | Secrets Store + wrangler | SQLite `platform_secrets`: install seeds `STUDIO_API_TOKEN`; Settings edits provider keys (S3/R2, AI Gateway, Anthropic, RunPod, …) |
 | `modules` | Module invoke transport | `MODULE_*` service bindings | HTTP sidecars (`MODULE_*_URL`) |
 | `rateLimiter` | Spend guard (optional) | Durable Object / KV | In-memory (local v1) |
 | `scheduler` | Render sweep cron (optional) | `scheduled()` | `node-cron` (when wired) |
 | `vars` | Plain config (`AUTH_MODE`, storage backend, etc.) | Worker env | `process.env` subset |
+| `hostBindings` | Optional extra fetchers (VPC, etc.) | Worker service bindings | Node HTTP VPC shim (`Platform.hostBindings`) |
 
-## Legacy env bridge
+## Orchestrator context (M18)
 
-Ported orchestrators still expect a Cloudflare-shaped `Env` bag (`DB`, `R2_RENDERS`, `R2`, binding
-keys). Hosts build that via:
+Ported orchestrators accept a Cloudflare-shaped `OrchestratorEnv` bag (`DB`, `R2_RENDERS`,
+`PRESIGNER`, module binding keys). **Core** builds it via `orchestratorContextFromPlatform(platform)`
+(`@skyphusion-labs/vivijure-core/platform`). **Node host** sets `platform.hostBindings` from merged
+runtime env during boot/reload (VPC URL shim). **CF host** maps native service bindings the same way.
 
-- `platformAsEnv(platform)` -- generic record
-- `orchestratorEnvFromPlatform(platform)` -- adds `wrapR2Bucket`, VPC URL injection (local)
-
-**Phase 3 goal:** shrink and delete the env bridge as `vivijure-core` takes `Platform` directly.
+Routes and DB helpers call `orchestratorContextFromPlatform(platform)` directly; there is no
+host-side env bridge module.
 
 ## Host obligations
 

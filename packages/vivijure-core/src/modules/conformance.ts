@@ -12,7 +12,7 @@
 // SDK: the contract is the law, and this is how a contributor proves they obey it.
 
 import { SUPPORTED_MODULE_APIS, type HookName } from "./types.js";
-import { validateManifest } from "./registry.js";
+import { validateManifest } from "./manifest-validate.js";
 
 export interface ConformanceCheck {
   name: string;

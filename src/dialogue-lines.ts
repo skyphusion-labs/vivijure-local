@@ -8,7 +8,7 @@
 // (from the cast). Result is threaded onto the FilmJob; the orchestrator submits it after clips.
 
 import { coerceShotId } from "./storyboard-validate.js";
-import type { DialogueLine } from "./modules/types.js";
+import type { DialogueLine } from "@skyphusion-labs/vivijure-core";
 import { coerceVoiceId, DEFAULT_VOICE_ID } from "./voices.js";
 import type { ParsedBundleScene } from "./planner-yaml.js";
 

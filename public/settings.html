@@ -37,14 +37,25 @@
       <header class="studio-header">
         <h1>Settings</h1>
         <p class="lede">
-          Install-scope settings for the modules bound to this studio. These are set once by the
-          operator and apply to every render (for example, the address that render-done mail is sent
-          to). The list is a projection of the live module registry: bind a module that exposes an
-          install setting and it appears here automatically.
+          Provider and connection keys: object storage (S3/R2), AI Gateway / Anthropic, RunPod,
+          module URLs. Studio login is set by the install script before you open this page.
         </p>
       </header>
 
       <div class="studio-grid studio-grid-single">
+        <section class="panel" aria-labelledby="connections-heading">
+          <h2 id="connections-heading" class="studio-panel-title">Connection &amp; API keys</h2>
+          <p class="studio-meta">
+            Saved in this install's database and override <code>.env</code> at runtime. Sensitive
+            values are masked after save; leave a field blank to keep the current value.
+          </p>
+          <div id="settings-secrets" class="settings-secrets">loading...</div>
+          <div class="settings-module-foot">
+            <button id="settings-secrets-save" type="button" class="btn settings-save">Save connections</button>
+            <span class="settings-status" id="settings-secrets-status"></span>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="settings-heading">
           <h2 id="settings-heading" class="studio-panel-title">Module settings</h2>
           <div id="settings-modules" class="settings-modules">loading...</div>

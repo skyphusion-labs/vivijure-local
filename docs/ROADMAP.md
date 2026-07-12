@@ -51,9 +51,11 @@
 | M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | in progress |
 | M14 | `packages/vivijure-core` scaffold | in progress |
 | M15 | Extraction inventory (`docs/core-extraction-inventory.md`) | in progress |
-| M16 | Wave 0 into package (`types`, conformance, structured-events) | pending |
-| M17 | Registry + film-model in core; hosts depend on package | pending |
-| M18 | Orchestrators in core; env bridge removed | pending |
+| M16 | Wave 0 into package (`types`, conformance, structured-events, beat-sync-types) | done |
+| M17 | Registry + film-model in core; hosts depend on package | done |
+| M18 | Orchestrators in core; env bridge removed | done |
+| M19 | DB helpers (`cast-db`, `renders-db`, `storyboard-projects-db`, `render-log`) in core | done |
+| M20 | Bundle assembly (`bundle-assembler`, `storyboard-validate`, `planner-yaml`, `tar`) in core | done |
 
 ```
 vivijure-core@2.x          # registry, film-orchestrator, types, conformance

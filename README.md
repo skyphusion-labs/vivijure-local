@@ -24,12 +24,12 @@ gate changes with the parity smoke tests. It is a **lab bench**, not a supported
 ## Quick start
 
 ```bash
-cp .env.example .env          # set STUDIO_API_TOKEN
+npm run install:studio        # mint token + seed platform_secrets
 npm run compose:up            # docker compose up -d --build
 curl -fsS http://127.0.0.1:8790/health
 ```
 
-Open http://127.0.0.1:8790 and paste your token. The friendly walk-through is
+Open http://127.0.0.1:8790 and paste the token from `.studio-token`. The friendly walk-through is
 [docs/quickstart.md](docs/quickstart.md); the full operator reference is
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 

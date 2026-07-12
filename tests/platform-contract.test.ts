@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   PLATFORM_ICD_VERSION,
   platformAsEnv,
+  orchestratorContextFromPlatform,
   type Database,
   type ModuleTransport,
   type ObjectPresigner,
   type ObjectStore,
   type Platform,
   type SecretStore,
-} from "../src/platform/types.js";
+} from "@skyphusion-labs/vivijure-core/platform";
 
 function stubStore(): ObjectStore {
   return {
@@ -51,6 +52,24 @@ describe("Platform ICD", () => {
     expect(env.MODULE_LOCAL_GPU).toBeUndefined();
     expect(env.AUTH_MODE).toBe("token");
     expect(env.STORAGE_BACKEND).toBe("s3");
+  });
+
+  it("orchestratorContextFromPlatform wraps buckets and presigner", () => {
+    const platform = minimalPlatform();
+    const env = orchestratorContextFromPlatform(platform);
+    expect(env.DB).toBe(platform.db);
+    expect(env.PRESIGNER).toBe(platform.presigner);
+    expect(env.R2_RENDERS).not.toBe(platform.renders);
+    expect(env.AUTH_MODE).toBe("token");
+  });
+
+  it("orchestratorContextFromPlatform merges hostBindings (Node VPC shim)", () => {
+    const fetcher = { fetch: async () => new Response("ok") };
+    const platform = minimalPlatform({
+      hostBindings: { VIDEO_FINISH_VPC: fetcher },
+    });
+    const env = orchestratorContextFromPlatform(platform);
+    expect(env.VIDEO_FINISH_VPC).toBe(fetcher);
   });
 
   it("required Platform fields are present on minimal host", () => {

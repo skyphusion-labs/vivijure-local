@@ -13,7 +13,7 @@ import type {
   MotionBackendOutput,
   PollRequest,
   PollResponse,
-} from "../types.js";
+} from "@skyphusion-labs/vivijure-core";
 import { parseStoryboardScenes } from "../../planner-yaml.js";
 import { readTar } from "../../tar-emit.js";
 import type { ArtifactStore } from "../../platform/create-storage.js";
