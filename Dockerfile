@@ -1,5 +1,5 @@
 # vivijure-local studio + module sidecar image
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 
 WORKDIR /app
 
