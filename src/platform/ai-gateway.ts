@@ -12,6 +12,7 @@ export interface AiGatewayEnv {
   CLOUDFLARE_ACCOUNT_ID?: string;
   GATEWAY_ID?: string;
   CF_AIG_TOKEN?: string;
+  CLOUDFLARE_API_TOKEN?: string;
 }
 
 /** True when Unified Billing / gateway routing is configured (same gate as upstream plan-enhance). */

@@ -57,8 +57,8 @@ x-runpod-module: &runpod-module
     RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
     RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
     S3_ENDPOINT: http://minio:9000
-    S3_ACCESS_KEY_ID: minioadmin
-    S3_SECRET_ACCESS_KEY: minioadmin
+    S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+    S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
     S3_BUCKET: vivijure
     S3_REGION: us-east-1
     S3_FORCE_PATH_STYLE: "true"
@@ -77,8 +77,8 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
     volumes:
       - minio-data:/data
     networks: [studio]
@@ -90,9 +90,12 @@ services:
       minio:
         condition: service_started
     networks: [studio]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
     entrypoint: >
       /bin/sh -c "
-      until mc alias set local http://minio:9000 minioadmin minioadmin 2>/dev/null; do sleep 1; done;
+      until mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD 2>/dev/null; do sleep 1; done;
       mc mb --ignore-existing local/vivijure;
       exit 0;
       "
@@ -165,8 +168,8 @@ services:
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -208,8 +211,8 @@ services:
     environment:
       VIDEO_FINISH_URL: http://video-finish:8000
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -292,24 +295,36 @@ services:
   module-beat-sync:
     <<: *module-sidecar
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9120", "beat-sync"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9120/module.json"]
     environment:
       AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
 
   module-audio-master:
     <<: *module-sidecar
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9121", "audio-master"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9121/module.json"]
     environment:
       AUDIO_MASTER_URL: http://audio-master:8000
 
   module-film-titles:
     <<: *module-sidecar
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9130", "film-titles"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9130/module.json"]
     environment:
       VIDEO_FINISH_URL: http://video-finish:8000
 
   module-subtitle:
     <<: *module-sidecar
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9131", "subtitle"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9131/module.json"]
     environment:
       VIDEO_FINISH_URL: http://video-finish:8000
 
@@ -322,8 +337,8 @@ services:
     environment:
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -336,8 +351,8 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9141/module.json"]
     environment:
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -350,8 +365,8 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9142/module.json"]
     environment:
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -364,8 +379,8 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9143/module.json"]
     environment:
       S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
@@ -396,8 +411,8 @@ services:
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
       S3_ENDPOINT: http://minio:9000
       S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT:-http://minio:9000}
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: vivijure
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
