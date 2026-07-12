@@ -15,6 +15,7 @@ on:
       - containers/**
       - package.json
       - package-lock.json
+      - packages/**
       - .github/workflows/docker-build.yml
 
 permissions:

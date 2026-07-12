@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
+COPY packages/vivijure-core/package.json packages/vivijure-core/
 RUN npm ci
 
 COPY . .
