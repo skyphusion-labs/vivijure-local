@@ -12,23 +12,23 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Projects
 
-- [ ] `GET /api/storyboard/projects`
-- [ ] `POST /api/storyboard/projects`
-- [ ] `GET /api/storyboard/projects/:id`
-- [ ] `PATCH /api/storyboard/projects/:id`
-- [ ] `DELETE /api/storyboard/projects/:id`
-- [ ] `PUT /api/storyboard/projects/:id/storyboard`
+- [x] `GET /api/storyboard/projects`
+- [x] `POST /api/storyboard/projects`
+- [x] `GET /api/storyboard/projects/:id`
+- [x] `PATCH /api/storyboard/projects/:id`
+- [x] `DELETE /api/storyboard/projects/:id`
+- [x] `PUT /api/storyboard/projects/:id/storyboard` (implemented as `POST`, same as upstream)
 
 ## Cast
 
-- [ ] `GET /api/cast`
-- [ ] `POST /api/cast`
-- [ ] `GET /api/cast/:id`
-- [ ] `PATCH /api/cast/:id`
-- [ ] `DELETE /api/cast/:id`
-- [ ] `POST /api/cast/:id/portrait`
-- [ ] `POST /api/cast/:id/ref`
-- [ ] `POST /api/cast/:id/source`
+- [x] `GET /api/cast`
+- [x] `POST /api/cast`
+- [x] `GET /api/cast/:id`
+- [x] `PATCH /api/cast/:id`
+- [x] `DELETE /api/cast/:id`
+- [x] `POST /api/cast/:id/portrait`
+- [x] `POST /api/cast/:id/ref`
+- [x] `POST /api/cast/:id/source`
 - [ ] `POST /api/cast/:id/generate-refs`
 - [ ] `POST /api/cast/:id/train-lora`
 - [ ] `GET /api/cast/export`
@@ -73,8 +73,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Prefs
 
-- [ ] `GET /api/prefs`
-- [ ] `PATCH /api/prefs`
+- [x] `GET /api/prefs`
+- [x] `PATCH /api/prefs`
 
 ## Module admin (optional v1)
 

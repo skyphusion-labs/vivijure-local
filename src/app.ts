@@ -10,6 +10,7 @@ import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { Platform } from "./platform/index.js";
 import { FilesystemObjectStore } from "./platform/storage.js";
+import { registerM3Routes } from "./routes/m3.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -66,6 +67,8 @@ export function createApp(platform: Platform): Hono {
   };
 
   app.on(["GET", "HEAD"], "/api/artifact/*", serveArtifact);
+
+  registerM3Routes(app, platform);
 
   app.get("*", async (c, next) => {
     const asset = resolveStudioPage(c.req.path);

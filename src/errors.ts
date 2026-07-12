@@ -6,7 +6,6 @@ export class HttpError extends Error {
     super(message);
   }
 }
-
 export const badRequest = (message: string) => new HttpError(400, message);
 export const notFound = (message = "not found") => new HttpError(404, message);
 

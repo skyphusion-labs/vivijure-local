@@ -1,11 +1,20 @@
 import type { Platform } from "./platform/types.js";
 import type { AuthEnv } from "./env.js";
+import { badRequest } from "./errors.js";
 
 export function json(data: unknown, status = 200, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", ...headers },
   });
+}
+
+export async function readBody<T>(req: Request): Promise<T> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw badRequest("invalid JSON body");
+  }
 }
 
 export function authEnvFromPlatform(platform: Platform): AuthEnv {
