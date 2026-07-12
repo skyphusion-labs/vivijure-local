@@ -1,44 +1,39 @@
-// Storyboard planner dispatcher (Anthropic-only release set).
-//
-// Dispatches to callAnthropic (AI Gateway Unified Billing or direct BYOK),
-// or PLANNER_AI_MOCK for offline dev. Strips ```json fences, JSON.parses,
-// runs validateStoryboard, returns StoryboardValidated or errors.
-
-import type { PlannerEnv } from "./planner-env.js";
-import { callAnthropic } from "./planner-providers.js";
-import { plannerAiMockEnabled, mockPlannerRaw } from "./planner-ai-mock.js";
-import { extractOutput, detectProviderFailure } from "@skyphusion-labs/vivijure-core/output-extract";
+/**
+ * Thin planner scaffold: prompt assembly + validation live here; all LLM work is delegated to
+ * installed plan.enhance modules via the module host.
+ */
+import {
+  invokeModule,
+  resolveFetcher,
+  validateConfig,
+  type PlanEnhanceInput,
+  type PlanEnhanceOutput,
+  type RegisteredModule,
+} from "@skyphusion-labs/vivijure-core";
 import {
   validateStoryboard,
   type StoryboardValidated,
 } from "@skyphusion-labs/vivijure-core/storyboard-validate";
-import {
-  type PlanningProvider,
-  findPlanningModel,
-  plannerProviderFor,
-} from "./planner-catalog.js";
 import {
   type PlannerCharacter,
   buildPlanningSystemPrompt,
   buildPlanningUserMessage,
   buildRefinementSystemPrompt,
   buildRefinementUserMessage,
-  stripJsonFences,
 } from "@skyphusion-labs/vivijure-core/planner-prompt";
+import { resolvePlanningTarget } from "./planning-models.js";
 
-export type { PlannerCharacter, PlanningProvider };
+export type { PlannerCharacter };
+
+export interface PlanningHost {
+  modEnv: Record<string, unknown>;
+  modules: RegisteredModule[];
+}
 
 export interface PlanStoryboardArgs {
   brief: string;
-  // v0.165.0 (#143): optional so hPlan can safely default to [] when the
-  // client omits the field (new project with no cast assigned yet).
   characters: PlannerCharacter[];
-  // PlanningModel.id from planner-catalog, e.g. "anthropic/claude-opus-4-7"
-  // or "@cf/zai-org/glm-4.7-flash".
   model: string;
-  // Optional beat-synced timing block (beat-timing.buildBeatTimingBlock).
-  // When set, it is injected into the planning user message to pin the shot
-  // count + per-shot pacing to an audio bed.
   beatBlock?: string;
 }
 
@@ -47,129 +42,151 @@ export type PlanStoryboardResult =
       ok: true;
       storyboard: StoryboardValidated;
       raw: string;
-      provider: PlanningProvider;
+      provider: "module";
       model: string;
       logId: string | null;
+      module: string;
     }
   | {
       ok: false;
       errors: string[];
       raw: string | null;
-      provider: PlanningProvider | null;
+      provider: "module" | null;
       model: string;
       logId: string | null;
+      module?: string;
     };
+
+async function invokePlanningModule(
+  host: PlanningHost,
+  opts: {
+    mode: "plan" | "refine" | "chat";
+    model: string;
+    storyboard?: unknown;
+    brief?: string;
+    systemMessage: string;
+    userMessage: string;
+  },
+): Promise<
+  | { ok: true; output: PlanEnhanceOutput; module: string; raw: string }
+  | { ok: false; error: string; module?: string }
+> {
+  const target = resolvePlanningTarget(host.modules, opts.model);
+  if (!target) {
+    return {
+      ok: false,
+      error: `no plan.enhance module serves model "${opts.model}" (install a planning module)`,
+    };
+  }
+  const mod = host.modules.find((m) => m.name === target.moduleName);
+  if (!mod) {
+    return { ok: false, error: `plan.enhance module ${target.moduleName} not found` };
+  }
+  const fetcher = resolveFetcher(host.modEnv, mod.binding);
+  if (!fetcher) {
+    return {
+      ok: false,
+      error: `plan.enhance module ${mod.name} (${mod.binding}) is not bound`,
+      module: mod.name,
+    };
+  }
+
+  const config = validateConfig(mod.config_schema, {
+    mode: opts.mode,
+    model: target.configModel ?? target.modelId,
+    system_message: opts.systemMessage,
+    message: opts.userMessage,
+    intensity: "medium",
+  });
+
+  const input: PlanEnhanceInput = {
+    storyboard:
+      opts.mode === "plan"
+        ? { scenes: [] }
+        : (opts.storyboard as PlanEnhanceInput["storyboard"]) ?? { scenes: [] },
+    brief: opts.brief,
+  };
+
+  const r = await invokeModule<PlanEnhanceInput, PlanEnhanceOutput>(fetcher, {
+    hook: "plan.enhance",
+    input,
+    config,
+    context: { project: "planner", job_id: crypto.randomUUID() },
+  });
+
+  if (!r.ok) {
+    return {
+      ok: false,
+      error: ("error" in r ? r.error : undefined) || "plan.enhance module returned no output",
+      module: mod.name,
+    };
+  }
+  if (!("output" in r) || !r.output) {
+    return {
+      ok: false,
+      error: "plan.enhance module returned no output",
+      module: mod.name,
+    };
+  }
+
+  const raw =
+    opts.mode === "chat"
+      ? (r.output.notes?.join("\n") ?? "")
+      : JSON.stringify(r.output.storyboard ?? {});
+
+  return { ok: true, output: r.output, module: mod.name, raw };
+}
 
 export async function planStoryboard(
-  env: PlannerEnv,
+  host: PlanningHost,
   args: PlanStoryboardArgs,
 ): Promise<PlanStoryboardResult> {
-  const modelEntry = findPlanningModel(args.model);
-  if (!modelEntry) {
-    return {
-      ok: false,
-      errors: [`model "${args.model}" is not in the planning catalog`],
-      raw: null,
-      provider: null,
-      model: args.model,
-      logId: null,
-    };
-  }
-
-  const provider = plannerProviderFor(modelEntry);
-  const systemPrompt = buildPlanningSystemPrompt();
+  const systemMessage = buildPlanningSystemPrompt();
   const userMessage = buildPlanningUserMessage(args.brief, args.characters, args.beatBlock);
 
-  let result: unknown;
-  let logId: string | null = null;
+  const r = await invokePlanningModule(host, {
+    mode: "plan",
+    model: args.model,
+    brief: args.brief,
+    systemMessage,
+    userMessage,
+  });
 
-  try {
-    if (plannerAiMockEnabled(env)) {
-      // Dev-only (#411): replace the live provider call with a deterministic canned completion so
-      // the planner flow is drivable in the fully-local module-bound dev env (which has no AI
-      // binding). The result still runs the real extract/parse/validate pipeline below. In prod
-      // PLANNER_AI_MOCK is unset, so this branch is dead and the live path is unchanged.
-      result = mockPlannerRaw(userMessage);
-      logId = "dev-ai-mock";
-    } else {
-      const messages = [{ role: "user", content: userMessage }];
-      const r = await callAnthropic(env, modelEntry, systemPrompt, messages);
-      result = r.raw;
-      logId = r.logId;
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  if (!r.ok) {
     return {
       ok: false,
-      errors: [`provider call failed: ${message}`],
+      errors: [r.error],
       raw: null,
-      provider,
+      provider: "module",
       model: args.model,
-      logId,
+      logId: null,
+      module: r.module,
     };
   }
 
-  const providerFailure = detectProviderFailure(result);
-  if (providerFailure) {
-    return {
-      ok: false,
-      errors: [`model execution failed: ${providerFailure}`],
-      raw: null,
-      provider,
-      model: args.model,
-      logId,
-    };
-  }
-
-  const completion = extractOutput(result);
-  const json = stripJsonFences(completion);
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      ok: false,
-      errors: [
-        `model output was not valid JSON: ${message}`,
-        `raw output starts with: ${json.slice(0, 200)}`,
-      ],
-      raw: completion,
-      provider,
-      model: args.model,
-      logId,
-    };
-  }
-
-  const validation = validateStoryboard(parsed);
+  const validation = validateStoryboard(r.output.storyboard);
   if (!validation.ok) {
     return {
       ok: false,
       errors: validation.errors,
-      raw: completion,
-      provider,
+      raw: r.raw,
+      provider: "module",
       model: args.model,
-      logId,
+      logId: null,
+      module: r.module,
     };
   }
 
   return {
     ok: true,
     storyboard: validation.value,
-    raw: completion,
-    provider,
+    raw: r.raw,
+    provider: "module",
     model: args.model,
-    logId,
+    logId: null,
+    module: r.module,
   };
 }
-
-// ---------- Refinement dispatcher (v0.50.0) ----------
-//
-// Mirrors planStoryboard's plumbing (provider dispatch, JSON parse, validation)
-// but builds a different prompt: the system message tells the model to apply
-// ONE delta and preserve everything else, and the user message ships the
-// current storyboard JSON + the new instruction.
 
 export interface RefineStoryboardArgs {
   storyboard: unknown;
@@ -178,114 +195,55 @@ export interface RefineStoryboardArgs {
 }
 
 export async function refineStoryboard(
-  env: PlannerEnv,
+  host: PlanningHost,
   args: RefineStoryboardArgs,
 ): Promise<PlanStoryboardResult> {
-  const modelEntry = findPlanningModel(args.model);
-  if (!modelEntry) {
-    return {
-      ok: false,
-      errors: [`model "${args.model}" is not in the planning catalog`],
-      raw: null,
-      provider: null,
-      model: args.model,
-      logId: null,
-    };
-  }
-
-  const provider = plannerProviderFor(modelEntry);
-  const systemPrompt = buildRefinementSystemPrompt();
+  const systemMessage = buildRefinementSystemPrompt();
   const userMessage = buildRefinementUserMessage(args.storyboard, args.message);
 
-  let result: unknown;
-  let logId: string | null = null;
+  const r = await invokePlanningModule(host, {
+    mode: "refine",
+    model: args.model,
+    storyboard: args.storyboard,
+    systemMessage,
+    userMessage,
+  });
 
-  try {
-    if (plannerAiMockEnabled(env)) {
-      // Dev-only (#411): replace the live provider call with a deterministic canned completion so
-      // the planner flow is drivable in the fully-local module-bound dev env (which has no AI
-      // binding). The result still runs the real extract/parse/validate pipeline below. In prod
-      // PLANNER_AI_MOCK is unset, so this branch is dead and the live path is unchanged.
-      result = mockPlannerRaw(userMessage);
-      logId = "dev-ai-mock";
-    } else {
-      const messages = [{ role: "user", content: userMessage }];
-      const r = await callAnthropic(env, modelEntry, systemPrompt, messages);
-      result = r.raw;
-      logId = r.logId;
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  if (!r.ok) {
     return {
       ok: false,
-      errors: [`provider call failed: ${message}`],
+      errors: [r.error],
       raw: null,
-      provider,
+      provider: "module",
       model: args.model,
-      logId,
+      logId: null,
+      module: r.module,
     };
   }
 
-  const providerFailure = detectProviderFailure(result);
-  if (providerFailure) {
-    return {
-      ok: false,
-      errors: [`model execution failed: ${providerFailure}`],
-      raw: null,
-      provider,
-      model: args.model,
-      logId,
-    };
-  }
-
-  const completion = extractOutput(result);
-  const jsonStr = stripJsonFences(completion);
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      ok: false,
-      errors: [
-        `model output was not valid JSON: ${message}`,
-        `raw output starts with: ${jsonStr.slice(0, 200)}`,
-      ],
-      raw: completion,
-      provider,
-      model: args.model,
-      logId,
-    };
-  }
-
-  const validation = validateStoryboard(parsed);
+  const validation = validateStoryboard(r.output.storyboard);
   if (!validation.ok) {
     return {
       ok: false,
       errors: validation.errors,
-      raw: completion,
-      provider,
+      raw: r.raw,
+      provider: "module",
       model: args.model,
-      logId,
+      logId: null,
+      module: r.module,
     };
   }
 
   return {
     ok: true,
     storyboard: validation.value,
-    raw: completion,
-    provider,
+    raw: r.raw,
+    provider: "module",
     model: args.model,
-    logId,
+    logId: null,
+    module: r.module,
   };
 }
-
-// ---------- One-shot text completion (planner UI helpers) ------------------
-//
-// Same provider dispatch as plan/refine, but returns plain text instead of
-// parsing/validating storyboard JSON. Used by POST /api/chat for music-prompt
-// suggestion and other one-liner LLM calls from the planner frontend.
 
 export interface ChatCompleteArgs {
   model: string;
@@ -294,61 +252,29 @@ export interface ChatCompleteArgs {
 }
 
 export type ChatCompleteResult =
-  | { ok: true; output: string; model: string; logId: string | null }
+  | { ok: true; output: string; model: string; logId: string | null; module: string }
   | { ok: false; error: string; model: string };
 
 export async function chatComplete(
-  env: PlannerEnv,
+  host: PlanningHost,
   args: ChatCompleteArgs,
 ): Promise<ChatCompleteResult> {
-  const modelEntry = findPlanningModel(args.model);
-  if (!modelEntry) {
-    return {
-      ok: false,
-      error: `model "${args.model}" is not in the planning catalog`,
-      model: args.model,
-    };
+  const systemMessage = args.system_prompt?.trim() || "You are a helpful assistant.";
+  const r = await invokePlanningModule(host, {
+    mode: "chat",
+    model: args.model,
+    systemMessage,
+    userMessage: args.user_input,
+  });
+
+  if (!r.ok) {
+    return { ok: false, error: r.error, model: args.model };
   }
 
-  const provider = plannerProviderFor(modelEntry);
-  const systemPrompt = args.system_prompt?.trim() || "You are a helpful assistant.";
-  const userMessage = args.user_input;
-
-  let result: unknown;
-  let logId: string | null = null;
-
-  try {
-    if (plannerAiMockEnabled(env)) {
-      // Dev-only (#411): replace the live provider call with a deterministic canned completion so
-      // the planner flow is drivable in the fully-local module-bound dev env (which has no AI
-      // binding). The result still runs the real extract/parse/validate pipeline below. In prod
-      // PLANNER_AI_MOCK is unset, so this branch is dead and the live path is unchanged.
-      result = mockPlannerRaw(userMessage);
-      logId = "dev-ai-mock";
-    } else {
-      const messages = [{ role: "user", content: userMessage }];
-      const r = await callAnthropic(env, modelEntry, systemPrompt, messages);
-      result = r.raw;
-      logId = r.logId;
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: `provider call failed: ${message}`, model: args.model };
-  }
-
-  const providerFailure = detectProviderFailure(result);
-  if (providerFailure) {
-    return {
-      ok: false,
-      error: `model execution failed: ${providerFailure}`,
-      model: args.model,
-    };
-  }
-
-  const output = extractOutput(result).trim();
+  const output = (r.output.notes ?? []).join("\n").trim();
   if (!output) {
-    return { ok: false, error: "model returned empty output", model: args.model };
+    return { ok: false, error: "plan.enhance module returned empty chat output", model: args.model };
   }
 
-  return { ok: true, output, model: args.model, logId };
+  return { ok: true, output, model: args.model, logId: null, module: r.module };
 }

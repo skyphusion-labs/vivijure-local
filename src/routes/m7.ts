@@ -17,13 +17,16 @@ import {
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import type { SettingsHost } from "../routes/m8-settings.js";
-import { plannerEnvFromVars } from "../planner-env.js";
+import { authEnvFromPlatform } from "../http.js";
+import { isDemoMode } from "../auth-gate.js";
+import { planningModelsFromModules } from "../planning-models.js";
 import { dbEnvFromPlatform } from "../resolve-id.js";
 import {
   planStoryboard,
   refineStoryboard,
   type PlanStoryboardArgs,
   type RefineStoryboardArgs,
+  type PlanningHost,
 } from "../planner.js";
 import { validateStoryboard } from "@skyphusion-labs/vivijure-core/storyboard-validate";
 import { dispatchChain } from "@skyphusion-labs/vivijure-core";
@@ -45,7 +48,21 @@ async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>)
 
 export function registerM7Routes(app: Hono, host: SettingsHost): void {
   const platform = host.platform;
-  const plannerEnv = () => plannerEnvFromVars(platform.vars);
+  const planningHost = async (): Promise<PlanningHost> => {
+    const modEnv = moduleEnvFromPlatform(platform);
+    const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+    return { modEnv, modules };
+  };
+
+  app.get("/api/storyboard/models", (c) =>
+    handle(c, async () => {
+      if (isDemoMode(authEnvFromPlatform(platform))) {
+        return json({ models: [] });
+      }
+      const { modules } = await planningHost();
+      return json({ models: planningModelsFromModules(modules) });
+    }),
+  );
 
   app.post("/api/storyboard/preflight", (c) =>
     handle(c, async () => {
@@ -118,7 +135,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
       const args = await readBody<PlanStoryboardArgs>(c.req.raw);
       if (!args.brief || !args.model) throw badRequest("brief and model required");
       if (!Array.isArray(args.characters)) args.characters = [];
-      const result = await planStoryboard(plannerEnv(), args);
+      const result = await planStoryboard(await planningHost(), args);
       return json(result, result.ok ? 200 : 422);
     }),
   );
@@ -129,7 +146,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
       if (args.storyboard === undefined || !args.message || !args.model) {
         throw badRequest("storyboard, message, model required");
       }
-      const result = await refineStoryboard(plannerEnv(), args);
+      const result = await refineStoryboard(await planningHost(), args);
       return json(result, result.ok ? 200 : 422);
     }),
   );

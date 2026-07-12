@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
-import type { ModuleTransport, Platform } from "../src/platform/types.js";
+import type { FetcherLike, ModuleTransport, Platform } from "../src/platform/types.js";
 import { FilesystemObjectStore, LocalObjectPresigner } from "../src/platform/storage.js";
 import { EnvSecretStore } from "../src/platform/secrets.js";
 import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
@@ -9,16 +9,20 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _resetModuleDiscoveryCache } from "@skyphusion-labs/vivijure-core";
+import { createPlanEnhanceTestFetcher } from "./plan-enhance-test-fetcher.js";
 
 const SECRET = "c".repeat(32) + "d".repeat(32);
 let dir: string;
 
-class EmptyModuleTransport implements ModuleTransport {
-  resolve() {
-    return null;
+class PlanEnhanceModuleTransport implements ModuleTransport {
+  constructor(private readonly fetcher: FetcherLike) {}
+
+  resolve(binding: string): FetcherLike | null {
+    return binding === "MODULE_PLANENHANCE" ? this.fetcher : null;
   }
-  listBindings() {
-    return [];
+
+  listBindings(): string[] {
+    return ["MODULE_PLANENHANCE"];
   }
 }
 
@@ -27,13 +31,17 @@ function testPlatform(extraVars: Record<string, string | undefined> = {}): Platf
   const dbPath = join(dir, "studio.db");
   migrateDatabase(dbPath, join(import.meta.dirname, "..", "migrations"));
   const store = new FilesystemObjectStore(join(dir, "renders"));
+  const fetcher = createPlanEnhanceTestFetcher(join(dir, "renders"), {
+    PLANNER_AI_MOCK: "true",
+    ...extraVars,
+  });
   return {
     db: openDatabase(dbPath),
     renders: store,
     chatBucket: store,
     presigner: new LocalObjectPresigner("http://127.0.0.1:8790", SECRET),
     secrets: new EnvSecretStore({}),
-    modules: new EmptyModuleTransport(),
+    modules: new PlanEnhanceModuleTransport(fetcher),
     vars: { AUTH_MODE: "token", STUDIO_API_TOKEN: SECRET, ...extraVars },
   };
 }
@@ -76,6 +84,17 @@ afterEach(() => {
   delete process.env.PLANNER_AI_MOCK;
 });
 
+describe("GET /api/storyboard/models", () => {
+  it("lists models from the installed plan.enhance module", async () => {
+    const app = createApp(testSettingsHost(testPlatform()));
+    const res = await authJson(app, "/api/storyboard/models");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { models: Array<{ id: string }> };
+    expect(body.models.length).toBeGreaterThan(0);
+    expect(body.models.some((m) => m.id.includes("claude") || m.id.includes("llama"))).toBe(true);
+  });
+});
+
 describe("POST /api/storyboard/preflight", () => {
   it("unwraps the envelope and returns ok:true at 200", async () => {
     const app = createApp(testSettingsHost(testPlatform()));
@@ -103,8 +122,7 @@ describe("POST /api/storyboard/preflight", () => {
 });
 
 describe("POST /api/storyboard/plan", () => {
-  it("returns a valid storyboard when PLANNER_AI_MOCK is enabled", async () => {
-    process.env.PLANNER_AI_MOCK = "true";
+  it("returns a valid storyboard via the plan.enhance module mock", async () => {
     const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/plan", {
       method: "POST",
@@ -121,7 +139,6 @@ describe("POST /api/storyboard/plan", () => {
   });
 
   it("returns 422 when mock fail sentinel is in the brief", async () => {
-    process.env.PLANNER_AI_MOCK = "true";
     const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/plan", {
       method: "POST",
@@ -136,11 +153,36 @@ describe("POST /api/storyboard/plan", () => {
     expect(body.ok).toBe(false);
     expect(body.errors.length).toBeGreaterThan(0);
   });
+
+  it("returns 422 when no plan.enhance module is installed", async () => {
+    dir = mkdtempSync(join(tmpdir(), "vj-m7-empty-"));
+    const dbPath = join(dir, "studio.db");
+    migrateDatabase(dbPath, join(import.meta.dirname, "..", "migrations"));
+    const store = new FilesystemObjectStore(join(dir, "renders"));
+    const emptyPlatform: Platform = {
+      db: openDatabase(dbPath),
+      renders: store,
+      chatBucket: store,
+      presigner: new LocalObjectPresigner("http://127.0.0.1:8790", SECRET),
+      secrets: new EnvSecretStore({}),
+      modules: { resolve: () => null, listBindings: () => [] },
+      vars: { AUTH_MODE: "token", STUDIO_API_TOKEN: SECRET },
+    };
+    const app = createApp(testSettingsHost(emptyPlatform));
+    const res = await authJson(app, "/api/storyboard/plan", {
+      method: "POST",
+      body: JSON.stringify({
+        brief: "A quiet harbor at dawn.",
+        model: "anthropic/claude-opus-4-8",
+        characters: [],
+      }),
+    });
+    expect(res.status).toBe(422);
+  });
 });
 
 describe("POST /api/storyboard/refine", () => {
-  it("refines with mock enabled", async () => {
-    process.env.PLANNER_AI_MOCK = "true";
+  it("refines via the plan.enhance module mock", async () => {
     const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/refine", {
       method: "POST",

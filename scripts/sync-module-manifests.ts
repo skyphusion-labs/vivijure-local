@@ -26,6 +26,9 @@ const MODULES = [
   "film-titles",
   "subtitle",
   "dialogue-gen",
+  "plan-enhance",
+  "speech-upscale",
+  "notify-email",
   "music-gen",
   "cast-image",
 ];

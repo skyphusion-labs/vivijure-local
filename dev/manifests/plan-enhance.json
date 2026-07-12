@@ -1,0 +1,42 @@
+{
+  "name": "plan-enhance",
+  "version": "0.2.1",
+  "api": "vivijure-module/2",
+  "hooks": ["plan.enhance"],
+  "provides": [{ "id": "auto-direction", "label": "Opus auto-direction" }],
+  "config_schema": {
+    "mode": {
+      "type": "enum",
+      "values": ["plan", "refine", "enhance", "chat"],
+      "default": "enhance",
+      "label": "operation mode"
+    },
+    "model": {
+      "type": "enum",
+      "values": [
+        "anthropic/claude-opus-4-8",
+        "anthropic/claude-sonnet-4-6",
+        "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      ],
+      "default": "anthropic/claude-opus-4-8",
+      "label": "planning model"
+    },
+    "intensity": {
+      "type": "enum",
+      "values": ["light", "medium", "bold"],
+      "default": "medium",
+      "label": "direction intensity"
+    },
+    "system_message": {
+      "type": "string",
+      "default": "",
+      "label": "system prompt (scaffold-built)"
+    },
+    "message": {
+      "type": "string",
+      "default": "",
+      "label": "user prompt (scaffold-built)"
+    }
+  },
+  "ui": { "section": "plan", "order": 10 }
+}
