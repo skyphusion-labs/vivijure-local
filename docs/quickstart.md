@@ -96,6 +96,8 @@ npm run conformance:compose
 
 ## Growing later
 
+- **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).
+- **Structured logs** (`docker compose logs studio`, `ev` JSON lines): [observability.md](observability.md).
 - **Real GPU motion:** point `MODULE_LOCAL_GPU_URL` at `vivijure-local-12gb` / `-16gb` on your host,
   or at `vivijure-backend` on RunPod. See [DEPLOYMENT.md](DEPLOYMENT.md).
 - **Production studio on Cloudflare:** follow upstream

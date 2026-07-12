@@ -208,7 +208,7 @@ npm run conformance:compose      # live gate against compose sidecars (stack mus
 npm run smoke:exit               # bundle -> render -> poll -> artifact
 ```
 
-CI runs `typecheck`, `npm test`, and `npm run conformance` on every push. Live compose gates are
+CI runs the **`ci`** check (`typecheck`, `npm test`, `npm run conformance`) on every push. Live compose gates are
 operator-run today.
 
 ---
@@ -216,14 +216,24 @@ operator-run today.
 ## Syncing from upstream
 
 During Option B, orchestration code is copied from `vivijure/src/` and adapted at platform call
-sites. Before large ports:
+sites. Three surfaces are **verbatim copies** and must stay aligned with `vivijure` `main`:
+
+- `public/` (studio UI)
+- `migrations/` (SQLite schema)
+- `src/modules/types.ts` (`vivijure-module/2` contract)
+
+CI runs `upstream-parity` on every PR: it checks out `skyphusion-labs/vivijure` `main` and diffs
+`public/` (the studio UI). For the full verbatim set including migrations and types:
 
 ```bash
+VIVIJURE_SRC=../vivijure npm run upstream:parity          # public/ only (CI gate)
+VIVIJURE_SRC=../vivijure npm run upstream:parity:verbatim # + migrations, types.ts
 ./scripts/sync-from-vivijure.sh   # requires sibling ../vivijure clone
 ```
 
 When vivijure v2.0 lands `vivijure-core`, this repo will depend on the package instead of
-duplicated sources. See [ROADMAP.md](ROADMAP.md).
+manual sync for orchestration; `public/` parity remains until the UI is packaged separately.
+See [ROADMAP.md](ROADMAP.md).
 
 ---
 

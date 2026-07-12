@@ -154,10 +154,12 @@ services:
 
   module-finish-rife:
     <<: *module-sidecar
+    profiles: [satellites]
     command: ["npx", "tsx", "scripts/module-sidecar.ts", "9110", "dev/manifests/finish-rife.json"]
 
   module-finish-lipsync:
     <<: *module-sidecar
+    profiles: [satellites]
     command: ["npx", "tsx", "scripts/module-sidecar.ts", "9111", "dev/manifests/finish-lipsync.json"]
 
   module-beat-sync:
@@ -213,7 +215,9 @@ services:
       AUDIO_MASTER_URL: http://audio-master:8000
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
-      # Finish GPU satellites are optional; omit so the demo path skips straight to assemble.
+      # Optional finish GPU satellites (compose profile `satellites`; see docs/install-profiles.md)
+      MODULE_FINISH_RIFE_URL: ${MODULE_FINISH_RIFE_URL:-}
+      MODULE_FINISH_LIPSYNC_URL: ${MODULE_FINISH_LIPSYNC_URL:-}
       MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130

@@ -22,6 +22,7 @@ import type { Env } from "./orchestrator-env.js";
 import { asFetcher } from "./platform/r2-adapter.js";
 import type { ClipJob } from "./render-orchestrator.js";
 import { presignR2Get } from "./r2-presign.js";
+import { emitStructuredEvent } from "./structured-events.js";
 
 const INSPECT_TTL_SECONDS = 1800;
 
@@ -108,7 +109,7 @@ export async function contentValidateDoneClips(
     if (shot.status !== "done" || !shot.clip_key || shot.content_validated) continue;
     const v = await inspect(env, shot.clip_key, shot.keyframe_key);
     shot.content_validated = v.verdict;
-    console.log(JSON.stringify({
+    emitStructuredEvent({
       ev: "clip.content_validate",
       job_id: job.job_id,
       shot_id: shot.shot_id,
@@ -116,7 +117,7 @@ export async function contentValidateDoneClips(
       ...(v.keyframe_similarity != null ? { keyframe_similarity: v.keyframe_similarity } : {}),
       ...(v.metrics ? { metrics: v.metrics } : {}),
       ...(v.reason ? { reason: v.reason } : {}),
-    }));
+    });
     if (v.verdict === "corrupt") {
       shot.status = "failed";
       shot.error = `clip failed content validation: ${v.reason ?? "does not resemble its keyframe"}`;

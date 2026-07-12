@@ -34,7 +34,9 @@
     "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
     "conformance": "vitest run tests/conformance.test.ts tests/conformance.live.test.ts",
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
-    "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts"
+    "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
+    "upstream:parity": "bash scripts/upstream-public-parity.sh ../vivijure",
+    "upstream:parity:verbatim": "bash scripts/upstream-public-parity.sh ../vivijure --verbatim"
   },
   "engines": {
     "node": ">=22.5.0"

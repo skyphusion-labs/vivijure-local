@@ -34,6 +34,7 @@ import {
 } from "../renders-db.js";
 import { getProjectIdByPublicId } from "../storyboard-projects-db.js";
 import { isSafeBundleKey } from "../shared.js";
+import { emitStructuredEvent } from "../structured-events.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -62,14 +63,12 @@ async function insertRenderBestEffort(env: ReturnType<typeof orchestratorEnvFrom
   try {
     await insertRender(env, row);
   } catch (e) {
-    console.log(
-      JSON.stringify({
-        ev: "render.bookkeeping_deferred",
-        op: "insertRender",
-        job_id: row.jobId,
-        err: e instanceof Error ? e.message : String(e),
-      }),
-    );
+    emitStructuredEvent({
+      ev: "render.bookkeeping_deferred",
+      op: "insertRender",
+      job_id: row.jobId,
+      err: e instanceof Error ? e.message : String(e),
+    });
   }
 }
 

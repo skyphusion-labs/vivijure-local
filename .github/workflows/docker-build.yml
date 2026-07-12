@@ -9,6 +9,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - Dockerfile
+      - compose.yaml
+      - containers/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/docker-build.yml
 
 permissions:
   contents: read

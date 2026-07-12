@@ -1,0 +1,32 @@
+name: upstream-parity
+
+# Keep verbatim-copy surfaces aligned with skyphusion-labs/vivijure main so the homelab host
+# does not ship a stale public/ UI (planner, cast, settings) while CF-native v1 moves forward.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upstream-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure
+          ref: main
+          path: .upstream/vivijure
+
+      - name: Diff public/ against vivijure main
+        run: bash scripts/upstream-public-parity.sh .upstream/vivijure

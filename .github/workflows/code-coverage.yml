@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   coverage:
+    name: coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

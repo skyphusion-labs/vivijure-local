@@ -14,6 +14,7 @@ import { discoverModules, invokeModule, pollModule, cancelModule, resolveFetcher
 import type { MotionBackendInput, MotionBackendOutput, PollResponse, RegisteredModule } from "./modules/types.js";
 import { hookOutputViolation } from "./modules/conformance.js";
 import { validateClipArtifact } from "./clip-validate.js";
+import { emitStructuredEvent } from "./structured-events.js";
 
 export interface ClipShotInput {
   shot_id: string;
@@ -373,14 +374,14 @@ export async function validateDoneClips(env: Env, job: ClipJob): Promise<boolean
     if (shot.status !== "done" || !shot.clip_key || shot.validated) continue;
     const res = await validateClipArtifact(env, shot.clip_key, shot.seconds);
     shot.validated = res.verdict;
-    console.log(JSON.stringify({
+    emitStructuredEvent({
       ev: "clip.validate",
       job_id: job.job_id,
       shot_id: shot.shot_id,
       verdict: res.verdict,
       checks: res.checks,
       ...(res.reason ? { reason: res.reason } : {}),
-    }));
+    });
     if (res.verdict === "fail") {
       shot.status = "failed";
       shot.error = `clip failed output validation: ${res.reason}`;

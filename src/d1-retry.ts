@@ -13,6 +13,8 @@
 // those are real and must fail fast, never spin. The wrapped ops are all keyed on job_id/id and
 // write absolute values (terminal-guarded), so they are idempotent under retry.
 
+import { emitStructuredEvent } from "./structured-events.js";
+
 /** Errors that are real and must NOT be retried (a constraint violation, bad SQL, schema mismatch).
  *  Checked first so a `D1_ERROR: UNIQUE constraint failed` fails fast even though it says D1_ERROR. */
 const D1_FATAL =
@@ -68,11 +70,11 @@ export async function withD1Retry<T>(fn: () => Promise<T>, opts: D1RetryOptions 
         // A non-transient error fails fast; an EXHAUSTED transient blip is logged so a recurring
         // D1 flaky window shows up as a queryable d1.exhausted count, not a silent throw.
         if (transient) {
-          console.log(JSON.stringify({ ev: "d1.exhausted", op: opts.label, attempts: i + 1, code: d1ErrorCode(err) }));
+          emitStructuredEvent({ ev: "d1.exhausted", op: opts.label, attempts: i + 1, code: d1ErrorCode(err) });
         }
         throw err;
       }
-      console.log(JSON.stringify({ ev: "d1.retry", op: opts.label, attempt: i + 1, code: d1ErrorCode(err) }));
+      emitStructuredEvent({ ev: "d1.retry", op: opts.label, attempt: i + 1, code: d1ErrorCode(err) });
       const jitter = Math.floor(Math.random() * base);
       await sleep(base * 2 ** i + jitter);
     }

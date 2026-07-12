@@ -101,6 +101,7 @@ describe("HTTP routes (M1)", () => {
       vars: {
         AUTH_MODE: "token",
         STUDIO_API_TOKEN: SECRET,
+        STORAGE_BACKEND: "filesystem",
       },
     };
   });
@@ -113,7 +114,12 @@ describe("HTTP routes (M1)", () => {
     const app = createApp(platform);
     const res = await app.request("/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, service: "vivijure-studio", phase: 1 });
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      service: "vivijure-studio",
+      phase: 2,
+      storage: "filesystem",
+    });
   });
 
   it("GET /api/whoami requires token in token mode", async () => {

@@ -29,6 +29,7 @@ import { claimFilmAdvance, releaseFilmAdvance, type FilmAdvanceClaim } from "./r
 import { withD1Retry } from "./d1-retry.js";
 import { deriveLoraDestKey } from "./lora-bundle.js";
 import { asFetcher } from "./platform/r2-adapter.js";
+import { emitStructuredEvent } from "./structured-events.js";
 
 // The pure film model (S6 split): shapes + synchronous logic live in film-model.ts; this file owns
 // the I/O. Re-exported below so every existing importer keeps its single entry point.
@@ -186,8 +187,35 @@ async function advanceToClips(env: Env, job: FilmJob, kfOut: KeyframeOutput, pre
   job.phase = "clips";
 }
 
-const putFilm = (env: Env, job: FilmJob) =>
-  env.R2_RENDERS.put(filmKey(job.film_id), JSON.stringify(job), { httpMetadata: { contentType: "application/json" } });
+const lastPersistedFilmPhase = new Map<string, FilmJob["phase"]>();
+
+const putFilm = async (env: Env, job: FilmJob): Promise<void> => {
+  const prev = lastPersistedFilmPhase.get(job.film_id);
+  if (prev !== job.phase) {
+    emitStructuredEvent({
+      ev: "film.phase",
+      film_id: job.film_id,
+      project: job.project,
+      from: prev ?? null,
+      to: job.phase,
+    });
+    if (job.phase === "done" || job.phase === "failed") {
+      emitStructuredEvent({
+        ev: "film.render.terminal",
+        film_id: job.film_id,
+        project: job.project,
+        status: job.phase,
+        ...(job.error ? { error: job.error } : {}),
+      });
+      lastPersistedFilmPhase.delete(job.film_id);
+    } else {
+      lastPersistedFilmPhase.set(job.film_id, job.phase);
+    }
+  }
+  await env.R2_RENDERS.put(filmKey(job.film_id), JSON.stringify(job), {
+    httpMetadata: { contentType: "application/json" },
+  });
+};
 
 /** #584 dialogue-aware finish order. A finish module that CONSUMES the shot dialogue audio
  *  (`finish_consumes_audio`, i.e. lip-sync) is calibrated to the SOURCE frame rate, so it must run on
@@ -1197,7 +1225,7 @@ async function applyFilmFinish(env: Env, job: FilmJob, preModules?: RegisteredMo
 function emitFinishUnavailable(job: FilmJob): void {
   const u = job.finish_unavailable;
   if (!u) return;
-  console.log(JSON.stringify({
+  emitStructuredEvent({
     ev: "film.finish_unavailable",
     film_id: job.film_id,
     project: job.project,
@@ -1205,7 +1233,7 @@ function emitFinishUnavailable(job: FilmJob): void {
     delivered: u.delivered,
     clips: u.clips?.length ?? 0,
     reason: u.reason,
-  }));
+  });
 }
 
 /** Emit the loud, structured degrade event when the keyframe stall recovery reached the phase ceiling
@@ -1215,14 +1243,14 @@ function emitFinishUnavailable(job: FilmJob): void {
 function emitKeyframesIncomplete(job: FilmJob): void {
   const k = job.keyframes_incomplete;
   if (!k) return;
-  console.log(JSON.stringify({
+  emitStructuredEvent({
     ev: "film.keyframes_incomplete",
     film_id: job.film_id,
     project: job.project,
     adopted: k.adopted,
     expected: k.expected,
     dropped: k.dropped,
-  }));
+  });
 }
 
 /** Video-finish tier UNAVAILABLE at assemble (VIDEO_FINISH_VPC unbound, or the concat container
