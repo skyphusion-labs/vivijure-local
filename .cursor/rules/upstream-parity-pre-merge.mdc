@@ -1,0 +1,28 @@
+---
+description: Run upstream public parity before PR/merge (required CI check upstream-parity)
+alwaysApply: true
+---
+
+# Upstream parity before merge
+
+`public/` is a verbatim copy from `skyphusion-labs/vivijure` `main`. CI enforces this via the required **`upstream-parity`** check.
+
+## Before opening or recommending a PR merge
+
+1. With a sibling `../vivijure` clone on `main`, run:
+
+```bash
+npm run upstream:parity
+```
+
+2. If the branch touches `migrations/`, `src/modules/types.ts`, or large upstream ports, also run:
+
+```bash
+npm run upstream:parity:verbatim
+```
+
+3. **On drift:** sync from upstream (`./scripts/sync-from-vivijure.sh` or copy `public/` from vivijure `main`), commit, re-run until PASS. Do not merge with a failing parity gate unless Conrad explicitly waives it.
+
+4. **Do not rely on CI alone** to discover drift; run locally before push so PRs are not blocked late.
+
+Local script: `scripts/upstream-public-parity.sh`. Operator docs: `docs/DEPLOYMENT.md` (Syncing from upstream).

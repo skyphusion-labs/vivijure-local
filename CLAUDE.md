@@ -21,12 +21,15 @@ Design platform interfaces in `src/platform/types.ts` so v2 extraction is mechan
 - **Module contract is sacred.** `src/modules/types.ts` must match upstream byte-for-byte unless the epoch bumps in both repos together.
 - **Object storage is S3-compatible (MinIO default).** Use `S3_*` env vars; R2/S3 is a config swap. Filesystem (`ARTIFACT_ROOT`) is CI fallback only.
 - **Required CI check is `ci`** (typecheck, test, and conformance run inside that job). Run `npm run typecheck` locally before push.
+- **Upstream parity before merge.** Required check `upstream-parity` diffs `public/` vs `vivijure` `main`. Before every PR/merge recommendation, run `npm run upstream:parity` (and `npm run upstream:parity:verbatim` when touching migrations or `src/modules/types.ts`). Sync drift before push; see `.cursor/rules/upstream-parity-pre-merge.mdc`.
 
 ## Commands
 
 ```bash
 npm run typecheck
 npm test
+npm run upstream:parity          # before PR/merge (CI gate)
+npm run upstream:parity:verbatim # + migrations, types.ts
 npm run dev
 docker compose up -d    # CPU media stack + optional MinIO
 ```
