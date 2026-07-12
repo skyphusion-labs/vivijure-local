@@ -26,7 +26,15 @@ SSH tunnel is **systemd** only: `fleet-chezmoi/system/stacks/flatliners/cloudfla
 | Hostname | Origin |
 |----------|--------|
 | `vivijure-local.skyphusion.org` | `http://localhost:8790` (studio) |
-| `minio-flatliners.skyphusion.org` | `http://localhost:9000` (MinIO S3 API) |
+| `minio-flatliners.skyphusion.org` | `http://localhost:9000` (MinIO S3 API, path-style) |
+| `vivijure.minio-flatliners.skyphusion.org` | `http://localhost:9000` (MinIO bucket vhost for RunPod boto3) |
+
+After editing `cloudflared/config.yml`, apply ingress + DNS (no dashboard):
+
+```bash
+COMPOSE_PROFILES=tunnel docker compose up -d --force-recreate cloudflared
+CLOUDFLARE_API_TOKEN=... npm run sync:tunnel-dns
+```
 
 On flatliners, in `vivijure-local/.env`:
 
@@ -67,18 +75,20 @@ Presigned PUT/GET to `https://minio-flatliners.skyphusion.org/vivijure/...` must
 
 ## RunPod vivijure-backend
 
-Configure the serverless endpoint environment (same bucket as the studio):
+Configure the serverless endpoint environment (same bucket as the studio). The backend reads
+**`R2_*` names**, not `S3_*` (copy from `~/runpod-minio-r2-creds.env` on flatliners):
 
 | Variable | Example |
 |----------|---------|
-| `S3_ENDPOINT` / R2-compatible endpoint | `https://minio-flatliners.skyphusion.org` |
-| `S3_ACCESS_KEY_ID` | MinIO user (not `minioadmin` in production) |
-| `S3_SECRET_ACCESS_KEY` | matching secret |
-| `S3_BUCKET` | `vivijure` |
-| `S3_FORCE_PATH_STYLE` | `true` |
+| `R2_ENDPOINT` | `https://minio-flatliners.skyphusion.org` |
+| `R2_ACCESS_KEY_ID` | MinIO user (not `minioadmin` in production) |
+| `R2_SECRET_ACCESS_KEY` | matching secret |
+| `R2_BUCKET` | `vivijure` |
 
-The keyframe / own-gpu modules submit jobs; the backend writes PNGs and MP4s to the shared bucket
-using these creds. The studio presigns those keys for the next pipeline stage.
+`vivijure-backend` boto3 uses virtual-hosted bucket URLs (`vivijure.minio-flatliners...`). Compose
+sets `MINIO_DOMAIN` and adds the bucket vhost to `cloudflared/config.yml`. Run `npm run sync:tunnel-dns`
+so the CNAME exists (IaC; not automatic from config alone). Studio presigns path-style URLs on the
+apex hostname; both work once DNS is synced.
 
 ## Local GPU door (propagandhi)
 

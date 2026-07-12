@@ -90,6 +90,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      # Virtual-host S3 (vivijure.<domain>) for RunPod boto3 default; path-style still works for studio.
+      MINIO_DOMAIN: ${MINIO_PUBLIC_DOMAIN:-minio-flatliners.skyphusion.org}
     volumes:
       - minio-data:/data
     networks: [studio]
