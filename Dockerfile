@@ -13,9 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg \
 
 # Sibling vivijure-core (file:../vivijure-core in package.json)
 COPY vivijure-core /app/vivijure-core
+RUN cd /app/vivijure-core && npm ci && npm run build
 
+WORKDIR /app/vivijure-local
 COPY vivijure-local/package.json vivijure-local/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY vivijure-local .
 

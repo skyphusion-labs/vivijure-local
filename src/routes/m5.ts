@@ -1,7 +1,7 @@
 // M5 routes: film submit + poll (POST/GET /api/storyboard/render).
 
 import type { Hono } from "hono";
-import { resolveCastLoras, untrainedCastMessage } from "../cast-loras.js";
+import { resolveCastLoras, untrainedCastMessage } from "@skyphusion-labs/vivijure-core/cast-loras";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { readBody } from "../http.js";
 import {
@@ -9,35 +9,33 @@ import {
   motionBackendPreflightError,
   motionConfigPreflightError,
   servingForHook,
+  emitStructuredEvent,
 } from "@skyphusion-labs/vivijure-core";
 import {
   noopExecutionContext,
   orchestratorContextFromPlatform,
   type OrchestratorEnv,
 } from "@skyphusion-labs/vivijure-core/platform";
-import { advanceFilmJob, startFilmJob } from "../film-orchestrator.js";
+import { advanceFilmJob, startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
 import {
   filmJobToPollView,
   filterScenesByShotIds,
   isFilmJobId,
   mapRenderOverridesToModuleConfigs,
   normalizeFilmScenes,
-} from "../film-render-bridge.js";
+} from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import type { Platform } from "../platform/types.js";
-import { isPublicId } from "../public-id.js";
+import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
-import {
-  parseModuleRenderOverrides,
-} from "../render-module-config.js";
-import { coerceQualityTier, deriveProjectFromBundleKey } from "../runpod-types.js";
+import { parseModuleRenderOverrides } from "@skyphusion-labs/vivijure-core/render-module-config";
+import { coerceQualityTier, deriveProjectFromBundleKey } from "@skyphusion-labs/vivijure-core/runpod-types";
 import {
   insertRender,
   type NewRenderRow,
   updateRenderFromView,
-} from "../renders-db.js";
-import { getProjectIdByPublicId } from "../storyboard-projects-db.js";
-import { isSafeBundleKey } from "../shared.js";
-import { emitStructuredEvent } from "@skyphusion-labs/vivijure-core";
+} from "@skyphusion-labs/vivijure-core/renders-db";
+import { getProjectIdByPublicId } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
+import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;

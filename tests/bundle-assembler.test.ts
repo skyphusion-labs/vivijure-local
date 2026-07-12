@@ -4,8 +4,8 @@ import {
   decodeDataUrl,
   detectImageExt,
   safeCharFilename,
-} from "../src/bundle-assembler.js";
-import { validateStoryboard } from "../src/storyboard-validate.js";
+} from "@skyphusion-labs/vivijure-core/bundle-assembler";
+import { validateStoryboard } from "@skyphusion-labs/vivijure-core/storyboard-validate";
 import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
 import { FilesystemObjectStore } from "../src/platform/storage.js";
 import { wrapR2Bucket } from "../src/platform/r2-adapter.js";

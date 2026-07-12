@@ -1,7 +1,8 @@
 // M6 routes: planner audio beat analysis.
 
 import type { Hono } from "hono";
-import { analyzeAudioBeats, type AudioAnalyzeRequest } from "../beat-analyze.js";
+import { analyzeAudioBeats } from "@skyphusion-labs/vivijure-core/beat-analyze";
+import type { AudioAnalyzeRequest } from "@skyphusion-labs/vivijure-core/runpod-types";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { readBody } from "../http.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";

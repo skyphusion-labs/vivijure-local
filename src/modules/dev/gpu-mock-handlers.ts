@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { gunzipBytes } from "../../bundle-assembler.js";
+import { gunzipBytes } from "@skyphusion-labs/vivijure-core/bundle-assembler";
 import type {
   InvokeRequest,
   InvokeResponse,
@@ -14,8 +14,8 @@ import type {
   PollRequest,
   PollResponse,
 } from "@skyphusion-labs/vivijure-core";
-import { parseStoryboardScenes } from "../../planner-yaml.js";
-import { readTar } from "../../tar-emit.js";
+import { parseStoryboardScenes } from "@skyphusion-labs/vivijure-core/planner-yaml";
+import { readTar } from "@skyphusion-labs/vivijure-core/tar";
 import type { ArtifactStore } from "../../platform/create-storage.js";
 import { MIN_PNG, buildStructuralMp4 } from "../../dev/minimal-media.js";
 

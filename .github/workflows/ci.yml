@@ -4,7 +4,9 @@ name: ci
 # `ci` (aviation-grade ruleset); typecheck is a step inside this job, not a separate check.
 # vivijure-local is PUBLIC; runs on GitHub-hosted ubuntu-latest (fork-safe).
 #
-# Requires sibling checkout of skyphusion-labs/vivijure-core (file:../vivijure-core).
+# Installs @skyphusion-labs/vivijure-core from npm (^0.9.0). Sibling vivijure-core
+# checkout remains for conformance + core typecheck/test scripts; vivijure sparse
+# checkout for quality-tier-drift in core's vitest.
 
 on:
   push:
@@ -32,7 +34,6 @@ jobs:
         with:
           repository: skyphusion-labs/vivijure-core
           path: vivijure-core
-          ref: feat/vivijure-parity-p0 # drop after vivijure-core parity PR merges to main
       - name: Checkout vivijure (core quality-tier-drift module manifests)
         uses: actions/checkout@v7
         with:
@@ -51,10 +52,12 @@ jobs:
             vivijure-core/package-lock.json
       - name: Install vivijure-core
         working-directory: vivijure-core
-        run: npm ci
+        run: npm ci && npm run build
       - name: Install vivijure-local
         working-directory: vivijure-local
-        run: npm ci
+        run: |
+          npm pkg set dependencies.@skyphusion-labs/vivijure-core=file:../vivijure-core
+          npm ci
       - name: Typecheck
         working-directory: vivijure-local
         run: npm run typecheck

@@ -1,8 +1,8 @@
 // M7 routes: planner plan/refine + preflight.
 
 import type { Hono } from "hono";
-import { assembleBundle, type AssembleBundleArgs } from "../bundle-assembler.js";
-import { listCast } from "../cast-db.js";
+import { assembleBundle, type AssembleBundleArgs } from "@skyphusion-labs/vivijure-core/bundle-assembler";
+import { listCast } from "@skyphusion-labs/vivijure-core/cast-db";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
 import { discoverModules, resolveClipDurationFloor, servingForHook } from "@skyphusion-labs/vivijure-core";
@@ -13,7 +13,7 @@ import {
   resolveCastBindings,
   summarize,
   type PreflightIssue,
-} from "../preflight.js";
+} from "@skyphusion-labs/vivijure-core/preflight";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import type { SettingsHost } from "../routes/m8-settings.js";
@@ -25,7 +25,7 @@ import {
   type PlanStoryboardArgs,
   type RefineStoryboardArgs,
 } from "../planner.js";
-import { validateStoryboard } from "../storyboard-validate.js";
+import { validateStoryboard } from "@skyphusion-labs/vivijure-core/storyboard-validate";
 
 async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>): Promise<Response> {
   try {
