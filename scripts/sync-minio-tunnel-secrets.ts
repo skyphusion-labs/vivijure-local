@@ -16,6 +16,10 @@ const TUNNEL_KEYS = [
   "S3_ALLOW_HTTP_FETCH",
   "S3_ACCESS_KEY_ID",
   "S3_SECRET_ACCESS_KEY",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "GATEWAY_ID",
+  "CF_AIG_TOKEN",
+  "PLANNER_AI_MOCK",
 ] as const;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
