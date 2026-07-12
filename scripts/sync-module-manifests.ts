@@ -18,9 +18,11 @@ const MODULES = [
   "keyframe",
   "local-gpu",
   "own-gpu",
+  "cloud-keyframe",
   "finish-rife",
   "finish-lipsync",
   "finish-upscale",
+  "text-overlay",
   "beat-sync",
   "audio-master",
   "film-titles",
@@ -30,7 +32,15 @@ const MODULES = [
   "speech-upscale",
   "notify-email",
   "music-gen",
+  "narration-gen",
   "cast-image",
+  "seedance",
+  "kling",
+  "google-veo",
+  "minimax-hailuo",
+  "vidu-q3",
+  "alibaba-wan",
+  "alibaba-wan-lora",
 ];
 
 function extractObjectLiteral(src: string, startIdx: number): string | null {
@@ -81,15 +91,62 @@ function inlineConstSpreads(literal: string, modDir: string): string {
     for (const file of readdirSync(modDir)) {
       if (!file.endsWith(".ts")) continue;
       const src = readFileSync(join(modDir, file), "utf8");
-      const m = new RegExp(`export const ${name}\\s*=\\s*(\\[[^\\]]*\\])`).exec(src);
+      const m = new RegExp(`export const ${name}\\s*=\\s*(\\[[\\s\\S]*?\\])`, "m").exec(src);
       if (m) return m[1];
     }
     return match;
   });
 }
 
+function inlineModuleConsts(literal: string, modDir: string): string {
+  let out = literal;
+  for (const file of readdirSync(modDir)) {
+    if (!file.endsWith(".ts")) continue;
+    const src = readFileSync(join(modDir, file), "utf8");
+    const strRe = /export const ([A-Z][A-Z0-9_]*)\s*=\s*"([^"]*)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = strRe.exec(src))) {
+      out = out.replace(new RegExp(`\\b${m[1]}\\b`, "g"), JSON.stringify(m[2]));
+    }
+    const numArrRe = /export const ([A-Z][A-Z0-9_]*)\s*=\s*\[([\d,\s]+)\]\s*as const/g;
+    while ((m = numArrRe.exec(src))) {
+      const nums = m[2]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      out = out.replace(new RegExp(`${m[1]}\\.map\\(String\\)`, "g"), JSON.stringify(nums));
+    }
+  }
+  return out;
+}
+
+function inlineBareConsts(literal: string, modDir: string): string {
+  let out = literal;
+  for (const file of readdirSync(modDir)) {
+    if (!file.endsWith(".ts")) continue;
+    const src = readFileSync(join(modDir, file), "utf8");
+    const arrRe = /(?:export )?const ([A-Z][A-Z0-9_]*)\s*=\s*(\[[\s\S]*?\])\s*;?/g;
+    let m: RegExpExecArray | null;
+    while ((m = arrRe.exec(src))) {
+      if (m[2].includes("{")) continue;
+      try {
+        const parsed = Function(`"use strict"; return (${m[2]});`)();
+        if (!Array.isArray(parsed)) continue;
+        out = out.replace(new RegExp(`${m[1]}\\[0\\]`, "g"), JSON.stringify(parsed[0]));
+        out = out.replace(new RegExp(`\\b${m[1]}\\b`, "g"), JSON.stringify(parsed));
+      } catch {
+        /* skip */
+      }
+    }
+  }
+  return out;
+}
+
 function parseManifestLiteral(literal: string, modDir: string): unknown {
-  let normalized = inlineConstSpreads(literal, modDir)
+  let normalized = inlineConstSpreads(literal, modDir);
+  normalized = inlineModuleConsts(normalized, modDir);
+  normalized = inlineBareConsts(normalized, modDir);
+  normalized = normalized
     .replace(/\bMODULE_API\b/g, '"vivijure-module/2"')
     .replace(/,\s*([\]}])/g, "$1");
   return Function(`"use strict"; return (${normalized});`)();

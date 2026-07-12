@@ -2,12 +2,16 @@
 #
 #   npm run install:studio   # mint token + seed platform_secrets
 #   docker compose up -d --build
+#   COMPOSE_PROFILES=tunnel docker compose up -d --build   # + cloudflared (flatliners)
 #
-# Studio UI:     http://127.0.0.1:8790
+# Studio UI:     http://127.0.0.1:8790  (or PUBLIC_BASE_URL via cloudflared)
 # MinIO console: http://127.0.0.1:9001  (minioadmin / minioadmin)
+# MinIO S3 API:  http://127.0.0.1:9000  (in-network); expose via cloudflared for remote GPUs
+#   see docs/MINIO-TUNNEL.md and S3_PRESIGN_ENDPOINT in .env
 #
-# GPU motion (local-gpu) and keyframe mocks run in compose by default (scripts/gpu-mock-module-server.ts).
-# Point MODULE_LOCAL_GPU_URL at a real host backend when you have one.
+# GPU motion modules proxy to RunPod or LOCAL_BACKEND_URL; control plane never runs GPU work.
+# Keyframe falls back to mock PNGs when RUNPOD_* is unset; local-gpu falls back to mock when
+# LOCAL_BACKEND_URL is unset (offline homelab default).
 
 name: vivijure-local
 
@@ -30,8 +34,8 @@ x-cpu-service: &cpu-service
   networks: [studio]
   environment:
     PORT: "8000"
-    ALLOW_HTTP_FETCH: "true"
-    ALLOWED_FETCH_HOSTS: minio
+    ALLOW_HTTP_FETCH: ${S3_ALLOW_HTTP_FETCH:-true}
+    ALLOWED_FETCH_HOSTS: ${S3_FETCH_ALLOW_HOSTS:-minio}
 
 x-module-sidecar: &module-sidecar
   build:
@@ -42,6 +46,24 @@ x-module-sidecar: &module-sidecar
   networks: [studio]
 
 x-module-health: &module-health
+  interval: 5s
+  timeout: 3s
+  retries: 6
+  start_period: 20s
+
+x-runpod-module: &runpod-module
+  <<: *module-sidecar
+  environment:
+    RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+    RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+    S3_ENDPOINT: http://minio:9000
+    S3_ACCESS_KEY_ID: minioadmin
+    S3_SECRET_ACCESS_KEY: minioadmin
+    S3_BUCKET: vivijure
+    S3_REGION: us-east-1
+    S3_FORCE_PATH_STYLE: "true"
+
+x-module-health-url: &module-health-url
   interval: 5s
   timeout: 3s
   retries: 6
@@ -127,26 +149,21 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
   module-keyframe:
-    <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/gpu-mock-module-server.ts", "9101", "keyframe"]
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9101", "keyframe"]
     healthcheck:
-      <<: *module-health
+      <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9101/module.json"]
-    environment:
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
-      S3_BUCKET: vivijure
-      S3_REGION: us-east-1
-      S3_FORCE_PATH_STYLE: "true"
 
   module-local-gpu:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/gpu-mock-module-server.ts", "9102", "local-gpu"]
+    command: ["npx", "tsx", "scripts/local-gpu-module-server.ts", "9102"]
     healthcheck:
-      <<: *module-health
+      <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9102/module.json"]
     environment:
+      LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
+      LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
@@ -154,15 +171,123 @@ services:
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
 
+  module-own-gpu:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9103", "own-gpu"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9103/module.json"]
+
   module-finish-rife:
-    <<: *module-sidecar
-    profiles: [satellites]
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9110", "dev/manifests/finish-rife.json"]
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9110", "finish-rife"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9110/module.json"]
 
   module-finish-lipsync:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9111", "finish-lipsync"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9111/module.json"]
+
+  module-finish-upscale:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9112", "finish-upscale"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9112/module.json"]
+
+  module-text-overlay:
     <<: *module-sidecar
-    profiles: [satellites]
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9111", "dev/manifests/finish-lipsync.json"]
+    command: ["npx", "tsx", "scripts/finish-cpu-module-server.ts", "9113", "text-overlay"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9113/module.json"]
+    environment:
+      VIDEO_FINISH_URL: http://video-finish:8000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-seedance:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9150", "seedance"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9150/module.json"]
+
+  module-kling:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9151", "kling"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9151/module.json"]
+
+  module-google-veo:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9152", "google-veo"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9152/module.json"]
+
+  module-minimax-hailuo:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9153", "minimax-hailuo"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9153/module.json"]
+
+  module-vidu-q3:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9154", "vidu-q3"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9154/module.json"]
+
+  module-alibaba-wan:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9155", "alibaba-wan"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9155/module.json"]
+
+  module-alibaba-wan-lora:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9156", "alibaba-wan-lora"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9156/module.json"]
+
+  module-cloud-keyframe:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9157", "cloud-keyframe"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9157/module.json"]
+
+  module-music-gen:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/score-module-server.ts", "9158", "music-gen"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9158/module.json"]
+    environment:
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      GATEWAY_ID: ${GATEWAY_ID:-vivijure}
+      CF_AIG_TOKEN: ${CF_AIG_TOKEN:-}
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+
+  module-narration-gen:
+    <<: *runpod-module
+    command: ["npx", "tsx", "scripts/score-module-server.ts", "9159", "narration-gen"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9159/module.json"]
 
   module-beat-sync:
     <<: *module-sidecar
@@ -264,13 +389,13 @@ services:
         required: false
     environment:
       PORT: "8790"
-      PUBLIC_BASE_URL: http://127.0.0.1:8790
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:8790}
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       AUTH_MODE: ${AUTH_MODE:-token}
       STUDIO_API_TOKEN: ${STUDIO_API_TOKEN:-change-me-local-dev-only}
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
       S3_ENDPOINT: http://minio:9000
-      S3_PRESIGN_ENDPOINT: http://minio:9000
+      S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT:-http://minio:9000}
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
       S3_BUCKET: vivijure
@@ -281,11 +406,27 @@ services:
       AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
       AUDIO_MIX_URL: http://audio-mix:8000
       AUDIO_MASTER_URL: http://audio-master:8000
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+      LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
+      LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
-      # Optional finish GPU satellites (compose profile `satellites`; see docs/install-profiles.md)
-      MODULE_FINISH_RIFE_URL: ${MODULE_FINISH_RIFE_URL:-}
-      MODULE_FINISH_LIPSYNC_URL: ${MODULE_FINISH_LIPSYNC_URL:-}
+      MODULE_OWN_GPU_URL: http://module-own-gpu:9103
+      MODULE_FINISH_RIFE_URL: http://module-finish-rife:9110
+      MODULE_LIPSYNC_URL: http://module-finish-lipsync:9111
+      MODULE_UPSCALE_URL: http://module-finish-upscale:9112
+      MODULE_TEXT_OVERLAY_URL: http://module-text-overlay:9113
+      MODULE_SEEDANCE_URL: http://module-seedance:9150
+      MODULE_KLING_URL: http://module-kling:9151
+      MODULE_GOOGLE_VEO_URL: http://module-google-veo:9152
+      MODULE_MINIMAX_HAILUO_URL: http://module-minimax-hailuo:9153
+      MODULE_VIDU_Q3_URL: http://module-vidu-q3:9154
+      MODULE_ALIBABA_WAN_URL: http://module-alibaba-wan:9155
+      MODULE_ALIBABA_WAN_LORA_URL: http://module-alibaba-wan-lora:9156
+      MODULE_CLOUD_KEYFRAME_URL: http://module-cloud-keyframe:9157
+      MODULE_MUSIC_GEN_URL: http://module-music-gen:9158
+      MODULE_NARRATION_GEN_URL: http://module-narration-gen:9159
       MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130
@@ -318,6 +459,36 @@ services:
         condition: service_healthy
       module-local-gpu:
         condition: service_healthy
+      module-own-gpu:
+        condition: service_started
+      module-finish-rife:
+        condition: service_started
+      module-finish-lipsync:
+        condition: service_started
+      module-finish-upscale:
+        condition: service_started
+      module-text-overlay:
+        condition: service_started
+      module-seedance:
+        condition: service_started
+      module-kling:
+        condition: service_started
+      module-google-veo:
+        condition: service_started
+      module-minimax-hailuo:
+        condition: service_started
+      module-vidu-q3:
+        condition: service_started
+      module-alibaba-wan:
+        condition: service_started
+      module-alibaba-wan-lora:
+        condition: service_started
+      module-cloud-keyframe:
+        condition: service_started
+      module-music-gen:
+        condition: service_started
+      module-narration-gen:
+        condition: service_started
       module-beat-sync:
         condition: service_started
       module-audio-master:
@@ -336,3 +507,18 @@ services:
         condition: service_healthy
       module-notify-email:
         condition: service_healthy
+
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:2026.6.1
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --no-autoupdate --metrics 127.0.0.1:2001 --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      minio:
+        condition: service_started
+      studio:
+        condition: service_started

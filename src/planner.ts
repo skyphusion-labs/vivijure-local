@@ -91,13 +91,15 @@ async function invokePlanningModule(
     };
   }
 
-  const config = validateConfig(mod.config_schema, {
+  const config = {
+    ...validateConfig(mod.config_schema, {
+      intensity: "medium",
+    }),
     mode: opts.mode,
     model: target.configModel ?? target.modelId,
     system_message: opts.systemMessage,
     message: opts.userMessage,
-    intensity: "medium",
-  });
+  };
 
   const input: PlanEnhanceInput = {
     storyboard:

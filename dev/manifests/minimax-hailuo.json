@@ -1,0 +1,33 @@
+{
+  "name": "minimax-hailuo",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "motion.backend"
+  ],
+  "provides": [
+    {
+      "id": "i2v-cloud",
+      "label": "MiniMax Hailuo 2.3 Fast (cloud i2v)"
+    }
+  ],
+  "config_schema": {
+    "enable_prompt_expansion": {
+      "type": "bool",
+      "default": true,
+      "label": "expand prompt"
+    },
+    "go_fast": {
+      "type": "bool",
+      "default": true,
+      "label": "fast mode"
+    }
+  },
+  "ui": {
+    "section": "motion",
+    "order": 40,
+    "locality": "cloud",
+    "cost": "Pay per render",
+    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+  }
+}

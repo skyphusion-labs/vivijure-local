@@ -10,13 +10,20 @@ import {
   motionConfigPreflightError,
   servingForHook,
   emitStructuredEvent,
+  defaultGpuDoorModule,
 } from "@skyphusion-labs/vivijure-core";
 import {
   noopExecutionContext,
   orchestratorContextFromPlatform,
   type OrchestratorEnv,
 } from "@skyphusion-labs/vivijure-core/platform";
-import { advanceFilmJob, startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
+import {
+  advanceFilmJob,
+  cancelFilmJob,
+  startFilmJob,
+  startFilmFromKeyframes,
+  type FilmScene,
+} from "@skyphusion-labs/vivijure-core/film-orchestrator";
 import {
   filmJobToPollView,
   filterScenesByShotIds,
@@ -27,10 +34,13 @@ import {
 import type { Platform } from "../platform/types.js";
 import {
   advanceScatterJob,
+  cancelScatterJob,
   isScatterJobId,
   scatterJobToPollView,
   startScatterRender,
 } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
+import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
+import { stageBundleInjectedKeyframes } from "../bundle-keyframes.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
 import { parseModuleRenderOverrides } from "@skyphusion-labs/vivijure-core/render-module-config";
@@ -282,6 +292,115 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         const msg = (e as Error).message || "scatter submit failed";
         return c.json({ ok: false, error: msg }, 422);
       }
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  });
+
+  app.delete("/api/storyboard/render/:jobId", async (c) => {
+    try {
+      const jobId = c.req.param("jobId");
+      const oenv = env();
+      if (isScatterJobId(jobId)) {
+        const view = await cancelScatterJob(oenv, jobId);
+        if (!view) return c.json({ error: "render job not found" }, 404);
+        await updateRenderFromView(oenv, view, noopExecutionContext);
+        return c.json(view);
+      }
+      if (!isFilmJobId(jobId)) {
+        return c.json(
+          { error: "unknown or legacy render job id (film-* or scatter-* only)", jobId },
+          404,
+        );
+      }
+      const job = await cancelFilmJob(oenv, jobId);
+      if (!job) return c.json({ error: "render job not found" }, 404);
+      const view = filmJobToPollView(job, null);
+      await updateRenderFromView(oenv, view, noopExecutionContext);
+      return c.json(view);
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  });
+
+  app.post("/api/storyboard/render-from-keyframes", async (c) => {
+    try {
+      const b = await readBody<{
+        project?: string;
+        bundleKey?: string;
+        qualityTier?: string;
+        renderOverrides?: Record<string, unknown>;
+        audioKey?: string;
+        projectId?: unknown;
+        motion_backend?: string;
+      }>(c.req.raw);
+      if (!b.bundleKey) throw badRequest("bundleKey required");
+      if (!isSafeBundleKey(b.bundleKey)) {
+        throw badRequest("bundleKey must be a plain relative key under bundles/");
+      }
+      const project = b.project ?? deriveProjectFromBundleKey(b.bundleKey);
+      const tier = coerceQualityTier(b.qualityTier) ?? "final";
+      const oenv = env();
+      const modules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      if (servingForHook(modules, "motion.backend").length === 0) {
+        return c.json({ error: "no motion.backend module installed" }, 503);
+      }
+      const parsedScenes = await readBundleScenes(oenv, b.bundleKey);
+      if (!parsedScenes.length) return c.json({ error: "bundle has no storyboard scenes" }, 400);
+      const scenes: FilmScene[] = parsedScenes.map((s) => ({
+        shot_id: s.shot_id,
+        prompt: s.prompt,
+        seconds: s.seconds,
+      }));
+      const staged = await stageBundleInjectedKeyframes(oenv, b.bundleKey, project);
+      if (!staged.length) {
+        return c.json({ error: "bundle has no injected keyframes (clips/<id>_keyframe.png)" }, 400);
+      }
+      const mapped = mapRenderOverridesToModuleConfigs(b.renderOverrides, tier, modules);
+      const motionBackend = b.motion_backend ?? mapped.motion_backend ?? defaultGpuDoorModule(modules)?.name;
+      if (!motionBackend) {
+        return c.json(
+          { error: 'no gpu-door motion.backend module (ui.locality "byo"/"local") is installed' },
+          400,
+        );
+      }
+      const job = await startFilmFromKeyframes(
+        oenv,
+        {
+          project,
+          bundle_key: b.bundleKey,
+          scenes,
+          keyframes: staged,
+          motion_backend: motionBackend,
+          motion_config: mapped.motion_config,
+          finish_config: mapped.finish_config,
+          speech_config: mapped.speech_config,
+          film_finish_config: mapped.film_finish_config,
+          master_config: mapped.master_config,
+          derive_mode: "finalized",
+          audio_key: b.audioKey,
+        },
+        modules,
+      );
+      if (job.phase === "failed") {
+        return c.json({ error: job.error || "render from keyframes failed" }, 422);
+      }
+      const view = filmJobToPollView(job, null);
+      await insertRenderBestEffort(oenv, {
+        jobId: view.jobId,
+        project,
+        bundleKey: b.bundleKey,
+        qualityTier: tier,
+        renderOverrides: b.renderOverrides,
+        status: view.status,
+        mode: "finalized",
+        projectId: await resolveProjectRef(platform, b.projectId),
+      });
+      return c.json(view, 201);
     } catch (e) {
       const res = httpErrorResponse(e);
       if (res) return res;

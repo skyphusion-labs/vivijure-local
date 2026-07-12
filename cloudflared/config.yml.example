@@ -1,0 +1,20 @@
+# Example locally-managed cloudflared ingress for vivijure-local homelab.
+# Copy to a host path (e.g. /opt/stacks/cloudflared/), add credentials.json (chmod 600), run compose.
+#
+#   tunnel: <your-tunnel-uuid>
+#   credentials-file: /etc/cloudflared/credentials.json
+#
+# Requires compose publishing MinIO on host loopback (default: 127.0.0.1:9000).
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: vivijure-local.example.com
+    service: http://127.0.0.1:8790
+  - hostname: minio.example.com
+    service: http://127.0.0.1:9000
+  - service: http_status:404
+
+warp-routing:
+  enabled: false

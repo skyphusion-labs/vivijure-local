@@ -1,0 +1,44 @@
+{
+  "name": "alibaba-wan-lora",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "motion.backend"
+  ],
+  "provides": [
+    {
+      "id": "i2v-cloud-lora",
+      "label": "Wan 2.2 (cloud i2v + custom LoRA)"
+    }
+  ],
+  "config_schema": {
+    "high_noise_loras": {
+      "type": "string",
+      "default": "[]",
+      "label": "high-noise LoRAs -- JSON [{path,scale}]"
+    },
+    "low_noise_loras": {
+      "type": "string",
+      "default": "[]",
+      "label": "low-noise LoRAs -- JSON [{path,scale}]"
+    },
+    "seed": {
+      "type": "int",
+      "default": -1,
+      "min": -1,
+      "label": "seed (-1 = random)"
+    },
+    "enable_safety_checker": {
+      "type": "bool",
+      "default": true,
+      "label": "safety checker"
+    }
+  },
+  "ui": {
+    "section": "motion",
+    "order": 75,
+    "locality": "cloud",
+    "cost": "Pay per render",
+    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+  }
+}

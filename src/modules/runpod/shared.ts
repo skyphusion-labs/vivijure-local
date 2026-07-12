@@ -1,0 +1,69 @@
+/**
+ * Shared RunPod async helpers (ported from vivijure module workers).
+ */
+
+export const RUNPOD_COLD_GRACE_MS = 90_000;
+
+export function runpodBase(endpointIdOrUrl: string): string {
+  if (endpointIdOrUrl.startsWith("http")) return endpointIdOrUrl.replace(/\/+$/, "");
+  return `https://api.runpod.ai/v2/${endpointIdOrUrl}`;
+}
+
+export function authHeader(apiKey: string): Record<string, string> {
+  return { authorization: `Bearer ${apiKey}` };
+}
+
+export interface PollState {
+  jobId: string;
+  project: string;
+  shotId: string;
+  submittedAt?: number;
+  seconds?: number;
+  extra?: Record<string, unknown>;
+}
+
+export function encodePoll(s: PollState): string {
+  return Buffer.from(JSON.stringify(s), "utf8").toString("base64");
+}
+
+export function decodePoll(token: string): PollState | null {
+  try {
+    const o = JSON.parse(Buffer.from(token, "base64").toString("utf8")) as PollState;
+    if (o && typeof o.jobId === "string" && typeof o.project === "string" && typeof o.shotId === "string") {
+      return o;
+    }
+  } catch {
+    /* bad token */
+  }
+  return null;
+}
+
+export function terminalErrorInOutput(output: unknown): string | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Record<string, unknown>;
+  const err = o.error ?? o.detail ?? o.message;
+  if (typeof err === "string" && err.trim()) return err.trim();
+  return null;
+}
+
+export function runpodJobGone(httpStatus: number, body: unknown): boolean {
+  if (httpStatus === 404) return true;
+  if (body && typeof body === "object") {
+    const s = String((body as Record<string, unknown>).error ?? "").toLowerCase();
+    if (s.includes("not found") || s.includes("does not exist")) return true;
+  }
+  return false;
+}
+
+export function classifyGoneState(submittedAt: number | undefined, nowMs: number): "gone-pending" | "gone-failed" {
+  if (submittedAt == null) return "gone-failed";
+  return nowMs - submittedAt < RUNPOD_COLD_GRACE_MS ? "gone-pending" : "gone-failed";
+}
+
+export async function cancelRunpodJobBestEffort(apiKey: string, base: string, jobId: string): Promise<void> {
+  try {
+    await fetch(`${base}/cancel/${jobId}`, { method: "POST", headers: authHeader(apiKey) });
+  } catch {
+    /* best-effort */
+  }
+}

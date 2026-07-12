@@ -2,11 +2,30 @@
   "name": "speech-upscale",
   "version": "0.1.1",
   "api": "vivijure-module/2",
-  "hooks": ["speech"],
-  "provides": [{ "id": "speech-upscale", "label": "Clean dialogue audio (resemble-enhance)" }],
+  "hooks": [
+    "speech"
+  ],
+  "provides": [
+    {
+      "id": "speech-upscale",
+      "label": "Clean dialogue audio (resemble-enhance)"
+    }
+  ],
   "config_schema": {
-    "enable": { "type": "bool", "default": false, "label": "enhance dialogue audio (opt-in)" },
-    "denoise": { "type": "bool", "default": false, "label": "extra denoise pass" }
+    "enable": {
+      "type": "bool",
+      "default": false,
+      "label": "enhance dialogue audio (opt-in)"
+    },
+    "denoise": {
+      "type": "bool",
+      "default": false,
+      "label": "extra denoise pass"
+    }
   },
-  "ui": { "section": "speech", "icon": "wand", "order": 10 }
+  "ui": {
+    "section": "speech",
+    "icon": "wand",
+    "order": 10
+  }
 }

@@ -63,8 +63,9 @@ modules are optional; alpha CI does not require them.
 `createStorage()` in `src/platform/create-storage.ts` picks S3 when `S3_*` is complete, else
 filesystem. `GET /health` reports `storage: "s3"` or `"filesystem"`.
 
-When the studio runs in Docker but presigned URLs must be fetched from the host GPU process,
-set `S3_PRESIGN_ENDPOINT` to a host-reachable MinIO URL (see `.env.example`).
+When the studio runs in Docker but presigned URLs must be fetched from off-box GPUs or RunPod,
+expose MinIO via cloudflared and set `S3_PRESIGN_ENDPOINT` to the tunnel URL. See
+[MINIO-TUNNEL.md](MINIO-TUNNEL.md).
 
 ## Verify
 

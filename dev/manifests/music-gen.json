@@ -1,0 +1,71 @@
+{
+  "name": "music-gen",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "score"
+  ],
+  "provides": [
+    {
+      "id": "minimax-music",
+      "label": "MiniMax Music 2.6 (Workers AI)"
+    }
+  ],
+  "config_schema": {
+    "prompt": {
+      "type": "string",
+      "default": "",
+      "label": "music prompt (blank = derive from storyboard)"
+    },
+    "lyrics": {
+      "type": "string",
+      "default": "",
+      "label": "lyrics (optional; blank uses [Instrumental] unless auto-generating)"
+    },
+    "is_instrumental": {
+      "type": "bool",
+      "default": true,
+      "label": "instrumental (no vocals)"
+    },
+    "lyrics_optimizer": {
+      "type": "bool",
+      "default": false,
+      "label": "auto-generate lyrics from prompt"
+    },
+    "format": {
+      "type": "enum",
+      "values": [
+        "mp3",
+        "wav"
+      ],
+      "default": "mp3",
+      "label": "audio format"
+    },
+    "bitrate": {
+      "type": "enum",
+      "values": [
+        "32000",
+        "64000",
+        "128000",
+        "256000"
+      ],
+      "default": "128000",
+      "label": "bitrate"
+    },
+    "sample_rate": {
+      "type": "enum",
+      "values": [
+        "16000",
+        "24000",
+        "32000",
+        "44100"
+      ],
+      "default": "44100",
+      "label": "sample rate"
+    }
+  },
+  "ui": {
+    "section": "score",
+    "order": 10
+  }
+}

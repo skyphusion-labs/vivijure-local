@@ -98,6 +98,11 @@ export function isDemoMode(env: AuthEnv): boolean {
   return (env.AUTH_MODE || "").trim() === "demo";
 }
 
+/** Hide operator catalogs on demo deploys (voices, models, etc.). */
+export function catalogForDeploy<T>(env: AuthEnv, catalog: readonly T[]): readonly T[] {
+  return isDemoMode(env) ? [] : catalog;
+}
+
 export const DEMO_WRITE_ROUTES: ReadonlySet<string> = new Set(["/api/demo/render", "/api/demo/chat"]);
 
 export function verifyDemoRequest(request: Request): AccessDecision {
