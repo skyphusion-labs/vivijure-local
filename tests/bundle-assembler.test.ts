@@ -72,7 +72,7 @@ describe("assembleBundle", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.bundleKey).toBe("bundles/bundle_smoke.tar.gz");
+    expect(result.bundleKey).toMatch(/^bundles\/bundle_smoke-[0-9a-f]{16}\.tar\.gz$/);
     expect(result.fileCount).toBeGreaterThan(0);
     const obj = await env.R2_RENDERS.get(result.bundleKey);
     expect(obj).not.toBeNull();

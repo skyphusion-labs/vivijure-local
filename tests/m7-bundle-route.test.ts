@@ -81,7 +81,7 @@ describe("POST /api/storyboard/bundle", () => {
     expect(res.status).toBe(201);
     const json = (await res.json()) as { ok: boolean; bundleKey?: string };
     expect(json.ok).toBe(true);
-    expect(json.bundleKey).toBe("bundles/route_bundle.tar.gz");
+    expect(json.bundleKey).toMatch(/^bundles\/route_bundle-[0-9a-f]{16}\.tar\.gz$/);
   });
 
   it("returns 400 when characterRefs is missing", async () => {
