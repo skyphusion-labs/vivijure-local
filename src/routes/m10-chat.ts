@@ -2,7 +2,7 @@
 
 import type { Hono } from "hono";
 import { badRequest, httpErrorResponse } from "../errors.js";
-import { json, readBody } from "../http.js";
+import { readBody } from "../http.js";
 import { chatComplete, type ChatCompleteArgs } from "../planner.js";
 import type { SettingsHost } from "./m8-settings.js";
 import { plannerEnvFromVars } from "../planner-env.js";
