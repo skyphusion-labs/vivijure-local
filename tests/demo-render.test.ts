@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildClipUrl, honestWaitSeconds, utcDay,
-  submitDemoRender, pollDemoRender, getJob, queuePosition,
+  submitDemoRender, pollDemoRender, getJob,
   DEFAULT_DEMO_RENDER_CAPS,
   type D1Like, type D1StmtLike, type DemoBackend, type DemoRenderable, type DemoQueueRow, type DemoRenderDeps,
 } from "../src/demo-render";

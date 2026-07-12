@@ -157,7 +157,7 @@ export async function invokePlanEnhance(
     if (systemMessage) messages.push({ role: "system", content: systemMessage });
     messages.push({ role: "user", content: userMessage });
     try {
-      const { reply, model } = await directPlanEnhance(env, messages, modelId);
+      const { reply } = await directPlanEnhance(env, messages, modelId);
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
         return { ok: true, output: { storyboard: { scenes: [] }, notes: ["chat skipped: empty reply"] } };

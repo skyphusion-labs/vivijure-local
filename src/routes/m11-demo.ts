@@ -20,7 +20,7 @@ import { isDemoMode } from "../auth-gate.js";
 import { authEnvFromPlatform } from "../http.js";
 import { readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
-import { badRequest, httpErrorResponse, notFound } from "../errors.js";
+import { httpErrorResponse, notFound } from "../errors.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 import {
   discoverModules,
