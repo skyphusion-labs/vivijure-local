@@ -1,23 +1,27 @@
 # Vivijure Local
 
-Provider-neutral edition of [Vivijure Studio](https://github.com/skyphusion-labs/vivijure): the same modular AI film control plane and reference API (`docs/CONTRACT.md` in the upstream repo), without Cloudflare Workers, D1, R2, or Workers AI.
+**Alpha -- not production-ready.** This repo is demonstration scaffolding for a future homelab
+edition of the **Vivijure Control Panel**. It proves the same modular film studio API and UI on
+Node, SQLite, and S3-compatible storage without Cloudflare Workers, D1, or R2. The layout,
+platform adapters, and operator story **will change dramatically** as we move toward
+[`vivijure-core`](docs/ROADMAP.md) and vivijure v2.0. For a production studio today, use upstream
+[`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
-GPU render backends (`vivijure-backend` on RunPod, `vivijure-local-12gb` / `-16gb` on your own card) are unchanged. This repo swaps only the **host**.
+Provider-neutral host for [Vivijure Studio](https://github.com/skyphusion-labs/vivijure): same
+reference API ([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure/blob/main/docs/CONTRACT.md)
+in the upstream repo), same `public/` UI, different runtime. GPU render backends
+(`vivijure-backend`, `vivijure-local-12gb`, `vivijure-local-16gb`) are unchanged; this repo swaps
+only the **control plane host**.
 
-## Strategy
+## Who this is for
 
-| Phase | Goal |
-|-------|------|
-| **v1 (this repo, Option B)** | Fork-adapt the vivijure core onto Node + SQLite + object storage. Prove full CONTRACT parity on a homelab stack. |
-| **v2 (vivijure 2.0, Option A)** | Extract shared orchestration into `vivijure-core`; both `vivijure` (CF) and `vivijure-local` become thin host adapters. |
+Homelab builders and contributors who want to run the Vivijure studio contract on their own box
+without a Cloudflare account: explore the module registry, exercise the render orchestrator, and
+gate changes with the parity smoke tests. It is a **lab bench**, not a supported production deploy.
 
-See `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
+**Production path:** [vivijure quickstart](https://github.com/skyphusion-labs/vivijure/blob/main/docs/quickstart.md) · **This repo:** [docs/quickstart.md](docs/quickstart.md)
 
 ## Quick start
-
-### One-command Docker stack (recommended)
-
-Studio, MinIO, CPU media containers, and module manifest sidecars in a single `compose.yaml`:
 
 ```bash
 cp .env.example .env          # set STUDIO_API_TOKEN
@@ -25,69 +29,60 @@ npm run compose:up            # docker compose up -d --build
 curl -fsS http://127.0.0.1:8790/health
 ```
 
-| Service | URL |
-|---------|-----|
-| Studio API + UI | http://127.0.0.1:8790 |
-| MinIO API | http://127.0.0.1:9000 |
-| MinIO console | http://127.0.0.1:9001 (`minioadmin` / `minioadmin`) |
-| CPU media | http://127.0.0.1:8780-8784 (`/health`) |
+Open http://127.0.0.1:8790 and paste your token. The friendly walk-through is
+[docs/quickstart.md](docs/quickstart.md); the full operator reference is
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-**GPU (`local-gpu`)** runs in compose by default as a mock sidecar (`module-local-gpu` on the Docker network). Point `MODULE_LOCAL_GPU_URL` at a real host backend or RunPod when you have one.
-
-Compose defaults `PLANNER_AI_MOCK=true` so `/planner` works without API keys.
-
-**Live planning** (same auth paths as upstream `vivijure`):
-
-1. **Unified Billing (preferred):** `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`
-2. **Direct BYOK fallback:** `ANTHROPIC_API_KEY` when gateway vars are unset
-
-Set `PLANNER_AI_MOCK=false` when using either path.
+Verify the demo pipeline:
 
 ```bash
-# optional: host-native dev instead of containerized studio
-npm install && npm run dev
+npm run smoke:exit            # bundle -> render -> poll -> artifact
 ```
 
-Stop: `npm run compose:down`
+## Where this fits: the constellation
 
-### Host-native dev (no Docker studio)
+Vivijure is a small group of repos that work together. The **Studio** control plane sits in the
+center. This repo is an alternate **host** for that same control plane (Node/Docker instead of
+Cloudflare Workers). The full map is in [docs/constellation.md](docs/constellation.md).
 
-```bash
-cp .env.example .env
-docker compose up -d          # MinIO + CPU media only (or full stack above)
-npm install
-npm run typecheck
-npm run dev                   # studio API + UI (default :8790)
+```mermaid
+flowchart LR
+    you[You: Studio web UI]
+    local[vivijure-local<br/>THIS REPO -- alpha host]
+    cf[vivijure<br/>CF Workers host]
+    modules[Module sidecars]
+    gpu[GPU backends]
+    cpu[CPU media stack]
+
+    you --> local
+    you --> cf
+    local --> modules
+    cf --> modules
+    modules --> gpu
+    local --> cpu
 ```
 
-Full render path needs CPU containers, module sidecars, and a GPU backend. See `docs/ARCHITECTURE.md`.
+## Documentation
 
-### Module catalog dev (M4)
+| Doc | Purpose |
+|-----|---------|
+| [docs/quickstart.md](docs/quickstart.md) | Short homelab path (compose up, token, smoke) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Full operator reference (env, GPU, troubleshooting) |
+| [docs/SECURITY.md](docs/SECURITY.md) | Token auth, single-operator model, exposure |
+| [docs/constellation.md](docs/constellation.md) | How this repo fits the Vivijure map |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Platform adapters and module transport |
+| [docs/PARITY.md](docs/PARITY.md) | API route checklist vs upstream |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones, exit criterion, v2.0 extraction plan |
 
-Sidecars speak HTTP instead of CF service bindings. Sync manifests from a sibling `vivijure` clone, start the fleet, source env, then run the studio:
+## Strategy
 
-```bash
-npm run module-manifests          # writes dev/manifests/*.json from ../vivijure
-npm run module-fleet              # manifest-only sidecars on :9101+
-set -a; source dev/module-fleet.env; set +a
-npm run dev
-npm run module-fleet:stop         # when done
-```
+| Phase | Goal |
+|-------|------|
+| **v1 (this repo, Option B)** | Fork-adapt the vivijure core onto Node + SQLite + object storage. Prove CONTRACT parity on a homelab stack. |
+| **v2 (vivijure 2.0, Option A)** | Extract shared orchestration into `vivijure-core`; both hosts become thin adapters. |
 
-Or set `MODULE_KEYFRAME_URL`, `MODULE_LOCAL_GPU_URL`, etc. in `.env` manually (see `.env.example`).
-
-**M5 render path:** `POST /api/storyboard/render` starts a `film-*` job (keyframe then `local-gpu` motion when modules are bound). Poll with `GET /api/storyboard/render/:jobId`. Job state lives in object storage; history rows land in SQLite `renders`.
-
-### Verification (M8 parity gate)
-
-```bash
-npm run typecheck
-npm test                        # full vitest suite
-npm run conformance             # module contract unit checks (+ live when MODULE_URL is set)
-npm run compose:up
-npm run conformance:compose     # live conformance against compose module sidecars
-npm run smoke:exit              # bundle -> render -> poll -> artifact HEAD
-```
+Phase 1 milestones (M0--M8) and the crew demo exit criterion are **done** on `main`; see
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What is copied verbatim from vivijure
 
@@ -95,9 +90,8 @@ npm run smoke:exit              # bundle -> render -> poll -> artifact HEAD
 - `migrations/` -- SQLite schema (D1-compatible SQL)
 - `src/modules/types.ts` -- `vivijure-module/2` contract (dependency-free)
 
-Object storage defaults to **MinIO** (S3-compatible). Set `S3_*` in `.env`; R2 or AWS S3 later is a config swap.
-
-Everything else is ported behind `src/platform/` adapters.
+Everything else is ported behind `src/platform/` adapters. Object storage defaults to **MinIO**
+(`S3_*` in `.env`); R2 or AWS S3 is a config swap.
 
 ## License
 

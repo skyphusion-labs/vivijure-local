@@ -2,6 +2,11 @@
 
 Provider-neutral host for Vivijure Studio. Upstream reference: `vivijure` on Cloudflare Workers.
 
+Operator docs: [quickstart.md](quickstart.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [SECURITY.md](SECURITY.md) · [constellation.md](constellation.md).
+
+> **Alpha.** This architecture is demonstration scaffolding; adapters and compose layout will
+> change as we extract `vivijure-core` (see [ROADMAP.md](ROADMAP.md)).
+
 ## Design principle
 
 The film pipeline and module registry are **host-agnostic logic** trapped behind Cloudflare bindings today. This repo ports that logic onto explicit platform adapters so a future `vivijure-core` package (vivijure v2.0) can import the same code both hosts use.

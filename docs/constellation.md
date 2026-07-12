@@ -1,0 +1,82 @@
+# Where each piece fits: the Vivijure map
+
+Vivijure is not one program. It is a small group of programs that work together. We call the
+whole group the **constellation**. This page shows the map once. Every repo in the constellation
+shows this same map, so you always know where you are.
+
+The **Studio** is the center. It is the control plane: it holds your projects, your storyboards,
+your cast, and it tells everything else what to do. You talk to the Studio; the Studio talks to
+everything else.
+
+**This repo (`vivijure-local`)** is an alternate **host** for that same control plane. The
+production host is [`vivijure`](https://github.com/skyphusion-labs/vivijure) on Cloudflare Workers.
+`vivijure-local` runs the same API and UI on Node, SQLite, and S3-compatible storage (MinIO by
+default). It exists today as **alpha demonstration scaffolding** for a future homelab edition of the
+Vivijure Control Panel; it will change dramatically as we move toward a shared `vivijure-core`.
+
+```mermaid
+flowchart TD
+    subgraph front[You]
+        ui[Studio web page]
+    end
+
+    subgraph hosts[Control plane hosts]
+        studio_cf[vivijure Studio<br/>Cloudflare Workers<br/>production path]
+        studio_local[vivijure-local Studio<br/>Node + Docker<br/>THIS REPO -- alpha]
+    end
+
+    subgraph modules[Modules: one job each, opt-in]
+        cloudmods[Cloud video modules<br/>Seedance, Kling, Veo, Wan, ...]
+        finishmods[Finish modules<br/>upscale, smooth, lip-sync, titles]
+        audiomods[Audio modules<br/>music, narration, beat-sync]
+    end
+
+    subgraph gpu[The GPU render engines]
+        backend[vivijure-backend<br/>RunPod cloud GPU]
+        local12[vivijure-local-12gb<br/>your own 12GB card]
+        local16[vivijure-local-16gb<br/>your own 16GB card]
+    end
+
+    subgraph cpu[CPU media stack]
+        finish_cpu[video-finish, image-prep,<br/>audio-beat-sync, audio-mix, audio-master]
+    end
+
+    ui --> studio_cf
+    ui --> studio_local
+    studio_cf --> modules
+    studio_local --> modules
+    modules --> gpu
+    modules --> finish_cpu
+    studio_cf --> backend
+    studio_local --> backend
+    studio_local --> local12
+    studio_local --> local16
+```
+
+## How to read the map
+
+- **You** open the Studio web page. On Cloudflare that is your deployed Worker; on the homelab
+  path it is `http://127.0.0.1:8790` (or your LAN address) after `docker compose up`.
+- **The Studio** owns your work and decides what runs. It does not render video itself. It hands
+  heavy work to a **module**.
+- **A module** is a small worker that does one job: keyframes, motion, finish polish, scoring.
+  The Studio keeps a **registry**; the web page builds itself from `GET /api/modules`.
+- **GPU engines** do the real clip rendering. **CPU containers** assemble clips, mux audio, and
+  run beat analysis. On `vivijure-local`, both run in `docker compose` by default (GPU mocks
+  included for the demo path; point `MODULE_LOCAL_GPU_URL` at a real backend when you have one).
+
+## Two hosts, one contract
+
+| Host | When to use it |
+|---|---|
+| **vivijure** (Cloudflare) | Production studio. Free-tier Workers, R2, AI Gateway. The path documented in upstream [quickstart.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/quickstart.md). |
+| **vivijure-local** (this repo) | Alpha homelab scaffold. No Cloudflare account required. Proves the same JSON API and module contract on your own box. **Not production-ready.** |
+
+Both hosts speak the same `vivijure-module/2` contract. Canonical ICD:
+[vivijure/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/CONTRACT.md).
+
+Route-level parity tracking lives in [PARITY.md](PARITY.md).
+
+---
+
+*This map is the same in every constellation repo. You are reading the homelab host edition.*

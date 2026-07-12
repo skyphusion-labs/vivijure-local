@@ -16,7 +16,16 @@
 | M7 | Planner + preflight (BYOK or mock) | done |
 | M8 | Parity gate: upstream conformance + vitest subset green | done |
 
-**Exit criterion:** Crew demo -- planner -> render -> poll -> download MP4 on a box with no CF bindings.
+**Exit criterion:** Crew demo -- planner -> render -> poll -> download MP4 on a box with no CF bindings. **Done** (`npm run smoke:exit`).
+
+## Phase 1 documentation
+
+| Doc | Status |
+|-----|--------|
+| [quickstart.md](quickstart.md) | Homelab quick path |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Operator reference |
+| [SECURITY.md](SECURITY.md) | Token auth model |
+| [constellation.md](constellation.md) | Vivijure map (local host) |
 
 ## Phase 2 -- Harden local edition (v0.2.x)
 
