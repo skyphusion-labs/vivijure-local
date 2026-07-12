@@ -5,8 +5,11 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gateApi } from "./auth-gate.js";
+import { artifactKeyFromPath, handleServeArtifact, handleUpload } from "./artifacts.js";
+import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { Platform } from "./platform/index.js";
+import { FilesystemObjectStore } from "./platform/storage.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -38,6 +41,31 @@ export function createApp(platform: Platform): Hono {
       host: { edition: "local" },
     }),
   );
+
+  const store = () => platform.renders as FilesystemObjectStore;
+
+  app.post("/api/upload", async (c) => {
+    try {
+      return await handleUpload(c.req.raw, store());
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  });
+
+  const serveArtifact = async (c: { req: { raw: Request; path: string; method: string } }) => {
+    try {
+      const key = artifactKeyFromPath(c.req.path);
+      return await handleServeArtifact(c.req.raw, store(), key);
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  };
+
+  app.on(["GET", "HEAD"], "/api/artifact/*", serveArtifact);
 
   app.get("*", async (c, next) => {
     const asset = resolveStudioPage(c.req.path);

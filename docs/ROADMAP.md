@@ -8,7 +8,7 @@
 |-----------|-------------|
 | M0 | Repo scaffold, platform interfaces, compose skeleton | done |
 | M1 | SQLite + migrations applied; `GET /health`, `GET /api/whoami` + auth gate | done |
-| M2 | Object store + `GET /api/artifact/*`, `POST /api/upload` |
+| M2 | Object store + `GET /api/artifact/*`, `POST /api/upload` | done |
 | M3 | Projects, cast, prefs CRUD |
 | M4 | `GET /api/modules` with HTTP sidecar discovery |
 | M5 | Film submit/poll (`POST /api/storyboard/render`, poll loop) with `local-gpu` |

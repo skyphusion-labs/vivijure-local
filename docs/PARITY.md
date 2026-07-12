@@ -68,8 +68,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Artifacts
 
-- [ ] `POST /api/upload`
-- [ ] `GET /api/artifact/*key` (incl. Range)
+- [x] `POST /api/upload`
+- [x] `GET /api/artifact/*key` (incl. Range)
 
 ## Prefs
 
