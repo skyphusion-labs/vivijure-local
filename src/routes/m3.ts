@@ -9,7 +9,7 @@ import {
   listCast,
   toPublicCast,
   updateCast,
-} from "../cast-db.js";
+} from "@skyphusion-labs/vivijure-core/cast-db";
 import {
   deleteCastArtifacts,
   handleCastPortraitUpload,
@@ -32,9 +32,9 @@ import {
   setLastStoryboard,
   toPublicProject,
   updateProjectMeta,
-} from "../storyboard-projects-db.js";
+} from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
-import { isValidVoiceId, VOICE_IDS } from "../voices.js";
+import { isValidVoiceId, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
 
 function castMediaEnv(platform: Platform): CastMediaEnv {
   return {

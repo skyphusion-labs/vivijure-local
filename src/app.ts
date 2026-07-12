@@ -18,7 +18,7 @@ import { registerM5Routes } from "./routes/m5.js";
 import { registerM6Routes } from "./routes/m6.js";
 import { registerM7Routes } from "./routes/m7.js";
 import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
-import { renderConfigProjection } from "./render-module-config.js";
+import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 import { resolveStudioPage } from "./studio-pages.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));

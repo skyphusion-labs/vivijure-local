@@ -1,11 +1,9 @@
-export * from "@skyphusion-labs/vivijure-core/film-render-bridge";
-
 import type { FilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
 import {
   filmRenderRowSeedFromJob,
   type FilmRenderRowSeed,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
-import type { NewRenderRow } from "./renders-db.js";
+import type { NewRenderRow } from "@skyphusion-labs/vivijure-core/renders-db";
 
 /** Map core film row seed into the host renders-table insert shape. */
 export function filmRowFromJob(job: FilmJob): NewRenderRow {

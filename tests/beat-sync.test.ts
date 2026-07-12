@@ -5,7 +5,7 @@ import {
   parseAudioBeatPlan,
   parseContainerResponse,
 } from "../src/modules/cpu/beat-sync-core.js";
-import { beatPlanFromModuleOutput, beatSyncScoreModules } from "../src/beat-analyze.js";
+import { beatPlanFromModuleOutput, beatSyncScoreModules } from "@skyphusion-labs/vivijure-core/beat-analyze";
 import type { RegisteredModule } from "@skyphusion-labs/vivijure-core";
 
 describe("beat-sync pure logic", () => {

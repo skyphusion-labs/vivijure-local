@@ -9,7 +9,7 @@
 // without a D1 binding (matches the renders-db / runpod-submit split: pure
 // helpers tested, query code verified live).
 
-import type { DbEnv } from "./db-env.js";
+import type { DbEnv } from "@skyphusion-labs/vivijure-core/db-env";
 
 export interface UserPrefs {
   // When true, the user is emailed when one of their renders reaches a terminal

@@ -10,8 +10,8 @@ import {
   setPortrait,
   toPublicCast,
   type CastMember,
-} from "./cast-db.js";
-import type { DbEnv } from "./db-env.js";
+} from "@skyphusion-labs/vivijure-core/cast-db";
+import type { DbEnv } from "@skyphusion-labs/vivijure-core/db-env";
 import { HttpError } from "./errors.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
 import { extFromMime } from "./utils.js";

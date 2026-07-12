@@ -8,7 +8,7 @@ import {
   validateManifest,
 } from "@skyphusion-labs/vivijure-core";
 import { MODULE_API, type ConfigSchema, type RegisteredModule } from "@skyphusion-labs/vivijure-core";
-import { renderConfigProjection } from "../src/render-module-config.js";
+import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 
 const manifest = (over = {}) => ({
   name: "finish-rife",

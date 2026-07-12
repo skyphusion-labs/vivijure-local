@@ -1,8 +1,8 @@
-import { getCastIdByPublicId } from "./cast-db.js";
-import type { DbEnv } from "./db-env.js";
+import { getCastIdByPublicId } from "@skyphusion-labs/vivijure-core/cast-db";
+import type { DbEnv } from "@skyphusion-labs/vivijure-core/db-env";
 import { notFound } from "./errors.js";
-import { isPublicId } from "./public-id.js";
-import { getProjectIdByPublicId } from "./storyboard-projects-db.js";
+import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
+import { getProjectIdByPublicId } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 
 export async function resolveProjectId(env: DbEnv, raw: string): Promise<number> {
   if (!isPublicId(raw)) throw notFound("project");

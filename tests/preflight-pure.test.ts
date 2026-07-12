@@ -3,7 +3,7 @@ import {
   checkStoryboardShape,
   resolveCastBindings,
   summarize,
-} from "../src/preflight.js";
+} from "@skyphusion-labs/vivijure-core/preflight";
 
 describe("preflight pure checks", () => {
   it("flags empty scenes", () => {
