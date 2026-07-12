@@ -512,6 +512,7 @@ services:
     profiles: [tunnel]
     image: cloudflare/cloudflared:2026.6.1
     restart: unless-stopped
+    user: "0:0"
     network_mode: host
     command: tunnel --no-autoupdate --metrics 127.0.0.1:2001 --config /etc/cloudflared/config.yml run
     volumes:
