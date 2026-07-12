@@ -450,42 +450,6 @@ export interface ScoreOutput {
                         // reason. A degrade is never silent -- the consumer records it.
 }
 
-/** Planner / beat-sync: librosa beat plan attached to a score hook result. */
-export interface TimedScene {
-  index: number;
-  start: number;
-  end: number;
-  targetSeconds: number;
-}
-
-export interface AudioBeatPlan {
-  mode: "beat" | "duration";
-  audioKey: string;
-  durationSeconds: number;
-  bpm?: number;
-  beatCount?: number;
-  suggestedShots: number;
-  clipSeconds: number;
-  filmSeconds: number;
-  remainderSeconds: number;
-  timedScenes: TimedScene[];
-  note: string;
-}
-
-/** POST /api/audio/analyze request (camelCase). */
-export interface AudioAnalyzeRequest {
-  audioKey: string;
-  clipSeconds?: number;
-  mode?: "beat" | "duration";
-  minSceneS?: number;
-  maxSceneS?: number;
-  forceShots?: number;
-}
-
-export interface BeatSyncOutput extends ScoreOutput {
-  beat_plan?: AudioBeatPlan;
-}
-
 // cast.image (v1) -------------------------------------------------------------------------------
 
 /** What the core hands a `cast.image` module: one cast member's seed material to generate LoRA
@@ -590,14 +554,11 @@ export interface FilmFinishInput {
   video_url: string;   // presigned GET of the input film (the module fetches it)
   output_url: string;  // presigned PUT the module writes the carded film to
   output_key: string;  // the R2 key behind output_url (so the core knows where the result landed)
-  width?: number;
-  height?: number;
-  fps?: number;
   title?: { text: string; subtitle?: string }; // opening title card text; absent => no title card
   credits?: { lines: string[] };               // end-credit lines; absent => no credit card
-  captions?: FilmFinishCaption[];              // time-synced dialogue cues; empty => subtitle no-op
-  sidecar_url?: string; // presigned PUT for an optional .srt subtitle sidecar (ignored by non-subtitle modules)
-  sidecar_key?: string; // the R2 key behind sidecar_url
+  captions: FilmFinishCaption[];                // time-synced dialogue cues; empty => subtitle no-op
+  sidecar_url: string; // presigned PUT for an optional .srt subtitle sidecar (ignored by non-subtitle modules)
+  sidecar_key: string; // the R2 key behind sidecar_url
 }
 
 /** What a `film.finish` module returns: the (maybe new) film key plus what it did. The chain is

@@ -16,15 +16,20 @@ import { createCpuModuleApp } from "../src/modules/cpu/app.js";
 import type { FilmFinishInput } from "../src/modules/types.js";
 import { checkHookOutput } from "../src/modules/conformance.js";
 
+type FilmFinishTestInput = FilmFinishInput & { width?: number; height?: number; fps?: number };
+
 const manifest = JSON.parse(
   readFileSync(join(import.meta.dirname, "../dev/manifests/film-titles.json"), "utf8"),
 ) as Record<string, unknown>;
 
-const baseInput = (over: Partial<FilmFinishInput> = {}): FilmFinishInput => ({
+const baseInput = (over: Partial<FilmFinishTestInput> = {}): FilmFinishTestInput => ({
   film_key: "renders/film-x/film.mp4",
   video_url: "https://r2/get",
   output_url: "https://r2/put",
   output_key: "renders/film-x/film_titled.mp4",
+  captions: [],
+  sidecar_url: "https://r2/sidecar-put",
+  sidecar_key: "renders/film-x/film_titled.srt",
   width: 1920,
   height: 1080,
   fps: 24,

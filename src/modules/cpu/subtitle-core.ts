@@ -103,15 +103,16 @@ export function buildContainerSpec(
   // Effective mode: degrade to burn-only if a sidecar was requested but the core presigned no sidecar
   // URL (sidecar-only with no URL is handled upstream in index.ts as a passthrough, not here).
   const mode: SubtitleMode = wantSidecar && !haveSidecarUrl ? "burn" : cfg.mode;
+  const geo = input as FilmFinishInput & { width?: number; height?: number; fps?: number };
   const spec: Record<string, unknown> = {
     videoUrl: input.video_url,
     outputUrl: input.output_url,
     outputKey: input.output_key,
     srt,
     mode,
-    width: input.width ?? 1920,
-    height: input.height ?? 1080,
-    fps: input.fps ?? 24,
+    width: geo.width ?? 1920,
+    height: geo.height ?? 1080,
+    fps: geo.fps ?? 24,
     style: {
       font: cfg.font,
       fontSize: cfg.font_size,

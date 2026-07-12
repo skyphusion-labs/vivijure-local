@@ -46,13 +46,14 @@ export function hasTitleCard(input: FilmFinishInput): boolean {
  *  the core (the module is credentialless); the container downloads the film, generates the cards,
  *  concats [title?, film, credits?], and uploads the result to output_url. */
 export function buildContainerSpec(input: FilmFinishInput, cfg: TitlesConfig): Record<string, unknown> {
+  const geo = input as FilmFinishInput & { width?: number; height?: number; fps?: number };
   const spec: Record<string, unknown> = {
     videoUrl: input.video_url,
     outputUrl: input.output_url,
     outputKey: input.output_key,
-    width: input.width ?? 1920,
-    height: input.height ?? 1080,
-    fps: input.fps ?? 24,
+    width: geo.width ?? 1920,
+    height: geo.height ?? 1080,
+    fps: geo.fps ?? 24,
     font: cfg.font,
     color: cfg.color,
     bg: cfg.bg,
