@@ -29,12 +29,19 @@ SSH tunnel is **systemd** only: `fleet-chezmoi/system/stacks/flatliners/cloudfla
 | `minio-flatliners.skyphusion.org` | `http://localhost:9000` (MinIO S3 API, path-style) |
 | `vivijure.minio-flatliners.skyphusion.org` | `http://localhost:9000` (MinIO bucket vhost for RunPod boto3) |
 
-After editing `cloudflared/config.yml`, apply ingress + DNS (no dashboard):
+After editing `cloudflared/config.yml`, apply ingress + DNS + cache rules (no dashboard):
 
 ```bash
 COMPOSE_PROFILES=tunnel docker compose up -d --force-recreate cloudflared
 CLOUDFLARE_API_TOKEN=... npm run sync:tunnel-dns
+CLOUDFLARE_API_TOKEN=... npm run sync:minio-cache-rules
 ```
+
+**Why cache bypass:** `vivijure-backend` calls `HeadObject` before download. Cloudflare's proxied
+edge (`cache_level: aggressive` on `skyphusion.org`) can rewrite or cache S3 traffic so SigV4 HEAD
+requests fail with `403 Forbidden` even when credentials are correct. Real R2 endpoints do not hit
+this path; that is why other RunPod templates work with the same secret-store refs. See
+[Stack Overflow: HeadObject 403 on MinIO behind Cloudflare](https://stackoverflow.com/questions/76608350).
 
 On flatliners, in `vivijure-local/.env`:
 
