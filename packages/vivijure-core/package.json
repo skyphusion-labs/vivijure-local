@@ -1,6 +1,6 @@
 {
   "name": "@skyphusion-labs/vivijure-core",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Shared Vivijure orchestration (registry, film pipeline, module contract). Phase 3 extraction target.",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -36,7 +36,10 @@
     "./cast-db": "./src/cast-db.ts",
     "./storyboard-projects-db": "./src/storyboard-projects-db.ts",
     "./renders-db": "./src/renders-db.ts",
-    "./render-log": "./src/render-log.ts"
+    "./render-log": "./src/render-log.ts",
+    "./preflight": "./src/preflight.ts",
+    "./planner-prompt": "./src/planner-prompt.ts",
+    "./output-extract": "./src/output-extract.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

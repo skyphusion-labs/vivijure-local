@@ -68,3 +68,6 @@ export * from "./storyboard-validate.js";
 export * from "./planner-yaml.js";
 export { emitTar, readTar, type TarFile } from "./tar.js";
 export * from "./key-safety.js";
+export * from "./preflight.js";
+export * from "./planner-prompt.js";
+export * from "./output-extract.js";

@@ -56,6 +56,7 @@
 | M18 | Orchestrators in core; env bridge removed | done |
 | M19 | DB helpers (`cast-db`, `renders-db`, `storyboard-projects-db`, `render-log`) in core | done |
 | M20 | Bundle assembly (`bundle-assembler`, `storyboard-validate`, `planner-yaml`, `tar`) in core | done |
+| M21 | Planner pure helpers (`preflight`, `planner-prompt`, `output-extract`) in core | done |
 
 ```
 vivijure-core@2.x          # registry, film-orchestrator, types, conformance

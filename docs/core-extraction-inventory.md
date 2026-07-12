@@ -33,6 +33,16 @@ Host imports via `@skyphusion-labs/vivijure-core`. Upstream verbatim parity:
 
 Host re-exports film-model via `@skyphusion-labs/vivijure-core/film-model` from `film-orchestrator.ts`.
 
+## Wave 2 -- planner pure helpers **DONE (M21)**
+
+| File | Location | Notes |
+|------|----------|-------|
+| `preflight.ts` | `packages/vivijure-core/src/` | Shape/cast/duration-grid checks; `#751` floor escalation |
+| `planner-prompt.ts` | `packages/vivijure-core/src/` | Plan/refine prompt builders + JSON fence strip |
+| `output-extract.ts` | `packages/vivijure-core/src/` | LLM response normalization |
+
+Host `src/{preflight,planner-prompt,output-extract}.ts` are re-export shims. Preflight route passes `resolveClipDurationFloor` from `film-model`.
+
 ## Wave 2 -- remaining pure helpers **DONE (M20)**
 
 | File | Location | Notes |
@@ -71,7 +81,7 @@ Host `src/*-db.ts` files are re-export shims. `platform-secrets-db.ts` stays hos
 | `clip-content-validate.ts` | `packages/vivijure-core/src/` | done | Layer 2 pixel gate (CPU container) |
 
 Host VPC injection lives on `Platform.hostBindings`; routes call `orchestratorContextFromPlatform` from core.
-Core CI: `packages/vivijure-core/tests/{platform-contract,conformance,db-helpers,bundle-assembler}.test.ts`.
+Core CI: `packages/vivijure-core/tests/{platform-contract,conformance,db-helpers,bundle-assembler,preflight}.test.ts`.
 
 ## Stays in vivijure-local (host)
 
