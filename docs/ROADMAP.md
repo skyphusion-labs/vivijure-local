@@ -29,13 +29,13 @@
 
 ## Phase 2 -- Harden local edition (v0.2.x)
 
-**Goal:** Optional cloud/satellite modules, storage modes documented and tested, stdout observability.
+**Goal:** Optional cloud/satellite modules, storage modes documented and tested, stdout observability. **M9–M12 done** (v0.2.0 hardening slice).
 
 | Milestone | Deliverable | Status |
 |-----------|-------------|--------|
-| M9 | MinIO vs `ARTIFACT_ROOT` factory tests; install profile docs; `/health` storage field | in progress |
-| M10 | `structured-events.ts`; `film.phase` / terminal events; [observability.md](observability.md) | in progress |
-| M11 | Compose `satellites` profile for finish sidecars; [install-profiles.md](install-profiles.md) | in progress |
+| M9 | MinIO vs `ARTIFACT_ROOT` factory tests; install profile docs; `/health` storage field | done |
+| M10 | `structured-events.ts`; `film.phase` / terminal events; [observability.md](observability.md) | done |
+| M11 | Compose `satellites` profile for finish sidecars; [install-profiles.md](install-profiles.md) | done |
 | M12 | CI `upstream-parity` workflow: diff `public/` vs `vivijure` main (`--verbatim` for migrations/types locally) | done |
 
 - Optional cloud modules behind install profiles (RunPod `own-gpu`, provider i2v)

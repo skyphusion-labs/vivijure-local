@@ -1,6 +1,6 @@
 // Pure beat-sync logic (unit-testable without the Worker runtime).
 
-import type { AudioBeatPlan } from "../types.js";
+import type { AudioBeatPlan } from "../../beat-sync-types.js";
 
 export const MODES = ["beat", "duration"] as const;
 export type AnalyzeMode = (typeof MODES)[number];

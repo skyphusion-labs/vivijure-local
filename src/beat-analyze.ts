@@ -12,9 +12,8 @@ import type {
   AudioAnalyzeRequest,
   AudioBeatPlan,
   BeatSyncOutput,
-  RegisteredModule,
-  ScoreInput,
-} from "./modules/types.js";
+} from "./beat-sync-types.js";
+import type { RegisteredModule, ScoreInput } from "./modules/types.js";
 import { presignR2Get } from "./r2-presign.js";
 import { parseAudioBeatPlan } from "./modules/cpu/beat-sync-core.js";
 
@@ -142,4 +141,4 @@ export async function analyzeAudioBeats(
   return { ok: true, plan: direct.plan, module: "core-vpc" };
 }
 
-export type { AudioAnalyzeRequest, AudioBeatPlan };
+export type { AudioAnalyzeRequest, AudioBeatPlan } from "./beat-sync-types.js";
