@@ -26,6 +26,12 @@ import {
   type RefineStoryboardArgs,
 } from "../planner.js";
 import { validateStoryboard } from "@skyphusion-labs/vivijure-core/storyboard-validate";
+import { dispatchChain } from "@skyphusion-labs/vivijure-core";
+import type {
+  PlanEnhanceInput,
+  PlanEnhanceOutput,
+  PlanEnhanceStoryboard,
+} from "@skyphusion-labs/vivijure-core/modules/types";
 
 async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>): Promise<Response> {
   try {
@@ -137,6 +143,42 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
       const env = orchestratorContextFromPlatform(platform);
       const result = await assembleBundle(env, args);
       return json(result, result.ok ? 201 : 400);
+    }),
+  );
+
+  app.post("/api/storyboard/enhance", (c) =>
+    handle(c, async () => {
+      const a = await readBody<{
+        storyboard?: PlanEnhanceStoryboard;
+        brief?: string;
+        project?: string;
+        config?: Record<string, unknown>;
+      }>(c.req.raw);
+      if (!a.storyboard || !Array.isArray(a.storyboard.scenes)) {
+        throw badRequest("storyboard with scenes required");
+      }
+      const modEnv = moduleEnvFromPlatform(platform);
+      const envRec = modEnv as unknown as Record<string, unknown>;
+      const modules = await discoverModules(envRec, { cacheTtlMs: 60_000 });
+      const seed: PlanEnhanceInput = { storyboard: a.storyboard, brief: a.brief };
+      const result = await dispatchChain<PlanEnhanceInput, PlanEnhanceOutput>(
+        envRec,
+        modules,
+        "plan.enhance",
+        seed,
+        { project: a.project || "enhance", job_id: crypto.randomUUID() },
+        {
+          nextInput: (prev) => ({ storyboard: prev.storyboard, brief: a.brief }),
+          configFor: () => a.config,
+        },
+      );
+      return json({
+        ok: true,
+        storyboard: result.output?.storyboard ?? a.storyboard,
+        applied: result.applied,
+        errors: result.errors,
+        notes: result.output?.notes ?? [],
+      });
     }),
   );
 }

@@ -25,6 +25,12 @@ import {
   normalizeFilmScenes,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import type { Platform } from "../platform/types.js";
+import {
+  advanceScatterJob,
+  isScatterJobId,
+  scatterJobToPollView,
+  startScatterRender,
+} from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
 import { parseModuleRenderOverrides } from "@skyphusion-labs/vivijure-core/render-module-config";
@@ -179,11 +185,22 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
   app.get("/api/storyboard/render/:jobId", async (c) => {
     try {
       const jobId = c.req.param("jobId");
-      if (!isFilmJobId(jobId)) {
-        return c.json({ error: "unknown or legacy render job id (film-* only)", jobId }, 404);
+      const oenv = env();
+
+      if (isScatterJobId(jobId)) {
+        const view = await advanceScatterJob(oenv, jobId, noopExecutionContext);
+        if (!view) return c.json({ error: "render job not found" }, 404);
+        await updateRenderFromView(oenv, view, noopExecutionContext);
+        return c.json(view);
       }
 
-      const oenv = env();
+      if (!isFilmJobId(jobId)) {
+        return c.json(
+          { error: "unknown or legacy render job id (film-* or scatter-* only)", jobId },
+          404,
+        );
+      }
+
       const r = await advanceFilmJob(oenv, jobId);
       if (!r) return c.json({ error: "render job not found" }, 404);
 
@@ -195,6 +212,76 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       const view = filmJobToPollView(r.job, r.clipJob, kfDone);
       await updateRenderFromView(oenv, view, noopExecutionContext);
       return c.json(view);
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  });
+
+  app.post("/api/storyboard/render/scatter", async (c) => {
+    try {
+      const b = await readBody<{
+        project?: string;
+        bundleKey?: string;
+        qualityTier?: string;
+        shotIds?: string[];
+        shardCount?: number;
+        castLoras?: Record<string, unknown>;
+        renderOverrides?: Record<string, unknown>;
+        audioKey?: string;
+        projectId?: unknown;
+        motion_backend?: string;
+        film_titles?: { title?: { text: string; subtitle?: string }; credits?: { lines: string[] } };
+      }>(c.req.raw);
+
+      if (!b.bundleKey) throw badRequest("bundleKey required");
+      if (!isSafeBundleKey(b.bundleKey)) {
+        throw badRequest("bundleKey must be a plain relative key under bundles/");
+      }
+      if (!Array.isArray(b.shotIds) || b.shotIds.length < 2) {
+        throw badRequest("shotIds[] required (>= 2)");
+      }
+      const shardCount = typeof b.shardCount === "number" ? b.shardCount : 2;
+      const project = b.project ?? deriveProjectFromBundleKey(b.bundleKey);
+      const tier = coerceQualityTier(b.qualityTier) ?? "final";
+      const oenv = env();
+
+      const scatterModules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      const scatterOverrides = parseModuleRenderOverrides(b.renderOverrides);
+      const scatterBackend = b.motion_backend ?? scatterOverrides.motion_backend;
+      const scatterMotionErr = motionBackendPreflightError(scatterModules, scatterBackend);
+      if (scatterMotionErr) throw badRequest(scatterMotionErr);
+      const scatterCfgErr = motionConfigPreflightError(
+        scatterModules,
+        scatterBackend,
+        scatterOverrides.config?.[(scatterBackend ?? "").trim()],
+      );
+      if (scatterCfgErr) throw badRequest(scatterCfgErr);
+
+      const scatterCast = await resolveCastLoras(oenv, b.castLoras ?? {});
+      if (scatterCast.skipped.length) throw badRequest(untrainedCastMessage(scatterCast.skippedDetail));
+
+      try {
+        const job = await startScatterRender(oenv, {
+          project,
+          bundle_key: b.bundleKey,
+          quality_tier: tier,
+          shot_ids: b.shotIds,
+          shard_count: shardCount,
+          cast_loras: b.castLoras ?? {},
+          render_overrides: b.renderOverrides,
+          motion_backend: b.motion_backend,
+          audio_key: b.audioKey,
+          film_titles: b.film_titles,
+          project_id: await resolveProjectRef(platform, b.projectId),
+        });
+        const view = scatterJobToPollView(job);
+        return c.json({ ok: true, jobId: view.jobId, status: view.status }, 201);
+      } catch (e) {
+        const msg = (e as Error).message || "scatter submit failed";
+        return c.json({ ok: false, error: msg }, 422);
+      }
     } catch (e) {
       const res = httpErrorResponse(e);
       if (res) return res;

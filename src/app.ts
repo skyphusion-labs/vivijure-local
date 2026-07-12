@@ -14,9 +14,12 @@ import { discoverModules, modulesResponse } from "@skyphusion-labs/vivijure-core
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
+import { registerM4Routes } from "./routes/m4-renders.js";
 import { registerM5Routes } from "./routes/m5.js";
 import { registerM6Routes } from "./routes/m6.js";
 import { registerM7Routes } from "./routes/m7.js";
+import { registerM9Routes } from "./routes/m9-render-api.js";
+import { registerM10Routes } from "./routes/m10-chat.js";
 import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
 import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 import { resolveStudioPage } from "./studio-pages.js";
@@ -85,9 +88,12 @@ export function createApp(host: SettingsHost): Hono {
   app.on(["GET", "HEAD"], "/api/artifact/*", serveArtifact);
 
   registerM3Routes(app, platform);
+  registerM4Routes(app, platform);
   registerM5Routes(app, platform);
   registerM6Routes(app, platform);
   registerM7Routes(app, host);
+  registerM9Routes(app, platform);
+  registerM10Routes(app, host);
   registerSettingsRoutes(app, host);
 
   app.get("*", async (c, next) => {

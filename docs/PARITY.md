@@ -29,10 +29,13 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 - [x] `POST /api/cast/:id/portrait`
 - [x] `POST /api/cast/:id/ref`
 - [x] `POST /api/cast/:id/source`
-- [ ] `POST /api/cast/:id/generate-refs`
-- [ ] `POST /api/cast/:id/train-lora`
-- [ ] `GET /api/cast/export`
-- [ ] `POST /api/cast/import`
+- [x] `POST /api/cast/:id/generate-refs`
+- [x] `GET /api/cast/:id/refs-job/:jobId`
+- [x] `POST /api/cast/:id/train-lora`
+- [x] `GET /api/cast/:id/lora-status`
+- [x] `GET /api/cast/export/:id`
+- [x] `POST /api/cast/export/:id`
+- [x] `POST /api/cast/import`
 
 ## Planner
 
@@ -40,32 +43,31 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 - [x] `POST /api/storyboard/refine`
 - [x] `POST /api/storyboard/preflight`
 - [x] `POST /api/audio/analyze`
-- [ ] `POST /api/storyboard/enhance`
+- [x] `POST /api/storyboard/enhance`
 - [x] `POST /api/storyboard/bundle`
 
 ## Chat
 
-- [ ] `POST /api/chat`
+- [~] `POST /api/chat` (text via planner catalog; image models not ported)
 
 ## Render (storyboard aliases)
 
 - [x] `POST /api/storyboard/render`
-- [x] `GET /api/storyboard/render/:jobId`
-- [ ] `POST /api/storyboard/render/scatter`
-- [ ] `GET /api/storyboard/render/scatter/:jobId`
+- [x] `GET /api/storyboard/render/:jobId` (film-* and scatter-*)
+- [x] `POST /api/storyboard/render/scatter`
 
 ## Render (explicit)
 
-- [ ] `POST /api/render/film`
-- [ ] `GET /api/render/film/:id`
-- [ ] `POST /api/render/clips`
-- [ ] `GET /api/render/clips/:id`
+- [x] `POST /api/render/film`
+- [x] `GET /api/render/film/:id`
+- [x] `POST /api/render/clips`
+- [x] `GET /api/render/clips/:id`
 
 ## Library
 
-- [ ] `GET /api/storyboard/renders`
-- [ ] `PATCH /api/storyboard/renders/:id`
-- [ ] `DELETE /api/storyboard/renders/:id`
+- [x] `GET /api/storyboard/renders`
+- [x] `PATCH /api/storyboard/renders/:id`
+- [x] `DELETE /api/storyboard/renders/:id`
 
 ## Artifacts
 
@@ -120,3 +122,7 @@ Verify poll responses advance through phases identically to upstream:
 - [x] `/settings` module config renders
 - [x] `/settings` connection & API keys panel (GUI secrets store; studio token excluded)
 - [ ] Render submit -> history -> artifact playback
+
+## Core dependency
+
+- [x] `@skyphusion-labs/vivijure-core` `^0.9.1` (orchestration parity; host-only routes above)

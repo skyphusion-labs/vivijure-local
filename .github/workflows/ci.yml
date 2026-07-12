@@ -4,7 +4,7 @@ name: ci
 # `ci` (aviation-grade ruleset); typecheck is a step inside this job, not a separate check.
 # vivijure-local is PUBLIC; runs on GitHub-hosted ubuntu-latest (fork-safe).
 #
-# Installs @skyphusion-labs/vivijure-core from npm (^0.9.0). Sibling vivijure-core
+# Installs @skyphusion-labs/vivijure-core from npm (^0.9.1). Sibling vivijure-core
 # checkout remains for conformance + core typecheck/test scripts; vivijure sparse
 # checkout for quality-tier-drift in core's vitest.
 
