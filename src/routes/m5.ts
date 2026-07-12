@@ -24,7 +24,6 @@ import {
   mapRenderOverridesToModuleConfigs,
   normalizeFilmScenes,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
-import { filmRowFromJob } from "../film-render-bridge.js";
 import type { Platform } from "../platform/types.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
