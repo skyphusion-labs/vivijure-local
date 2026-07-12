@@ -13,7 +13,7 @@
 | M4 | `GET /api/modules` with HTTP sidecar discovery | done |
 | M5 | Film submit/poll (`POST /api/storyboard/render`, poll loop) with `local-gpu` | done |
 | M6 | CPU container chain (finish, beat-sync, mux, master) + unified `docker compose` | partial |
-| M7 | Planner + preflight (BYOK or mock) |
+| M7 | Planner + preflight (BYOK or mock) | done |
 | M8 | Parity gate: upstream conformance + vitest subset green |
 
 **Exit criterion:** Crew demo -- planner -> render -> poll -> download MP4 on a box with no CF bindings.

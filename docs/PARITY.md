@@ -36,9 +36,9 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Planner
 
-- [ ] `POST /api/storyboard/plan`
-- [ ] `POST /api/storyboard/refine`
-- [ ] `POST /api/storyboard/preflight`
+- [x] `POST /api/storyboard/plan` (Anthropic via AI Gateway or BYOK; mock for offline)
+- [x] `POST /api/storyboard/refine`
+- [x] `POST /api/storyboard/preflight`
 - [ ] `POST /api/storyboard/enhance`
 - [ ] `POST /api/storyboard/bundle`
 

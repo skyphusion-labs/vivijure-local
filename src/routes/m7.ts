@@ -1,0 +1,121 @@
+// M7 routes: planner plan/refine + preflight.
+
+import type { Hono } from "hono";
+import { listCast } from "../cast-db.js";
+import { badRequest, httpErrorResponse } from "../errors.js";
+import { json, readBody } from "../http.js";
+import { discoverModules, servingForHook } from "../modules/registry.js";
+import {
+  checkCastBindingsReady,
+  checkDurationGrid,
+  checkStoryboardShape,
+  resolveCastBindings,
+  summarize,
+  type PreflightIssue,
+} from "../preflight.js";
+import { moduleEnvFromPlatform } from "../platform/module-env.js";
+import type { Platform } from "../platform/types.js";
+import { dbEnvFromPlatform } from "../resolve-id.js";
+import { plannerEnvFromProcess } from "../planner-env.js";
+import {
+  planStoryboard,
+  refineStoryboard,
+  type PlanStoryboardArgs,
+  type RefineStoryboardArgs,
+} from "../planner.js";
+import { validateStoryboard } from "../storyboard-validate.js";
+
+async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>): Promise<Response> {
+  try {
+    return await fn();
+  } catch (e) {
+    const res = httpErrorResponse(e);
+    if (res) return res;
+    throw e;
+  }
+}
+
+export function registerM7Routes(app: Hono, platform: Platform): void {
+  const plannerEnv = () => ({
+    ...plannerEnvFromProcess(process.env),
+    ...platform.vars,
+  });
+
+  app.post("/api/storyboard/preflight", (c) =>
+    handle(c, async () => {
+      const body = await readBody<unknown>(c.req.raw);
+      const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+
+      const validated = validateStoryboard(envelope.storyboard);
+      if (!validated.ok) {
+        const issues: PreflightIssue[] = validated.errors.map((message) => ({
+          level: "error",
+          scope: "storyboard",
+          message,
+        }));
+        return json(summarize(issues), 200);
+      }
+
+      const issues: PreflightIssue[] = [...checkStoryboardShape(validated.value)];
+      const bindings =
+        envelope.castBindings && typeof envelope.castBindings === "object"
+          ? (envelope.castBindings as Record<string, unknown>)
+          : null;
+
+      if (bindings && Object.keys(bindings).length > 0) {
+        const modEnv = moduleEnvFromPlatform(platform);
+        const kfModules = servingForHook(
+          await discoverModules(modEnv, { cacheTtlMs: 60_000 }),
+          "keyframe",
+        );
+        const keyframeLabel =
+          kfModules.map((m) => m.keyframe_label).find((l) => typeof l === "string" && l.trim()) ||
+          "SDXL";
+        const catalog = await listCast(dbEnvFromPlatform(platform));
+        const { resolved, unresolved } = resolveCastBindings(bindings, catalog);
+        issues.push(...unresolved);
+        issues.push(...checkCastBindingsReady(resolved, catalog, keyframeLabel));
+      }
+
+      const motionBackend =
+        typeof envelope.motionBackend === "string" ? envelope.motionBackend : null;
+      if (motionBackend) {
+        const quality = typeof envelope.quality === "string" ? envelope.quality : null;
+        const modEnv = moduleEnvFromPlatform(platform);
+        const motionModules = servingForHook(
+          await discoverModules(modEnv, { cacheTtlMs: 60_000 }),
+          "motion.backend",
+        );
+        const mod = motionModules.find((m) => m.name === motionBackend);
+        if (mod?.duration_grid) {
+          issues.push(
+            ...checkDurationGrid(validated.value, mod.duration_grid, quality, mod.name),
+          );
+        }
+      }
+
+      return json(summarize(issues), 200);
+    }),
+  );
+
+  app.post("/api/storyboard/plan", (c) =>
+    handle(c, async () => {
+      const args = await readBody<PlanStoryboardArgs>(c.req.raw);
+      if (!args.brief || !args.model) throw badRequest("brief and model required");
+      if (!Array.isArray(args.characters)) args.characters = [];
+      const result = await planStoryboard(plannerEnv(), args);
+      return json(result, result.ok ? 200 : 422);
+    }),
+  );
+
+  app.post("/api/storyboard/refine", (c) =>
+    handle(c, async () => {
+      const args = await readBody<RefineStoryboardArgs>(c.req.raw);
+      if (args.storyboard === undefined || !args.message || !args.model) {
+        throw badRequest("storyboard, message, model required");
+      }
+      const result = await refineStoryboard(plannerEnv(), args);
+      return json(result, result.ok ? 200 : 422);
+    }),
+  );
+}

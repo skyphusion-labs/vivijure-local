@@ -5,6 +5,12 @@ export { EnvSecretStore, secretValue } from "./secrets.js";
 export { HttpModuleTransport, createModuleTransport, moduleUrlsFromEnv } from "./modules.js";
 export { HttpFetcher } from "./http-fetcher.js";
 export { injectVpcFetchers, vpcUrlsFromEnv, VPC_URL_BINDINGS } from "./vpc-transport.js";
+export {
+  aiGatewayConfig,
+  aiGatewayConfigured,
+  gatewayProviderBase,
+  gatewayCompatBase,
+} from "./ai-gateway.js";
 export { s3ConfigFromEnv, s3PresignConfig, type S3StoreConfig } from "./s3-config.js";
 export { S3ObjectStore, S3ObjectPresigner } from "./s3-store.js";
 export { presignS3WithConfig, uriEncode, type S3PresignConfig } from "./s3-presign.js";

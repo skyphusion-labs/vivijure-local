@@ -34,6 +34,15 @@ curl -fsS http://127.0.0.1:8790/health
 
 **GPU (`local-gpu`)** is not in compose (Mac / no GPU in Docker). Run your GPU sidecar on the **host** at `:9102`, or point `MODULE_LOCAL_GPU_URL` at RunPod / `vivijure-backend`. Compose sets `MODULE_LOCAL_GPU_URL=http://host.docker.internal:9102` for the studio container.
 
+Compose defaults `PLANNER_AI_MOCK=true` so `/planner` works without API keys.
+
+**Live planning** (same auth paths as upstream `vivijure`):
+
+1. **Unified Billing (preferred):** `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`
+2. **Direct BYOK fallback:** `ANTHROPIC_API_KEY` when gateway vars are unset
+
+Set `PLANNER_AI_MOCK=false` when using either path.
+
 ```bash
 # optional: host-native dev instead of containerized studio
 npm install && npm run dev
