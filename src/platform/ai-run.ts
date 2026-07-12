@@ -26,6 +26,27 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown): 
   const token = cfToken(env);
   const encoded = encodeURIComponent(model);
 
+  const formData = (params as { formData?: FormData })?.formData;
+  if (formData) {
+    if (!accountId || !token) {
+      throw new Error("Workers AI multipart requires CLOUDFLARE_ACCOUNT_ID and CF_AIG_TOKEN");
+    }
+    const resp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encoded}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    lastGatewayLogId = gatewayLogId(resp);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`workers ai ${resp.status}: ${errText.slice(0, 500)}`);
+    }
+    const data = (await resp.json()) as { result?: unknown };
+    return data.result ?? data;
+  }
+
   const multipart = (params as { multipart?: { body: ReadableStream; contentType: string } })?.multipart;
   if (multipart?.body && multipart.contentType) {
     if (!accountId || !token) {
@@ -38,7 +59,9 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown): 
         "content-type": multipart.contentType,
       },
       body: multipart.body as NonNullable<RequestInit["body"]>,
-    });
+      // Node fetch requires duplex when streaming a request body.
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
     lastGatewayLogId = gatewayLogId(resp);
     if (!resp.ok) {
       const errText = await resp.text();
