@@ -27,7 +27,14 @@ export function createApp(platform: Platform): Hono {
   const authEnv = () => authEnvFromPlatform(platform);
   const app = new Hono();
 
-  app.get("/health", (c) => c.json({ ok: true, service: "vivijure-studio", phase: 1 }));
+  app.get("/health", (c) =>
+    c.json({
+      ok: true,
+      service: "vivijure-studio",
+      phase: 2,
+      storage: platform.vars.STORAGE_BACKEND ?? "unknown",
+    }),
+  );
 
   app.use("/api/*", async (c, next) => {
     const gate = await gateApi(c.req.raw, authEnv());

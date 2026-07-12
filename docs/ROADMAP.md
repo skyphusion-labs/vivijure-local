@@ -29,9 +29,18 @@
 
 ## Phase 2 -- Harden local edition (v0.2.x)
 
+**Goal:** Optional cloud/satellite modules, storage modes documented and tested, stdout observability.
+
+| Milestone | Deliverable | Status |
+|-----------|-------------|--------|
+| M9 | MinIO vs `ARTIFACT_ROOT` factory tests; install profile docs; `/health` storage field | in progress |
+| M10 | `structured-events.ts`; `film.phase` / terminal events; [observability.md](observability.md) | in progress |
+| M11 | Compose `satellites` profile for finish sidecars; [install-profiles.md](install-profiles.md) | in progress |
+| M12 | CI `upstream-parity` workflow: diff `public/` vs `vivijure` main (`--verbatim` for migrations/types locally) | in progress |
+
 - Optional cloud modules behind install profiles (RunPod `own-gpu`, provider i2v)
 - MinIO vs filesystem storage toggle documented and tested
-- Observability: structured render events to stdout (port `render-log.ts` channel)
+- Observability: structured render events to stdout (`emitStructuredEvent`; History text logs stay in `render-log.ts`)
 
 ## Phase 3 -- vivijure v2.0 / Option A (shared core)
 
