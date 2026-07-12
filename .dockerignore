@@ -1,0 +1,9 @@
+node_modules
+data
+.git
+.env
+dev/module-fleet.pids
+dev/module-fleet.env
+.sync-staging
+*.log
+.DS_Store

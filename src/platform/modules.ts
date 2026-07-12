@@ -4,20 +4,7 @@
 // The sidecar must expose /module.json, /invoke, /poll, /cancel like a CF Worker module.
 
 import type { FetcherLike, ModuleTransport } from "./types.js";
-
-class HttpFetcher implements FetcherLike {
-  constructor(private readonly baseUrl: string) {}
-
-  async fetch(input: Request | string, init?: RequestInit): Promise<Response> {
-    const req = typeof input === "string" ? new Request(input, init) : input;
-    const url = new URL(req.url, this.baseUrl);
-    return fetch(url.toString(), {
-      method: req.method,
-      headers: req.headers,
-      body: req.body,
-    });
-  }
-}
+import { HttpFetcher } from "./http-fetcher.js";
 
 /** Parse MODULE_FOO_URL env vars into binding -> base URL. */
 export function moduleUrlsFromEnv(env: NodeJS.ProcessEnv): Map<string, string> {

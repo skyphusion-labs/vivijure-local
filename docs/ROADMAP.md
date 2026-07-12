@@ -12,7 +12,7 @@
 | M3 | Projects, cast, prefs CRUD | done |
 | M4 | `GET /api/modules` with HTTP sidecar discovery | done |
 | M5 | Film submit/poll (`POST /api/storyboard/render`, poll loop) with `local-gpu` | done |
-| M6 | CPU container chain (finish, beat-sync, mux, master) |
+| M6 | CPU container chain (finish, beat-sync, mux, master) + unified `docker compose` | partial |
 | M7 | Planner + preflight (BYOK or mock) |
 | M8 | Parity gate: upstream conformance + vitest subset green |
 
@@ -22,7 +22,6 @@
 
 - Optional cloud modules behind install profiles (RunPod `own-gpu`, provider i2v)
 - MinIO vs filesystem storage toggle documented and tested
-- `docker compose` one-command bring-up (studio + MinIO + media + module fleet)
 - Observability: structured render events to stdout (port `render-log.ts` channel)
 
 ## Phase 3 -- vivijure v2.0 / Option A (shared core)

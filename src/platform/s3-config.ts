@@ -2,6 +2,8 @@
 
 export interface S3StoreConfig {
   endpoint: string;
+  /** Host embedded in presigned URLs (defaults to endpoint). Use when API clients use a different host than fetchers (docker compose). */
+  presignEndpoint?: string;
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
@@ -27,9 +29,11 @@ export function s3ConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S3StoreCo
   const chatBucket = env.S3_CHAT_BUCKET || env.S3_BUCKET || env.MINIO_BUCKET || bucket;
   const region = env.S3_REGION || (endpoint.includes("r2.cloudflarestorage.com") ? "auto" : "us-east-1");
   const forcePathStyle = envFlag("S3_FORCE_PATH_STYLE", !endpoint.includes("amazonaws.com"));
+  const presignEndpoint = (env.S3_PRESIGN_ENDPOINT || "").replace(/\/$/, "") || undefined;
 
   return {
     endpoint: endpoint.replace(/\/$/, ""),
+    presignEndpoint,
     accessKeyId,
     secretAccessKey,
     bucket,
@@ -43,7 +47,7 @@ export function s3PresignConfig(cfg: S3StoreConfig, bucket = cfg.bucket) {
   return {
     accessKeyId: cfg.accessKeyId,
     secretAccessKey: cfg.secretAccessKey,
-    endpoint: cfg.endpoint,
+    endpoint: cfg.presignEndpoint || cfg.endpoint,
     bucket,
     region: cfg.region,
   };
