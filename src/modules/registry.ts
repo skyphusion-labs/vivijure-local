@@ -433,7 +433,10 @@ export async function discoverModules(
   ]);
   const service = read.filter((m): m is RegisteredModule => m !== null);
   const modules = mergeRegistries(service, dispatch);
-  if (ttl > 0) discoveryCache = { modules, expiresAt: now + ttl };
+  // Do not cache an empty scan when bindings exist (compose sidecars may still be starting).
+  if (ttl > 0 && (modules.length > 0 || names.length === 0)) {
+    discoveryCache = { modules, expiresAt: now + ttl };
+  }
   return modules;
 }
 

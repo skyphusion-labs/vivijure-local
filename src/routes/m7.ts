@@ -1,6 +1,7 @@
 // M7 routes: planner plan/refine + preflight.
 
 import type { Hono } from "hono";
+import { assembleBundle, type AssembleBundleArgs } from "../bundle-assembler.js";
 import { listCast } from "../cast-db.js";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
@@ -14,6 +15,7 @@ import {
   type PreflightIssue,
 } from "../preflight.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
+import { orchestratorEnvFromPlatform } from "../platform/orchestrator-env.js";
 import type { Platform } from "../platform/types.js";
 import { dbEnvFromPlatform } from "../resolve-id.js";
 import { plannerEnvFromProcess } from "../planner-env.js";
@@ -116,6 +118,18 @@ export function registerM7Routes(app: Hono, platform: Platform): void {
       }
       const result = await refineStoryboard(plannerEnv(), args);
       return json(result, result.ok ? 200 : 422);
+    }),
+  );
+
+  app.post("/api/storyboard/bundle", (c) =>
+    handle(c, async () => {
+      const args = await readBody<AssembleBundleArgs>(c.req.raw);
+      if (!args.storyboard || !args.characterRefs) {
+        throw badRequest("storyboard and characterRefs required");
+      }
+      const env = orchestratorEnvFromPlatform(platform);
+      const result = await assembleBundle(env, args);
+      return json(result, result.ok ? 201 : 400);
     }),
   );
 }

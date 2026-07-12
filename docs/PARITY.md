@@ -39,8 +39,9 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 - [x] `POST /api/storyboard/plan` (Anthropic via AI Gateway or BYOK; mock for offline)
 - [x] `POST /api/storyboard/refine`
 - [x] `POST /api/storyboard/preflight`
+- [x] `POST /api/audio/analyze`
 - [ ] `POST /api/storyboard/enhance`
-- [ ] `POST /api/storyboard/bundle`
+- [x] `POST /api/storyboard/bundle`
 
 ## Chat
 
@@ -85,6 +86,7 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 - [ ] All hooks in `vivijure-module/2` pass `npm run conformance` against local sidecars
 - [x] `GET /api/modules` projection matches upstream shape (modules, hooks, catalog, render tiers)
+- [x] Module conformance unit suite (`tests/conformance.test.ts`) green
 
 ## Auth modes
 

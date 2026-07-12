@@ -30,6 +30,6 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string
 const env = cpuModuleEnvFromProcess(process.env);
 const app = createCpuModuleApp(manifest, moduleName, env);
 
-serve({ fetch: app.fetch, port }, () => {
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`cpu module sidecar ${moduleName} on http://127.0.0.1:${port}`);
 });

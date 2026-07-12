@@ -34,6 +34,6 @@ stub("/invoke");
 stub("/poll");
 stub("/cancel");
 
-serve({ fetch: app.fetch, port }, () => {
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`module sidecar ${name} on http://127.0.0.1:${port}`);
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { HttpFetcher } from "../src/platform/http-fetcher.js";
 import { injectVpcFetchers, VpcHttpFetcher, vpcUrlsFromEnv } from "../src/platform/vpc-transport.js";
 
 describe("vpc transport", () => {
@@ -26,10 +27,7 @@ describe("vpc transport", () => {
 
     fetchMock.mockClear();
     await fetcher.fetch("/health");
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://video-finish:8000/health",
-      expect.objectContaining({ method: "GET" }),
-    );
+    expect(fetchMock).toHaveBeenCalledWith("http://video-finish:8000/health", undefined);
 
     vi.unstubAllGlobals();
   });
@@ -38,5 +36,14 @@ describe("vpc transport", () => {
     const env: Record<string, unknown> = {};
     injectVpcFetchers(env, { VIDEO_FINISH_URL: "http://video-finish:8000" });
     expect(env.VIDEO_FINISH_VPC).toBeInstanceOf(VpcHttpFetcher);
+  });
+
+  it("rewrites logical https://module URLs to the sidecar base", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const fetcher = new HttpFetcher("http://module-keyframe:9101");
+    await fetcher.fetch("https://module/module.json");
+    expect(fetchMock).toHaveBeenCalledWith("http://module-keyframe:9101/module.json", undefined);
+    vi.unstubAllGlobals();
   });
 });

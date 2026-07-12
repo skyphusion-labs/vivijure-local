@@ -29,7 +29,8 @@
     "sync-containers": "bash scripts/sync-containers.sh",
     "compose:up": "docker compose up -d --build",
     "compose:down": "docker compose down",
-    "compose:logs": "docker compose logs -f studio"
+    "compose:logs": "docker compose logs -f studio",
+    "smoke:exit": "tsx scripts/smoke-exit-criterion.ts"
   },
   "engines": {
     "node": ">=22.5.0"

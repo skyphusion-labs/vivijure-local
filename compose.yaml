@@ -6,9 +6,8 @@
 # Studio UI:     http://127.0.0.1:8790
 # MinIO console: http://127.0.0.1:9001  (minioadmin / minioadmin)
 #
-# GPU motion (local-gpu) runs on the HOST, not in compose. After `up`, start your
-# local-gpu sidecar on the host (port 9102) or point MODULE_LOCAL_GPU_URL at a
-# reachable RunPod/vivijure-backend endpoint.
+# GPU motion (local-gpu) and keyframe mocks run in compose by default (scripts/gpu-mock-module-server.ts).
+# Point MODULE_LOCAL_GPU_URL at a real host backend when you have one.
 
 name: vivijure-local
 
@@ -31,12 +30,20 @@ x-cpu-service: &cpu-service
   networks: [studio]
   environment:
     PORT: "8000"
+    ALLOW_HTTP_FETCH: "true"
+    ALLOWED_FETCH_HOSTS: minio
 
 x-module-sidecar: &module-sidecar
   build: .
   image: vivijure-local-studio:local
   restart: unless-stopped
   networks: [studio]
+
+x-module-health: &module-health
+  interval: 5s
+  timeout: 3s
+  retries: 6
+  start_period: 20s
 
 services:
   minio:
@@ -119,7 +126,31 @@ services:
 
   module-keyframe:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9101", "dev/manifests/keyframe.json"]
+    command: ["npx", "tsx", "scripts/gpu-mock-module-server.ts", "9101", "keyframe"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9101/module.json"]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-local-gpu:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/gpu-mock-module-server.ts", "9102", "local-gpu"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9102/module.json"]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
 
   module-finish-rife:
     <<: *module-sidecar
@@ -169,7 +200,7 @@ services:
       STUDIO_API_TOKEN: ${STUDIO_API_TOKEN:-change-me-local-dev-only}
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
       S3_ENDPOINT: http://minio:9000
-      S3_PRESIGN_ENDPOINT: http://host.docker.internal:9000
+      S3_PRESIGN_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
       S3_BUCKET: vivijure
@@ -181,9 +212,8 @@ services:
       AUDIO_MIX_URL: http://audio-mix:8000
       AUDIO_MASTER_URL: http://audio-master:8000
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
-      MODULE_LOCAL_GPU_URL: http://host.docker.internal:9102
-      MODULE_FINISH_RIFE_URL: http://module-finish-rife:9110
-      MODULE_FINISH_LIPSYNC_URL: http://module-finish-lipsync:9111
+      MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
+      # Finish GPU satellites are optional; omit so the demo path skips straight to assemble.
       MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130
@@ -208,4 +238,14 @@ services:
       audio-master:
         condition: service_healthy
       module-keyframe:
+        condition: service_healthy
+      module-local-gpu:
+        condition: service_healthy
+      module-beat-sync:
+        condition: service_started
+      module-audio-master:
+        condition: service_started
+      module-film-titles:
+        condition: service_started
+      module-subtitle:
         condition: service_started

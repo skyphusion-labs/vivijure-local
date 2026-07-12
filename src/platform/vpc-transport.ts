@@ -27,11 +27,17 @@ export class VpcHttpFetcher {
       typeof input === "string" && !input.startsWith("http")
         ? this.resolveUrl(input)
         : this.resolveUrl(typeof input === "string" ? input : input.url);
-    const req = typeof input === "string" ? new Request(url, init) : input;
+    if (typeof input === "string") {
+      const hasBody = init?.body != null && init.method !== "GET" && init.method !== "HEAD";
+      const options = hasBody ? { ...init, duplex: "half" as const } : init;
+      return fetch(url, options);
+    }
+    const hasBody = input.body != null && input.method !== "GET" && input.method !== "HEAD";
     return fetch(url, {
-      method: req.method,
-      headers: req.headers,
-      body: req.body,
+      method: input.method,
+      headers: input.headers,
+      body: input.body,
+      ...(hasBody ? { duplex: "half" as const } : {}),
     });
   }
 
