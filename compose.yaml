@@ -131,19 +131,27 @@ services:
 
   module-beat-sync:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9120", "dev/manifests/beat-sync.json"]
+    command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9120", "beat-sync"]
+    environment:
+      AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
 
   module-audio-master:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9121", "dev/manifests/audio-master.json"]
+    command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9121", "audio-master"]
+    environment:
+      AUDIO_MASTER_URL: http://audio-master:8000
 
   module-film-titles:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9130", "dev/manifests/film-titles.json"]
+    command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9130", "film-titles"]
+    environment:
+      VIDEO_FINISH_URL: http://video-finish:8000
 
   module-subtitle:
     <<: *module-sidecar
-    command: ["npx", "tsx", "scripts/module-sidecar.ts", "9131", "dev/manifests/subtitle.json"]
+    command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9131", "subtitle"]
+    environment:
+      VIDEO_FINISH_URL: http://video-finish:8000
 
   studio:
     build: .

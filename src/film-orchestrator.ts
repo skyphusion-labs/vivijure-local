@@ -917,7 +917,7 @@ async function finalizeSidecar(
   captions: FilmFinishInput["captions"],
 ): Promise<string | undefined> {
   // A sidecar can only exist when there was dialogue to caption; skip the R2 probes on a silent film.
-  if (!captions.some((c) => typeof c.text === "string" && c.text.trim().length > 0)) return undefined;
+  if (!(captions ?? []).some((c) => typeof c.text === "string" && c.text.trim().length > 0)) return undefined;
   // Locate the raw sidecar a subtitle step wrote by its deterministic per-step key. First present wins
   // (only the subtitle module writes one, and it runs before any card step).
   let rawKey: string | undefined;

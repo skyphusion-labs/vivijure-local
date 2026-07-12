@@ -15,6 +15,7 @@ import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
 import { registerM5Routes } from "./routes/m5.js";
+import { registerM6Routes } from "./routes/m6.js";
 import { registerM7Routes } from "./routes/m7.js";
 import { renderConfigProjection } from "./render-module-config.js";
 import { resolveStudioPage } from "./studio-pages.js";
@@ -76,6 +77,7 @@ export function createApp(platform: Platform): Hono {
 
   registerM3Routes(app, platform);
   registerM5Routes(app, platform);
+  registerM6Routes(app, platform);
   registerM7Routes(app, platform);
 
   app.get("*", async (c, next) => {
