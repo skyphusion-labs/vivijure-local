@@ -5,7 +5,7 @@ import {
   parseEnhanced,
   scenePrompts,
 } from "../src/modules/chain/plan-enhance-core.js";
-import { LOCAL_MODEL, opusModel, pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
+import { opusModel, pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
 import { invokePlanEnhance } from "../src/modules/chain/handlers.js";
 import { coerceConfig, passthroughOutput } from "../src/modules/chain/speech-upscale-core.js";
 
