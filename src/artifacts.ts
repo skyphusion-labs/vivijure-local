@@ -2,7 +2,7 @@
 
 import { notFound, badRequest } from "./errors.js";
 import { isSafeRelKey, parseByteRange } from "./shared.js";
-import type { FilesystemObjectStore } from "./platform/storage.js";
+import type { ArtifactStore } from "./platform/create-storage.js";
 
 export const UPLOAD_EXT: Record<string, string> = {
   "image/png": "png",
@@ -43,7 +43,7 @@ function assertArtifactKey(key: string): void {
   }
 }
 
-export async function handleUpload(req: Request, store: FilesystemObjectStore): Promise<Response> {
+export async function handleUpload(req: Request, store: ArtifactStore): Promise<Response> {
   const mime = (req.headers.get("content-type") || "").split(";")[0].trim() || "application/octet-stream";
   const ext = UPLOAD_EXT[mime];
   if (!ext) throw badRequest(`unsupported content-type ${mime || "<missing>"} (png/jpeg/webp/gif only)`);
@@ -58,7 +58,7 @@ export async function handleUpload(req: Request, store: FilesystemObjectStore): 
   });
 }
 
-export async function handleServeArtifact(req: Request, store: FilesystemObjectStore, rawKey: string): Promise<Response> {
+export async function handleServeArtifact(req: Request, store: ArtifactStore, rawKey: string): Promise<Response> {
   const key = decodeURIComponent(rawKey);
   assertArtifactKey(key);
 

@@ -1,5 +1,9 @@
 export * from "./types.js";
 export { openDatabase, migrateDatabase } from "./sqlite.js";
-export { FilesystemObjectStore, LocalObjectPresigner } from "./storage.js";
+export { FilesystemObjectStore, LocalObjectPresigner, type StoredObject } from "./storage.js";
 export { EnvSecretStore, secretValue } from "./secrets.js";
 export { HttpModuleTransport, createModuleTransport, moduleUrlsFromEnv } from "./modules.js";
+export { s3ConfigFromEnv, s3PresignConfig, type S3StoreConfig } from "./s3-config.js";
+export { S3ObjectStore, S3ObjectPresigner } from "./s3-store.js";
+export { presignS3WithConfig, uriEncode, type S3PresignConfig } from "./s3-presign.js";
+export { createStorage, type ArtifactStore, type StorageBundle } from "./create-storage.js";

@@ -1,7 +1,8 @@
-# vivijure-local compose (studio + optional MinIO + CPU media)
+# vivijure-local compose (MinIO + CPU media)
 #
-# CPU media: same services as vivijure/containers/compose.yaml (ports 8780-8784)
-# Studio: run via `npm run dev` on host for now (M0 scaffold); containerized studio is a later milestone.
+# Start: docker compose up -d
+# MinIO console: http://127.0.0.1:9001 (minioadmin / minioadmin)
+# Studio: npm run dev (host process, :8790)
 
 include:
   - path: ./containers/compose.yaml
@@ -9,7 +10,6 @@ include:
 services:
   minio:
     image: minio/minio:latest
-    profiles: ["minio"]
     command: server /data --console-address ":9001"
     ports:
       - "127.0.0.1:9000:9000"
@@ -20,6 +20,19 @@ services:
     volumes:
       - minio-data:/data
     restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin 2>/dev/null; do sleep 1; done;
+      mc mb --ignore-existing local/vivijure;
+      exit 0;
+      "
+    restart: "no"
 
 volumes:
   minio-data:

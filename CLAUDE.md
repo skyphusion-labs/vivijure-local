@@ -19,7 +19,7 @@ Design platform interfaces in `src/platform/types.ts` so v2 extraction is mechan
 - **Do not change backend engines.** RunPod, `vivijure-local-12gb`, CPU containers keep their wire contracts.
 - **Do not fork `public/` long-term.** Copy stays in sync with upstream until v2 shared UI packaging exists.
 - **Module contract is sacred.** `src/modules/types.ts` must match upstream byte-for-byte unless the epoch bumps in both repos together.
-- **Minimal runtime deps.** Node HTTP (Hono), built-in `node:sqlite`, optional MinIO client. No framework SPA build.
+- **Object storage is S3-compatible (MinIO default).** Use `S3_*` env vars; R2/S3 is a config swap. Filesystem (`ARTIFACT_ROOT`) is CI fallback only.
 - **`npm run typecheck` is the gate** before push.
 
 ## Commands
@@ -36,6 +36,8 @@ docker compose up -d    # CPU media stack + optional MinIO
 | Service | Port |
 |---------|------|
 | Studio API + UI | 8790 |
+| MinIO S3 API | 9000 |
+| MinIO console | 9001 |
 | video-finish | 8780 |
 | image-prep | 8781 |
 | audio-beat-sync | 8782 |

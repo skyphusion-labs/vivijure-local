@@ -32,7 +32,7 @@ Designed for v2.0 extraction into `vivijure-core`. Cloudflare `Env` becomes `Clo
 | Adapter | Replaces (CF) | Implementation |
 |---------|---------------|----------------|
 | `Database` | D1 `env.DB` | `node:sqlite` (Node 22.5+), same SQL from `migrations/` |
-| `ObjectStore` | `R2_RENDERS`, `R2` | MinIO (S3-compat presign) or `./data/artifacts/` |
+| `ObjectStore` | `R2_RENDERS`, `R2` | **S3-compatible API** (MinIO default; R2/S3 = config swap) |
 | `SecretStore` | Secrets Store + worker secrets | `.env` / chezmoi |
 | `ModuleTransport` | Service bindings `MODULE_*` | HTTP `fetch` to sidecar URLs |
 | `AIRouter` | `env.AI.run` + Gateway | Direct provider APIs (`vivijure/src/providers/*`) |
@@ -62,9 +62,17 @@ Cloud-only modules (`kling`, `cloud-keyframe`, `music-gen` Workflows, etc.) are 
 
 ## Object storage
 
-**Default:** MinIO with identical key layout (`renders/<project>/...`). Presign logic ports from `vivijure/src/r2-presign.ts` (SigV4 against S3 endpoint).
+**Default:** S3-compatible storage via **MinIO** (`docker compose up -d`). The studio uses the same `S3_*` env vars as production R2/S3; switching providers is a config change only.
 
-**Air-gapped fallback:** filesystem under `ARTIFACT_ROOT` with a local URL signer for CPU containers (same GET/PUT URL shape in request bodies).
+| Provider | `S3_ENDPOINT` | `S3_REGION` | `S3_FORCE_PATH_STYLE` |
+|----------|---------------|-------------|------------------------|
+| MinIO (local) | `http://127.0.0.1:9000` | `us-east-1` | `true` |
+| Cloudflare R2 | `https://<account>.r2.cloudflarestorage.com` | `auto` | `false` |
+| AWS S3 | `https://s3.<region>.amazonaws.com` | e.g. `us-east-1` | `false` |
+
+Presigning uses the same SigV4 query-string scheme as `vivijure/src/r2-presign.ts` (`src/platform/s3-presign.ts`), so CPU containers receive short-lived GET/PUT URLs exactly like the CF Worker path.
+
+**Filesystem fallback:** if `S3_*` is unset, the studio falls back to `ARTIFACT_ROOT` (used by CI unit tests). Homelab operators should run MinIO.
 
 Backends (`vivijure-backend`, `local-gpu`) never see the storage implementation; they read/write by key only.
 

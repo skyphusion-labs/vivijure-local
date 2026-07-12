@@ -22,7 +22,7 @@ import {
 import { badRequest, httpErrorResponse, notFound } from "../errors.js";
 import { json, readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
-import { FilesystemObjectStore } from "../platform/storage.js";
+import type { ArtifactStore } from "../platform/create-storage.js";
 import { dbEnvFromPlatform, resolveCastId, resolveProjectId } from "../resolve-id.js";
 import {
   createProject,
@@ -39,8 +39,8 @@ import { isValidVoiceId, VOICE_IDS } from "../voices.js";
 function castMediaEnv(platform: Platform): CastMediaEnv {
   return {
     DB: platform.db,
-    R2_RENDERS: platform.renders as FilesystemObjectStore,
-    R2: platform.chatBucket as FilesystemObjectStore,
+    R2_RENDERS: platform.renders as ArtifactStore,
+    R2: platform.chatBucket as ArtifactStore,
   };
 }
 

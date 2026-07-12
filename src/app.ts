@@ -8,8 +8,8 @@ import { gateApi } from "./auth-gate.js";
 import { artifactKeyFromPath, handleServeArtifact, handleUpload } from "./artifacts.js";
 import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
+import type { ArtifactStore } from "./platform/create-storage.js";
 import type { Platform } from "./platform/index.js";
-import { FilesystemObjectStore } from "./platform/storage.js";
 import { registerM3Routes } from "./routes/m3.js";
 import { resolveStudioPage } from "./studio-pages.js";
 
@@ -43,7 +43,7 @@ export function createApp(platform: Platform): Hono {
     }),
   );
 
-  const store = () => platform.renders as FilesystemObjectStore;
+  const store = () => platform.renders as ArtifactStore;
 
   app.post("/api/upload", async (c) => {
     try {

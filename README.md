@@ -17,9 +17,10 @@ See `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
 
 ```bash
 cp .env.example .env
+docker compose up -d          # MinIO + CPU media containers
 npm install
 npm run typecheck
-npm run dev          # studio API + static UI (default :8790)
+npm run dev                   # studio API + UI (default :8790)
 ```
 
 Full render path requires CPU containers (`compose.yaml`), module sidecars, and a GPU backend. See `docs/ARCHITECTURE.md`.
@@ -29,6 +30,8 @@ Full render path requires CPU containers (`compose.yaml`), module sidecars, and 
 - `public/` -- planner / cast / settings UI (projection from `GET /api/modules`)
 - `migrations/` -- SQLite schema (D1-compatible SQL)
 - `src/modules/types.ts` -- `vivijure-module/2` contract (dependency-free)
+
+Object storage defaults to **MinIO** (S3-compatible). Set `S3_*` in `.env`; R2 or AWS S3 later is a config swap.
 
 Everything else is ported behind `src/platform/` adapters.
 

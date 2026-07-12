@@ -13,15 +13,15 @@ import {
 } from "./cast-db.js";
 import type { DbEnv } from "./db-env.js";
 import { HttpError } from "./errors.js";
-import type { FilesystemObjectStore } from "./platform/storage.js";
+import type { ArtifactStore } from "./platform/create-storage.js";
 import { extFromMime } from "./utils.js";
 
 export const CAST_IMAGE_MIME_RE = /^image\/(png|jpe?g|webp)$/i;
 export const CAST_MAX_BYTES = 16 * 1024 * 1024;
 
 export interface CastMediaEnv extends DbEnv {
-  R2_RENDERS: FilesystemObjectStore;
-  R2: FilesystemObjectStore;
+  R2_RENDERS: ArtifactStore;
+  R2: ArtifactStore;
 }
 
 function json(body: unknown, status = 200): Response {

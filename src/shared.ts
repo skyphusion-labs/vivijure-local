@@ -9,6 +9,14 @@ export function isSafeRelKey(key: unknown): key is string {
   return !key.split("/").includes("..");
 }
 
+export function isPresignSafeKey(key: unknown): key is string {
+  if (typeof key !== "string" || key.length === 0 || key.length > 1024) return false;
+  if (key.startsWith("/")) return false;
+  if (key.includes("://")) return false;
+  if (/[^ -~]/.test(key)) return false;
+  return !key.split("/").includes("..");
+}
+
 export type ByteRange = { offset: number; length: number; start: number; end: number };
 
 export function parseByteRange(
