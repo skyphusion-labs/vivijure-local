@@ -117,7 +117,7 @@ describe("HTTP routes (M1)", () => {
     expect(await res.json()).toMatchObject({
       ok: true,
       service: "vivijure-studio",
-      phase: 2,
+      phase: 3,
       storage: "filesystem",
     });
   });

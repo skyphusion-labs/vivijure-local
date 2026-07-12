@@ -1,0 +1,21 @@
+{
+  "name": "@skyphusion-labs/vivijure-core",
+  "version": "0.0.0",
+  "description": "Shared Vivijure orchestration (registry, film pipeline, module contract). Phase 3 extraction target.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./platform": "./src/platform/types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -44,7 +44,16 @@
 
 ## Phase 3 -- vivijure v2.0 / Option A (shared core)
 
-**Goal:** One orchestration codebase, two hosts.
+**Goal:** One orchestration codebase, two hosts. Detail: [PHASE3.md](PHASE3.md).
+
+| Milestone | Deliverable | Status |
+|-----------|-------------|--------|
+| M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | in progress |
+| M14 | `packages/vivijure-core` scaffold | in progress |
+| M15 | Extraction inventory (`docs/core-extraction-inventory.md`) | in progress |
+| M16 | Wave 0 into package (`types`, conformance, structured-events) | pending |
+| M17 | Registry + film-model in core; hosts depend on package | pending |
+| M18 | Orchestrators in core; env bridge removed | pending |
 
 ```
 vivijure-core@2.x          # registry, film-orchestrator, types, conformance
@@ -54,7 +63,7 @@ vivijure-local@2.x         # NodePlatform host (thin)
 
 ### Extraction steps
 
-1. Freeze `Platform` interface (proven by local v1)
+1. Freeze `Platform` interface (proven by local v1) -- **M13**
 2. Move `src/modules/*`, `film-orchestrator.ts`, `render-orchestrator.ts`, DB helpers into `vivijure-core`
 3. Replace `env.DB` / `env.R2_*` call sites with `platform.*` in core (mechanical)
 4. vivijure Worker becomes binding shim (~`src/host/cloudflare.ts`)
