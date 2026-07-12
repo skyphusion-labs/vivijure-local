@@ -84,7 +84,7 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Module contract (conformance)
 
-- [ ] All hooks in `vivijure-module/2` pass `npm run conformance` against local sidecars
+- [x] All hooks in `vivijure-module/2` pass `npm run conformance` against local sidecars (`npm run conformance:compose` with stack up)
 - [x] `GET /api/modules` projection matches upstream shape (modules, hooks, catalog, render tiers)
 - [x] Module conformance unit suite (`tests/conformance.test.ts`) green
 

@@ -30,7 +30,10 @@
     "compose:up": "docker compose up -d --build",
     "compose:down": "docker compose down",
     "compose:logs": "docker compose logs -f studio",
-    "smoke:exit": "tsx scripts/smoke-exit-criterion.ts"
+    "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
+    "conformance": "vitest run tests/conformance.test.ts tests/conformance.live.test.ts",
+    "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
+    "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts"
   },
   "engines": {
     "node": ">=22.5.0"

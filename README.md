@@ -32,7 +32,7 @@ curl -fsS http://127.0.0.1:8790/health
 | MinIO console | http://127.0.0.1:9001 (`minioadmin` / `minioadmin`) |
 | CPU media | http://127.0.0.1:8780-8784 (`/health`) |
 
-**GPU (`local-gpu`)** is not in compose (Mac / no GPU in Docker). Run your GPU sidecar on the **host** at `:9102`, or point `MODULE_LOCAL_GPU_URL` at RunPod / `vivijure-backend`. Compose sets `MODULE_LOCAL_GPU_URL=http://host.docker.internal:9102` for the studio container.
+**GPU (`local-gpu`)** runs in compose by default as a mock sidecar (`module-local-gpu` on the Docker network). Point `MODULE_LOCAL_GPU_URL` at a real host backend or RunPod when you have one.
 
 Compose defaults `PLANNER_AI_MOCK=true` so `/planner` works without API keys.
 
@@ -77,6 +77,17 @@ npm run module-fleet:stop         # when done
 Or set `MODULE_KEYFRAME_URL`, `MODULE_LOCAL_GPU_URL`, etc. in `.env` manually (see `.env.example`).
 
 **M5 render path:** `POST /api/storyboard/render` starts a `film-*` job (keyframe then `local-gpu` motion when modules are bound). Poll with `GET /api/storyboard/render/:jobId`. Job state lives in object storage; history rows land in SQLite `renders`.
+
+### Verification (M8 parity gate)
+
+```bash
+npm run typecheck
+npm test                        # full vitest suite
+npm run conformance             # module contract unit checks (+ live when MODULE_URL is set)
+npm run compose:up
+npm run conformance:compose     # live conformance against compose module sidecars
+npm run smoke:exit              # bundle -> render -> poll -> artifact HEAD
+```
 
 ## What is copied verbatim from vivijure
 
