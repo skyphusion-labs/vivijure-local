@@ -1,0 +1,28 @@
+{
+  "name": "cast-image",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": ["cast.image"],
+  "provides": [{ "id": "cast-refs", "label": "Training references (FLUX 2 / Nano Banana)" }],
+  "config_schema": {
+    "model": {
+      "type": "enum",
+      "values": [
+        "@cf/black-forest-labs/flux-2-klein-9b",
+        "google/nano-banana-pro",
+        "@cf/black-forest-labs/flux-2-klein-4b",
+        "@cf/black-forest-labs/flux-2-dev"
+      ],
+      "default": "@cf/black-forest-labs/flux-2-klein-9b",
+      "label": "image model"
+    },
+    "num_images": {
+      "type": "int",
+      "default": 10,
+      "min": 4,
+      "max": 10,
+      "label": "training images"
+    }
+  },
+  "ui": { "section": "cast", "order": 10 }
+}

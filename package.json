@@ -24,6 +24,7 @@
     "test": "vitest run && npm run test --prefix ../vivijure-core",
     "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=cobertura --coverage.reporter=text",
     "migrate": "tsx scripts/migrate.ts",
+    "migrate:demo": "tsx scripts/migrate-demo.ts",
     "bootstrap:secrets": "tsx scripts/bootstrap-secrets.ts",
     "install:studio": "tsx scripts/install.ts",
     "module-manifests": "tsx scripts/sync-module-manifests.ts",

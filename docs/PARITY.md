@@ -39,8 +39,10 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Planner
 
-- [x] `POST /api/storyboard/plan` (Anthropic via AI Gateway or BYOK; mock for offline)
-- [x] `POST /api/storyboard/refine`
+- [x] `GET /api/storyboard/models` (derived from installed `plan.enhance` modules, not a hardcoded catalog)
+- [x] `POST /api/storyboard/plan` (scaffold → `plan.enhance` module `mode: plan`)
+- [x] `POST /api/storyboard/refine` (scaffold → `plan.enhance` module `mode: refine`)
+- [x] `POST /api/chat` text path (scaffold → `plan.enhance` module `mode: chat`)
 - [x] `POST /api/storyboard/preflight`
 - [x] `POST /api/audio/analyze`
 - [x] `POST /api/storyboard/enhance`
@@ -95,25 +97,33 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 ## Auth modes
 
 - [x] `AUTH_MODE=token` (v1 target)
-- [ ] `AUTH_MODE=demo` (optional; seed data)
+- [x] `AUTH_MODE=demo` (seed data + `/api/demo/*`; run `npm run migrate:demo`)
 - [ ] CF Access (non-goal for local)
 
 ## Film poll phases
 
-Verify poll responses advance through phases identically to upstream:
+Verify poll responses advance through phases identically to upstream (`tests/film-poll-phases.test.ts`):
 
-- [ ] keyframe
-- [ ] clips
-- [ ] dialogue
-- [ ] speech
-- [ ] finish
-- [ ] assemble
-- [ ] score
-- [ ] master
-- [ ] mux
-- [ ] film.finish
-- [ ] notify
-- [ ] done
+- [x] keyframe
+- [x] clips (poll `phase: i2v`)
+- [x] dialogue
+- [x] speech
+- [x] finish
+- [x] assemble
+- [x] master
+- [x] mux
+- [ ] score (folded into chain; no separate `FilmJob.phase`)
+- [ ] film.finish (same)
+- [ ] notify (folded into chain; no separate `FilmJob.phase`)
+- [x] done
+
+## Chain module sidecars (compose)
+
+- [x] `plan.enhance` (`MODULE_PLANENHANCE_URL`, model choice in module; Opus via gateway or local llama fallback)
+- [x] `cast.image` (`MODULE_CAST_IMAGE_URL`)
+- [x] `dialogue` (`MODULE_DIALOGUE_URL` -> dialogue-gen sidecar)
+- [x] `speech` (`MODULE_SPEECH_UPSCALE_URL`)
+- [x] `notify` (`MODULE_NOTIFY_EMAIL_URL`)
 
 ## UI smoke (manual)
 

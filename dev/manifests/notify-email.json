@@ -1,0 +1,16 @@
+{
+  "name": "notify-email",
+  "version": "0.1.0",
+  "api": "vivijure-module/2",
+  "hooks": ["notify"],
+  "provides": [{ "id": "notify-email", "label": "Email notification (Cloudflare Email Service)" }],
+  "config_schema": {
+    "notify_email": {
+      "type": "string",
+      "default": "",
+      "label": "Notify email address (render-done mail recipient)",
+      "scope": "install"
+    }
+  },
+  "ui": { "section": "notify", "order": 10 }
+}

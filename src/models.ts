@@ -25,7 +25,7 @@ export interface ModelEntry {
   streaming?: boolean;
 }
 
-/** Rows referenced by planner-catalog.ts PLANNING_MODEL_IDS. */
+/** Legacy model rows; planning catalog is derived from installed plan.enhance modules. */
 export const MODELS: ModelEntry[] = [
   {
     id: "anthropic/claude-opus-4-8",

@@ -188,6 +188,70 @@ services:
     environment:
       VIDEO_FINISH_URL: http://video-finish:8000
 
+  module-plan-enhance:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9140", "plan-enhance"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9140/module.json"]
+    environment:
+      PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-cast-image:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9141", "cast-image"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9141/module.json"]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-dialogue-gen:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9142", "dialogue-gen"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9142/module.json"]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-speech-upscale:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9143", "speech-upscale"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9143/module.json"]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  module-notify-email:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9144", "notify-email"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9144/module.json"]
+
   studio:
     build:
       context: ..
@@ -226,6 +290,11 @@ services:
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130
       MODULE_SUBTITLE_URL: http://module-subtitle:9131
+      MODULE_PLANENHANCE_URL: http://module-plan-enhance:9140
+      MODULE_CAST_IMAGE_URL: http://module-cast-image:9141
+      MODULE_DIALOGUE_URL: http://module-dialogue-gen:9142
+      MODULE_SPEECH_UPSCALE_URL: http://module-speech-upscale:9143
+      MODULE_NOTIFY_EMAIL_URL: http://module-notify-email:9144
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -257,3 +326,13 @@ services:
         condition: service_started
       module-subtitle:
         condition: service_started
+      module-plan-enhance:
+        condition: service_healthy
+      module-cast-image:
+        condition: service_healthy
+      module-dialogue-gen:
+        condition: service_healthy
+      module-speech-upscale:
+        condition: service_healthy
+      module-notify-email:
+        condition: service_healthy
