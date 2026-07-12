@@ -119,7 +119,7 @@ the studio container.
 | `S3_PRESIGN_ENDPOINT` | `http://minio:9000` (override in `.env`) | Host embedded in presigned URLs |
 | `S3_FETCH_ALLOW_HOSTS` | `minio` | CPU container SSRF allowlist for presigned fetches |
 | `S3_ALLOW_HTTP_FETCH` | `true` | Set `false` when presign uses HTTPS (cloudflared) |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials; rotate before tunnel expose (see below) |
 | `S3_BUCKET` | `vivijure` | Render + bundle bucket |
 | `S3_REGION` | `us-east-1` | SigV4 region |
 | `S3_FORCE_PATH_STYLE` | `true` | Required for MinIO |
@@ -130,6 +130,18 @@ CPU containers receive `ALLOW_HTTP_FETCH` and `ALLOWED_FETCH_HOSTS` from compose
 presigned MinIO URLs. When MinIO is exposed via **cloudflared** for RunPod or remote GPU backends,
 set `S3_PRESIGN_ENDPOINT` to the tunnel HTTPS URL and extend `S3_FETCH_ALLOW_HOSTS` to include that
 hostname. Full guide: [MINIO-TUNNEL.md](MINIO-TUNNEL.md).
+
+**Rotate MinIO root credentials** before exposing the tunnel (default `minioadmin` is fine for
+localhost-only dev):
+
+```bash
+npm run rotate:minio-creds          # writes S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY to .env
+npm run sync:tunnel-secrets         # push into platform_secrets (presign uses DB values)
+docker compose up -d --force-recreate minio minio-init studio
+```
+
+Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
+the root user password changes.
 
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 

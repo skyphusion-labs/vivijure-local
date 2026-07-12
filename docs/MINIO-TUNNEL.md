@@ -95,6 +95,13 @@ Do **not** commit `credentials.json`.
 
 - MinIO on a public tunnel relies on **S3 access keys**, not Cloudflare Access (RunPod cannot complete
   Access SSO for SigV4).
-- Rotate off default `minioadmin` before exposing the tunnel.
+- Rotate off default `minioadmin` before exposing the tunnel:
+
+```bash
+npm run rotate:minio-creds
+npm run sync:tunnel-secrets
+docker compose up -d --force-recreate minio minio-init studio
+```
+
 - Presigned URLs remain short-lived; direct S3 keys on RunPod are long-lived -- scope per-function keys
   when possible.

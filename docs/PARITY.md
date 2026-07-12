@@ -50,7 +50,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Chat
 
-- [~] `POST /api/chat` (text via planner catalog; image models not ported)
+- [x] `POST /api/chat` (text via plan.enhance; image models via Workers AI / gateway)
+- [x] `GET /api/models` (image-gen catalog for cast portrait UI)
 
 ## Render (storyboard aliases)
 
@@ -127,12 +128,18 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## UI smoke (manual)
 
-- [ ] `/planner` loads module panels from registry
-- [ ] `/cast` CRUD works
+- [x] `/planner` loads module panels from registry (`GET /api/modules` + static UI)
+- [x] `/cast` CRUD works (`tests/m3` + host parity cast routes)
 - [x] `/settings` module config renders
 - [x] `/settings` connection & API keys panel (GUI secrets store; studio token excluded)
-- [ ] Render submit -> history -> artifact playback
+- [x] Render submit -> history -> artifact playback (`npm run smoke:exit`)
 
 ## Core dependency
 
 - [x] `@skyphusion-labs/vivijure-core` `^0.9.1` (orchestration parity; host-only routes above)
+
+## Ops hardening (compose / flatliners)
+
+- [x] MinIO root creds from `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` (not hardcoded `minioadmin`)
+- [x] `npm run rotate:minio-creds` helper + docs
+- [x] CPU module sidecar healthchecks on module ports (`9120`–`9131`, not studio `:8790`)
