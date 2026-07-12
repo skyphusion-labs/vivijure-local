@@ -35,6 +35,17 @@ import {
 } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
 import { isValidVoiceId, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
+import {
+  handleCastTrainLora,
+  handleCastLoraStatus,
+} from "@skyphusion-labs/vivijure-core/cast-lora-train";
+import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
+import {
+  advanceCastRefsJob,
+  startCastRefsJob,
+  summarizeCastRefs,
+} from "../cast-image-orchestrator.js";
+import { exportCastBundle, importCastBundle } from "../cast-bundle.js";
 
 function castMediaEnv(platform: Platform): CastMediaEnv {
   return {
@@ -243,6 +254,63 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
       if (!srcKey) throw badRequest("key required");
       return handleCastSourceRemove(media(), await resolveCastId(db(), id), srcKey);
     }),
+  );
+
+  const oenv = () => orchestratorContextFromPlatform(platform);
+
+  app.get("/api/cast/export/:id", (c) =>
+    handle(c, async () => exportCastBundle(oenv(), await resolveCastId(db(), c.req.param("id")))),
+  );
+
+  app.post("/api/cast/export/:id", (c) =>
+    handle(c, async () => exportCastBundle(oenv(), await resolveCastId(db(), c.req.param("id")))),
+  );
+
+  app.post("/api/cast/import", (c) =>
+    handle(c, async () => {
+      const buf = new Uint8Array(await c.req.raw.arrayBuffer());
+      return importCastBundle(oenv(), buf);
+    }),
+  );
+
+  app.post("/api/cast/:id/generate-refs", (c) =>
+    handle(c, async () => {
+      const castId = await resolveCastId(db(), c.req.param("id"));
+      const b = await readBody<{
+        config?: Record<string, unknown>;
+        art_style?: string;
+        source_keys?: string[];
+        choice?: string;
+      }>(c.req.raw);
+      const job = await startCastRefsJob(oenv(), {
+        castId,
+        config: b.config,
+        artStyle: b.art_style,
+        sourceKeys: b.source_keys,
+        choice: b.choice,
+      });
+      if (!job) throw notFound("cast member");
+      return json({ ok: true, ...summarizeCastRefs(job) }, 201);
+    }),
+  );
+
+  app.get("/api/cast/:id/refs-job/:jobId", (c) =>
+    handle(c, async () => {
+      const castId = await resolveCastId(db(), c.req.param("id"));
+      const job = await advanceCastRefsJob(oenv(), castId, c.req.param("jobId"));
+      if (!job) throw notFound("cast refs job");
+      return json({ ok: true, ...summarizeCastRefs(job) });
+    }),
+  );
+
+  app.post("/api/cast/:id/train-lora", (c) =>
+    handle(c, async () =>
+      handleCastTrainLora(c.req.raw, oenv(), await resolveCastId(db(), c.req.param("id"))),
+    ),
+  );
+
+  app.get("/api/cast/:id/lora-status", (c) =>
+    handle(c, async () => handleCastLoraStatus(oenv(), await resolveCastId(db(), c.req.param("id")))),
   );
 
   // --- prefs ---
