@@ -40,6 +40,29 @@ S3_ALLOW_HTTP_FETCH=false
 Restart compose after changing `.env`. CPU containers use `ALLOWED_FETCH_HOSTS` to accept presigned
 URLs; set `S3_ALLOW_HTTP_FETCH=false` when presign uses HTTPS.
 
+**`platform_secrets` overrides compose env at runtime.** On first boot, install seeds the DB from
+`.env`; later `.env` edits alone do not change presigned URLs until you sync:
+
+```bash
+npm run sync:tunnel-secrets
+docker compose restart studio
+```
+
+Or update the same keys in Studio Settings. Symptom if stale: CPU containers reject presigned URLs
+with `scheme not allowed (https only): http`.
+
+## Verify HTTPS S3 via tunnel
+
+```bash
+# Edge TLS + MinIO health (from laptop or RunPod)
+curl -fsS https://minio-flatliners.skyphusion.org/minio/health/live
+
+# After sync:tunnel-secrets + studio restart
+npm run smoke:exit
+```
+
+Presigned PUT/GET to `https://minio-flatliners.skyphusion.org/vivijure/...` must return 200 off-box.
+
 ## RunPod vivijure-backend
 
 Configure the serverless endpoint environment (same bucket as the studio):
