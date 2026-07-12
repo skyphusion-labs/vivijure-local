@@ -26,6 +26,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "migrate:demo": "tsx scripts/migrate-demo.ts",
     "bootstrap:secrets": "tsx scripts/bootstrap-secrets.ts",
+    "sync:tunnel-secrets": "tsx scripts/sync-minio-tunnel-secrets.ts",
     "install:studio": "tsx scripts/install.ts",
     "module-manifests": "tsx scripts/sync-module-manifests.ts",
     "module-fleet": "bash scripts/dev-module-fleet.sh",
