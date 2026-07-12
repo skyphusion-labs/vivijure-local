@@ -34,6 +34,7 @@ jobs:
         with:
           repository: skyphusion-labs/vivijure-core
           path: vivijure-core
+          ref: feat/vivijure-parity-p0 # drop after vivijure-core parity PR merges to main
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
