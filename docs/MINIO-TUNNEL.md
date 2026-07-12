@@ -44,12 +44,14 @@ URLs; set `S3_ALLOW_HTTP_FETCH=false` when presign uses HTTPS.
 `.env`; later `.env` edits alone do not change presigned URLs until you sync:
 
 ```bash
-npm run sync:tunnel-secrets
+npm run sync:tunnel-secrets:compose
 docker compose restart studio
 ```
 
 Or update the same keys in Studio Settings. Symptom if stale: CPU containers reject presigned URLs
-with `scheme not allowed (https only): http`.
+with `scheme not allowed (https only): http`, or studio S3 puts fail with `InvalidAccessKeyId` after
+`rotate:minio-creds` (host `sync:tunnel-secrets` updates the wrong DB when studio uses the compose volume;
+use `npm run sync:tunnel-secrets:compose`).
 
 ## Verify HTTPS S3 via tunnel
 
@@ -57,7 +59,7 @@ with `scheme not allowed (https only): http`.
 # Edge TLS + MinIO health (from laptop or RunPod)
 curl -fsS https://minio-flatliners.skyphusion.org/minio/health/live
 
-# After sync:tunnel-secrets + studio restart
+# After sync:tunnel-secrets:compose + studio restart
 npm run smoke:exit
 ```
 
@@ -99,7 +101,7 @@ Do **not** commit `credentials.json`.
 
 ```bash
 npm run rotate:minio-creds
-npm run sync:tunnel-secrets
+npm run sync:tunnel-secrets:compose
 docker compose up -d --force-recreate minio minio-init studio
 ```
 

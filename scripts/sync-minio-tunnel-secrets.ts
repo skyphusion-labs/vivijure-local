@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
-// Upsert MinIO tunnel settings from .env into platform_secrets (DB wins over compose env at runtime).
-// Run after enabling cloudflared MinIO ingress; then restart studio.
+// Upsert MinIO tunnel + S3 credential settings from .env into platform_secrets (DB wins over compose env at runtime).
+// Run after enabling cloudflared MinIO ingress or `npm run rotate:minio-creds`; then restart studio.
 
 import "dotenv/config";
 import { mkdirSync } from "node:fs";
@@ -14,6 +14,8 @@ const TUNNEL_KEYS = [
   "S3_PRESIGN_ENDPOINT",
   "S3_FETCH_ALLOW_HOSTS",
   "S3_ALLOW_HTTP_FETCH",
+  "S3_ACCESS_KEY_ID",
+  "S3_SECRET_ACCESS_KEY",
 ] as const;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
