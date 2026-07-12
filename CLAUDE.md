@@ -20,7 +20,7 @@ Design platform interfaces in `src/platform/types.ts` so v2 extraction is mechan
 - **Do not fork `public/` long-term.** Copy stays in sync with upstream until v2 shared UI packaging exists.
 - **Module contract is sacred.** `src/modules/types.ts` must match upstream byte-for-byte unless the epoch bumps in both repos together.
 - **Object storage is S3-compatible (MinIO default).** Use `S3_*` env vars; R2/S3 is a config swap. Filesystem (`ARTIFACT_ROOT`) is CI fallback only.
-- **`npm run typecheck` is the gate** before push.
+- **Required CI check is `ci`** (typecheck, test, and conformance run inside that job). Run `npm run typecheck` locally before push.
 
 ## Commands
 

@@ -208,7 +208,7 @@ npm run conformance:compose      # live gate against compose sidecars (stack mus
 npm run smoke:exit               # bundle -> render -> poll -> artifact
 ```
 
-CI runs `typecheck`, `npm test`, and `npm run conformance` on every push. Live compose gates are
+CI runs the **`ci`** check (`typecheck`, `npm test`, `npm run conformance`) on every push. Live compose gates are
 operator-run today.
 
 ---
