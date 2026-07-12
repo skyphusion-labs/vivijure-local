@@ -6,7 +6,7 @@ import {
   parseContainerResponse,
 } from "../src/modules/cpu/beat-sync-core.js";
 import { beatPlanFromModuleOutput, beatSyncScoreModules } from "../src/beat-analyze.js";
-import type { RegisteredModule } from "../src/modules/types.js";
+import type { RegisteredModule } from "@skyphusion-labs/vivijure-core";
 
 describe("beat-sync pure logic", () => {
   it("buildAnalyzeBody maps config to container camelCase", () => {

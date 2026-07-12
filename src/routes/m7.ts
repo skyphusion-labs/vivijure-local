@@ -5,7 +5,7 @@ import { assembleBundle, type AssembleBundleArgs } from "../bundle-assembler.js"
 import { listCast } from "../cast-db.js";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
-import { discoverModules, servingForHook } from "../modules/registry.js";
+import { discoverModules, servingForHook } from "@skyphusion-labs/vivijure-core";
 import {
   checkCastBindingsReady,
   checkDurationGrid,
@@ -15,10 +15,10 @@ import {
   type PreflightIssue,
 } from "../preflight.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
-import { orchestratorEnvFromPlatform } from "../platform/orchestrator-env.js";
-import type { Platform } from "../platform/types.js";
+import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
+import type { SettingsHost } from "../routes/m8-settings.js";
+import { plannerEnvFromVars } from "../planner-env.js";
 import { dbEnvFromPlatform } from "../resolve-id.js";
-import { plannerEnvFromProcess } from "../planner-env.js";
 import {
   planStoryboard,
   refineStoryboard,
@@ -37,11 +37,9 @@ async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>)
   }
 }
 
-export function registerM7Routes(app: Hono, platform: Platform): void {
-  const plannerEnv = () => ({
-    ...plannerEnvFromProcess(process.env),
-    ...platform.vars,
-  });
+export function registerM7Routes(app: Hono, host: SettingsHost): void {
+  const platform = host.platform;
+  const plannerEnv = () => plannerEnvFromVars(platform.vars);
 
   app.post("/api/storyboard/preflight", (c) =>
     handle(c, async () => {
@@ -127,7 +125,7 @@ export function registerM7Routes(app: Hono, platform: Platform): void {
       if (!args.storyboard || !args.characterRefs) {
         throw badRequest("storyboard and characterRefs required");
       }
-      const env = orchestratorEnvFromPlatform(platform);
+      const env = orchestratorContextFromPlatform(platform);
       const result = await assembleBundle(env, args);
       return json(result, result.ok ? 201 : 400);
     }),

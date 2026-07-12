@@ -6,8 +6,8 @@
 
 import type { ConfigSchema, DialogueLine, FinishOutput, MasterOutput, RegisteredModule, SpeechOutput } from "./modules/types.js";
 import { validateConfig } from "./modules/registry.js";
-import { summarizeJob, type ClipJob, type JobSummary } from "./render-orchestrator.js";
-import { coerceShotId } from "./storyboard-validate.js";
+import { summarizeJob, type ClipJob, type JobSummary } from "./clip-job-model.js";
+import { coerceShotId } from "./storyboard-ids.js";
 
 export interface FilmScene { shot_id: string; prompt: string; seconds: number; }
 

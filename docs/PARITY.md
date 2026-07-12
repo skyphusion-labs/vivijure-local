@@ -79,8 +79,10 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Module admin (optional v1)
 
-- [ ] `GET /api/modules/:name/config`
-- [ ] `PATCH /api/modules/:name/config`
+- [x] `GET /api/modules/:name/config`
+- [x] `PATCH /api/modules/:name/config`
+- [x] `GET /api/settings/secrets`
+- [x] `PATCH /api/settings/secrets`
 
 ## Module contract (conformance)
 
@@ -115,5 +117,6 @@ Verify poll responses advance through phases identically to upstream:
 
 - [ ] `/planner` loads module panels from registry
 - [ ] `/cast` CRUD works
-- [ ] `/settings` module config renders
+- [x] `/settings` module config renders
+- [x] `/settings` connection & API keys panel (GUI secrets store; studio token excluded)
 - [ ] Render submit -> history -> artifact playback

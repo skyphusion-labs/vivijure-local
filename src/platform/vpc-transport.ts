@@ -1,5 +1,4 @@
-// HTTP VPC shim: maps VIDEO_FINISH_URL etc. to Workers-style *_VPC fetcher bindings.
-
+import type { FetcherLike } from "./types.js";
 import { HttpFetcher } from "./http-fetcher.js";
 
 /** Env URL key -> orchestrator binding name (vivijure Env parity). */
@@ -68,5 +67,11 @@ export function injectVpcFetchers(env: Record<string, unknown>, processEnv: Node
   }
 }
 
-/** Plain HTTP fetcher for non-VPC callers (module sidecars). */
+/** Build Platform.hostBindings from merged runtime env (Node homelab VPC shim). */
+export function buildVpcHostBindings(processEnv: NodeJS.ProcessEnv): Record<string, FetcherLike> {
+  const bindings: Record<string, unknown> = {};
+  injectVpcFetchers(bindings, processEnv);
+  return bindings as Record<string, FetcherLike>;
+}
+
 export { HttpFetcher };

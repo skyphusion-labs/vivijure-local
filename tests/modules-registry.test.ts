@@ -6,8 +6,8 @@ import {
   readManifest,
   validateConfig,
   validateManifest,
-} from "../src/modules/registry.js";
-import { MODULE_API, type ConfigSchema, type RegisteredModule } from "../src/modules/types.js";
+} from "@skyphusion-labs/vivijure-core";
+import { MODULE_API, type ConfigSchema, type RegisteredModule } from "@skyphusion-labs/vivijure-core";
 import { renderConfigProjection } from "../src/render-module-config.js";
 
 const manifest = (over = {}) => ({

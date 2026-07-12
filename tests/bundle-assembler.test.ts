@@ -6,7 +6,7 @@ import {
   safeCharFilename,
 } from "../src/bundle-assembler.js";
 import { validateStoryboard } from "../src/storyboard-validate.js";
-import type { OrchestratorEnv } from "../src/orchestrator-env.js";
+import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
 import { FilesystemObjectStore } from "../src/platform/storage.js";
 import { wrapR2Bucket } from "../src/platform/r2-adapter.js";
 import { LocalObjectPresigner } from "../src/platform/storage.js";

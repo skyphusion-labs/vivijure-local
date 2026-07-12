@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -111,7 +112,7 @@ describe("HTTP routes (M1)", () => {
   });
 
   it("GET /health is open without auth", async () => {
-    const app = createApp(platform);
+    const app = createApp(testSettingsHost(platform));
     const res = await app.request("/health");
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
@@ -123,7 +124,7 @@ describe("HTTP routes (M1)", () => {
   });
 
   it("GET /api/whoami requires token in token mode", async () => {
-    const app = createApp(platform);
+    const app = createApp(testSettingsHost(platform));
     const denied = await app.request("/api/whoami");
     expect(denied.status).toBe(403);
     const ok = await app.request("/api/whoami", {
@@ -134,7 +135,7 @@ describe("HTTP routes (M1)", () => {
   });
 
   it("GET /planner serves planner.html", async () => {
-    const app = createApp(platform);
+    const app = createApp(testSettingsHost(platform));
     const res = await app.request("/planner");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/html/);

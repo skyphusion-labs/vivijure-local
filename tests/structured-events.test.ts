@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { emitStructuredEvent } from "../src/structured-events.js";
+import { emitStructuredEvent } from "@skyphusion-labs/vivijure-core";
 
 describe("emitStructuredEvent", () => {
   afterEach(() => {

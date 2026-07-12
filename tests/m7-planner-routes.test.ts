@@ -1,4 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
 import type { ModuleTransport, Platform } from "../src/platform/types.js";
 import { FilesystemObjectStore, LocalObjectPresigner } from "../src/platform/storage.js";
@@ -7,7 +8,7 @@ import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { _resetModuleDiscoveryCache } from "../src/modules/registry.js";
+import { _resetModuleDiscoveryCache } from "@skyphusion-labs/vivijure-core";
 
 const SECRET = "c".repeat(32) + "d".repeat(32);
 let dir: string;
@@ -77,7 +78,7 @@ afterEach(() => {
 
 describe("POST /api/storyboard/preflight", () => {
   it("unwraps the envelope and returns ok:true at 200", async () => {
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/preflight", {
       method: "POST",
       body: JSON.stringify({ storyboard: validStoryboard, castBindings: {} }),
@@ -89,7 +90,7 @@ describe("POST /api/storyboard/preflight", () => {
   });
 
   it("surfaces validation errors as data at 200", async () => {
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/preflight", {
       method: "POST",
       body: JSON.stringify({ storyboard: { scenes: validStoryboard.scenes } }),
@@ -104,7 +105,7 @@ describe("POST /api/storyboard/preflight", () => {
 describe("POST /api/storyboard/plan", () => {
   it("returns a valid storyboard when PLANNER_AI_MOCK is enabled", async () => {
     process.env.PLANNER_AI_MOCK = "true";
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/plan", {
       method: "POST",
       body: JSON.stringify({
@@ -121,7 +122,7 @@ describe("POST /api/storyboard/plan", () => {
 
   it("returns 422 when mock fail sentinel is in the brief", async () => {
     process.env.PLANNER_AI_MOCK = "true";
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/plan", {
       method: "POST",
       body: JSON.stringify({
@@ -140,7 +141,7 @@ describe("POST /api/storyboard/plan", () => {
 describe("POST /api/storyboard/refine", () => {
   it("refines with mock enabled", async () => {
     process.env.PLANNER_AI_MOCK = "true";
-    const app = createApp(testPlatform());
+    const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/refine", {
       method: "POST",
       body: JSON.stringify({

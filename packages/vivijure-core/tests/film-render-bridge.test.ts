@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { filmJobToPollView, isFilmJobId, normalizeFilmScenes } from "../src/film-render-bridge.js";
-import type { FilmJob } from "../src/film-orchestrator.js";
+import {
+  filmJobToPollView,
+  filmRenderRowSeedFromJob,
+  isFilmJobId,
+  normalizeFilmScenes,
+} from "../src/film-render-bridge.js";
+import type { FilmJob } from "../src/film-model.js";
 
 describe("film-render-bridge", () => {
   it("isFilmJobId recognizes film-* ids", () => {
@@ -40,5 +45,29 @@ describe("film-render-bridge", () => {
     expect(view.status).toBe("COMPLETED");
     expect(view.jobId).toBe("film-test");
     expect((view.output as { keyframes?: unknown[] })?.keyframes).toHaveLength(1);
+  });
+
+  it("filmRenderRowSeedFromJob matches poll status", () => {
+    const job: FilmJob = {
+      film_id: "film-row",
+      project: "demo",
+      bundle_key: "bundles/demo.tar.gz",
+      scenes: [],
+      motion_backend: null,
+      motion_config: {},
+      finish_config: {},
+      speech_config: {},
+      film_finish_config: {},
+      master_config: {},
+      keyframes_only: true,
+      keyframe_binding: "MODULE_KEYFRAME",
+      phase: "done",
+      created_at: Date.now(),
+      phase_started_at: Date.now(),
+    };
+    const seed = filmRenderRowSeedFromJob(job);
+    expect(seed.jobId).toBe("film-row");
+    expect(seed.status).toBe("COMPLETED");
+    expect(seed.mode).toBe("keyframes-only");
   });
 });

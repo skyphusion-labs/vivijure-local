@@ -1,7 +1,8 @@
 import { describe, expect, it, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
-import { _resetModuleDiscoveryCache } from "../src/modules/registry.js";
-import { MODULE_API, type ModulesResponse } from "../src/modules/types.js";
+import { _resetModuleDiscoveryCache } from "@skyphusion-labs/vivijure-core";
+import { MODULE_API, type ModulesResponse } from "@skyphusion-labs/vivijure-core";
 import type { FetcherLike, ModuleTransport, Platform } from "../src/platform/types.js";
 import { FilesystemObjectStore, LocalObjectPresigner } from "../src/platform/storage.js";
 import { EnvSecretStore } from "../src/platform/secrets.js";
@@ -78,7 +79,7 @@ describe("GET /api/modules", () => {
     const transport = new StubModuleTransport(
       new Map([["MODULE_KEYFRAME", fakeModule(manifest)]]),
     );
-    const app = createApp(testPlatform(transport));
+    const app = createApp(testSettingsHost(testPlatform(transport)));
     const res = await modulesReq(app);
     expect(res.status).toBe(200);
     const body = (await res.json()) as ModulesResponse;
@@ -91,7 +92,7 @@ describe("GET /api/modules", () => {
   });
 
   it("returns an empty catalog when no modules are bound", async () => {
-    const app = createApp(testPlatform(new StubModuleTransport(new Map())));
+    const app = createApp(testSettingsHost(testPlatform(new StubModuleTransport(new Map()))));
     const res = await modulesReq(app);
     const body = (await res.json()) as ModulesResponse;
     expect(body.modules).toEqual([]);

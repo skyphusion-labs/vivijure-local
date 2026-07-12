@@ -90,6 +90,8 @@ export interface Platform {
   scheduler?: Scheduler;
   /** Plain config vars (AUTH_MODE, spend knobs, etc.). */
   vars: Record<string, string | undefined>;
+  /** Optional host-only service bindings (e.g. Node HTTP VPC shims). Merged into orchestrator context. */
+  hostBindings?: Record<string, FetcherLike>;
 }
 
 /** Build a Record<string, unknown> env bag for code not yet ported off env-rec pattern. */

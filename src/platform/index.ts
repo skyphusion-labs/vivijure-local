@@ -4,7 +4,7 @@ export { FilesystemObjectStore, LocalObjectPresigner, type StoredObject } from "
 export { EnvSecretStore, secretValue } from "./secrets.js";
 export { HttpModuleTransport, createModuleTransport, moduleUrlsFromEnv } from "./modules.js";
 export { HttpFetcher } from "./http-fetcher.js";
-export { injectVpcFetchers, vpcUrlsFromEnv, VPC_URL_BINDINGS } from "./vpc-transport.js";
+export { injectVpcFetchers, vpcUrlsFromEnv, VPC_URL_BINDINGS, buildVpcHostBindings } from "./vpc-transport.js";
 export {
   aiGatewayConfig,
   aiGatewayConfigured,
@@ -16,5 +16,7 @@ export { S3ObjectStore, S3ObjectPresigner } from "./s3-store.js";
 export { presignS3WithConfig, uriEncode, type S3PresignConfig } from "./s3-presign.js";
 export { createStorage, type ArtifactStore, type StorageBundle } from "./create-storage.js";
 export { moduleEnvFromPlatform } from "./module-env.js";
-export { orchestratorEnvFromPlatform } from "./orchestrator-env.js";
 export { wrapR2Bucket, asFetcher } from "./r2-adapter.js";
+export { RuntimeEnv } from "./runtime-env.js";
+export { RuntimeSecretStore } from "./runtime-secrets.js";
+export { applyRuntimeEnvToPlatform, maskSecretValue } from "./reload.js";

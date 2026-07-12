@@ -5,7 +5,7 @@ import type {
   MasterInput,
   PollRequest,
   ScoreInput,
-} from "../types.js";
+} from "@skyphusion-labs/vivijure-core";
 import {
   invokeAudioMaster,
   invokeBeatSync,

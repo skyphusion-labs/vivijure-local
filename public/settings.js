@@ -236,6 +236,97 @@
     return (l && String(l).trim()) || mod.name;
   }
 
+  function bootSecrets() {
+    var root = document.getElementById("settings-secrets");
+    var statusEl = document.getElementById("settings-secrets-status");
+    var saveBtn = document.getElementById("settings-secrets-save");
+    if (!root || !saveBtn) return;
+
+    fetch("/api/settings/secrets", { headers: { accept: "application/json" } })
+      .then(function (r) {
+        return r.ok ? r.json() : Promise.reject(new Error("/api/settings/secrets -> " + r.status));
+      })
+      .then(function (data) {
+        var categories = data.categories || [];
+        var fields = data.fields || [];
+        root.replaceChildren();
+
+        for (var c = 0; c < categories.length; c++) {
+          var cat = categories[c];
+          var catFields = fields.filter(function (f) { return f.category === cat.id; });
+          if (!catFields.length) continue;
+
+          var section = el("div", "settings-secret-category");
+          section.appendChild(el("h3", null, cat.label));
+          section.appendChild(el("p", null, cat.blurb));
+
+          for (var i = 0; i < catFields.length; i++) {
+            var f = catFields[i];
+            var label = el("label", "settings-field");
+            label.appendChild(el("span", "settings-field-label", f.label));
+            if (f.blurb) label.appendChild(el("span", "settings-secret-source", f.blurb));
+            var input = el("input");
+            input.type = f.sensitive ? "password" : "text";
+            input.dataset.secretKey = f.key;
+            input.placeholder = f.configured ? f.display : "(not set)";
+            input.autocomplete = "off";
+            label.appendChild(input);
+            if (f.configured && f.source) {
+              label.appendChild(el("span", "settings-secret-source", "source: " + f.source));
+            }
+            section.appendChild(label);
+          }
+          root.appendChild(section);
+        }
+
+        saveBtn.addEventListener("click", function () {
+          var values = {};
+          var inputs = root.querySelectorAll("input[data-secret-key]");
+          for (var j = 0; j < inputs.length; j++) {
+            var inp = inputs[j];
+            var val = inp.value.trim();
+            if (!val) continue;
+            values[inp.dataset.secretKey] = val;
+          }
+          saveBtn.disabled = true;
+          if (statusEl) {
+            statusEl.textContent = "saving...";
+            statusEl.classList.remove("settings-status-error", "settings-status-ok");
+          }
+          fetch("/api/settings/secrets", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ values: values }),
+          })
+            .then(function (r) {
+              return r.ok ? r.json() : r.text().then(function (t) {
+                throw new Error("HTTP " + r.status + (t ? ": " + t.slice(0, 160) : ""));
+              });
+            })
+            .then(function (res) {
+              if (statusEl) {
+                statusEl.textContent = res.message || "saved";
+                statusEl.classList.add("settings-status-ok");
+              }
+              for (var k = 0; k < inputs.length; k++) inputs[k].value = "";
+            })
+            .catch(function (e) {
+              if (statusEl) {
+                statusEl.textContent = "save failed (" + e.message + ")";
+                statusEl.classList.add("settings-status-error");
+              }
+            })
+            .finally(function () {
+              saveBtn.disabled = false;
+            });
+        });
+      })
+      .catch(function (e) {
+        root.replaceChildren();
+        root.appendChild(el("p", "settings-empty", "Could not load connection settings: " + e.message));
+      });
+  }
+
   function boot() {
     var root = document.getElementById(ROOT_ID);
     var meta = document.getElementById(META_ID);
@@ -284,5 +375,6 @@
       });
   }
 
+  bootSecrets();
   boot();
 })();

@@ -24,10 +24,14 @@ copy_if_missing() {
 
 echo "sync from $UP -> $DEST"
 
-# Verbatim copies
+# Verbatim copies (module contract lives in vivijure-core after Phase 3 wave 0)
 copy_if_missing "public"
 copy_if_missing "migrations"
-copy_if_missing "src/modules/types.ts"
+if [[ -f "$UP/src/modules/types.ts" ]]; then
+  mkdir -p "$DEST/packages/vivijure-core/src/modules"
+  cp "$UP/src/modules/types.ts" "$DEST/packages/vivijure-core/src/modules/types.ts"
+  echo "copied: src/modules/types.ts -> packages/vivijure-core/src/modules/types.ts"
+fi
 
 # Port batches (create parent dirs; force-copy into staging for manual merge)
 STAGE="$DEST/.sync-staging/$(date +%Y%m%d-%H%M%S)"

@@ -70,9 +70,7 @@ export function buildLoraTrainingBundleArgs(
 // version keeps retraining immutable so an in-flight render that
 // references the prior key does not break. The GPU backend may use its
 // own convention; this is returned to the client for traceability.
-export function deriveLoraDestKey(castId: number, timestamp: number): string {
-  return `loras/cast-${castId}/${timestamp}.safetensors`;
-}
+export { deriveLoraDestKey } from "@skyphusion-labs/vivijure-core/lora-keys";
 
 // The trained-LoRA R2 key from a completed train_lora job envelope. The clean-room
 // backend returns it nested under result.lora[slot].lora_id (a cast-training bundle

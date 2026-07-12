@@ -1,6 +1,6 @@
 // Pure beat-sync logic (unit-testable without the Worker runtime).
 
-import type { AudioBeatPlan } from "../../beat-sync-types.js";
+import type { AudioBeatPlan } from "@skyphusion-labs/vivijure-core";
 
 export const MODES = ["beat", "duration"] as const;
 export type AnalyzeMode = (typeof MODES)[number];

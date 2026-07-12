@@ -71,13 +71,14 @@ you control and a strong token.
 ## One-command deploy (recommended)
 
 ```bash
-cp .env.example .env
-# Edit STUDIO_API_TOKEN (required). Other values have compose defaults.
+npm run install:studio
 npm run compose:up
 curl -fsS http://127.0.0.1:8790/health
 ```
 
-`compose:up` runs `docker compose up -d --build`. First build may take several minutes.
+`install:studio` mints `STUDIO_API_TOKEN`, writes `.studio-token`, and seeds `platform_secrets`.
+First studio boot also copies any missing compose env into the DB. Re-run install only when `.env`
+still has the `change-me-local-dev-only` placeholder.
 
 ### Service ports (host)
 

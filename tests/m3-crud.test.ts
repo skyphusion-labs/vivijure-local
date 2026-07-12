@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { testSettingsHost } from "./test-host.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,7 +45,7 @@ describe("M3 CRUD routes", () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "vj-m3-"));
-    app = createApp(makePlatform(dir));
+    app = createApp(testSettingsHost(makePlatform(dir)));
   });
 
   afterEach(() => {

@@ -46,7 +46,7 @@ export interface RenderProgressSnapshot {
   error: { stage?: string; message?: string } | null;
 }
 
-import type { Env } from "./orchestrator-env.js";
+import type { Env } from "@skyphusion-labs/vivijure-core/platform";
 
 /** Read the GPU job's progress snapshot and return its keyframe_done tally (#318). Best-effort: a
  *  missing/garbled snapshot (e.g. a cloud-keyframe job that writes none, or a just-submitted job) yields

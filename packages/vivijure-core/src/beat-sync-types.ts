@@ -1,5 +1,5 @@
 // Beat-sync / planner analyze types. Upstream keeps these in modules/beat-sync/src/contract.ts;
-// vivijure-local keeps them out of src/modules/types.ts so that file stays verbatim with vivijure main.
+// vivijure-core keeps them out of modules/types.ts so that file stays verbatim with vivijure main.
 
 import type { ScoreOutput } from "./modules/types.js";
 

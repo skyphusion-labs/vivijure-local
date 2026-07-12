@@ -1,6 +1,6 @@
 # vivijure-local -- one-command homelab stack
 #
-#   cp .env.example .env   # set STUDIO_API_TOKEN
+#   npm run install:studio   # mint token + seed platform_secrets
 #   docker compose up -d --build
 #
 # Studio UI:     http://127.0.0.1:8790

@@ -33,7 +33,7 @@ const FILES = [
 
 function fixImports(src: string, file: string): string {
   let s = src;
-  s = s.replace(/from "\.\/env"/g, 'from "./orchestrator-env.js"');
+  s = s.replace(/from "\.\/env"/g, 'from "@skyphusion-labs/vivijure-core/platform"');
   s = s.replace(/from "\.\/runpod-submit"/g, 'from "./runpod-types.js"');
   s = s.replace(/from "\.\/secret-store"/g, 'from "./platform/secrets.js"');
   if (file === "cast-db.ts" || file.includes("cast")) {

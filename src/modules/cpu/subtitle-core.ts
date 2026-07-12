@@ -3,7 +3,7 @@
 // runtime, the container, or ffmpeg. Timing is NOT computed here -- the core hands fully-timed cues
 // (it owns the per-shot dialogue + the real shot durations); this module only FORMATS and BURNS.
 
-import type { FilmFinishInput, FilmFinishOutput, FilmFinishCaption } from "../types.js";
+import type { FilmFinishInput, FilmFinishOutput, FilmFinishCaption } from "@skyphusion-labs/vivijure-core";
 
 export type SubtitleMode = "burn" | "sidecar" | "both";
 export type SubtitlePosition = "bottom" | "top" | "middle";

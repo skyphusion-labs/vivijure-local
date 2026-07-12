@@ -7,8 +7,8 @@ import {
   masterOutputFromResult,
   passthroughOutput,
 } from "../src/modules/cpu/audio-master-core.js";
-import { checkManifest, checkInvokeResponse, checkHookOutput, allPass, failures } from "../src/modules/conformance.js";
-import type { MasterInput } from "../src/modules/types.js";
+import { checkManifest, checkInvokeResponse, checkHookOutput, allPass, failures } from "@skyphusion-labs/vivijure-core";
+import type { MasterInput } from "@skyphusion-labs/vivijure-core";
 
 const SAMPLE_INPUT: MasterInput = {
   film_id: "film_neon_01",
