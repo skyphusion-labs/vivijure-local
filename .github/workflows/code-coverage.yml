@@ -36,6 +36,16 @@ jobs:
           path: vivijure-core
           ref: feat/vivijure-parity-p0 # drop after vivijure-core parity PR merges to main
 
+      - name: Checkout vivijure (core quality-tier-drift module manifests)
+        uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure
+          path: vivijure
+          sparse-checkout: |
+            modules/keyframe
+            modules/own-gpu
+          sparse-checkout-cone-mode: false
+
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
