@@ -16,19 +16,22 @@ import type {
   SpeechOutput,
 } from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
-import { MIN_PNG, buildSilentWav } from "../../dev/minimal-media.js";
+import { buildSilentWav } from "../../dev/minimal-media.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import type { ChainModuleEnv } from "./chain-env.js";
 import {
+  FLAG_FALLBACK_MODEL,
   MODELS,
   buildState as buildCastState,
   decodePoll as decodeCastPoll,
   encodePoll as encodeCastPoll,
+  isFlaggedError,
   readOutput as readCastOutput,
   refKey,
   stateKey as castStateKey,
   type CastImageState,
 } from "./cast-image-core.js";
+import { generateCastImage } from "./cast-image-gen.js";
 import {
   AUDIO_MIME,
   appliedTags as dialogueAppliedTags,
@@ -259,7 +262,10 @@ export async function invokeCastImage(
   return { ok: true, pending: true, poll: encodeCastPoll({ cast_id: input.cast_id, job_id }) };
 }
 
+const CAST_IMAGE_PER_POLL = 1;
+
 export async function pollCastImage(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   body: PollRequest,
 ): Promise<PollResponse<CastImageOutput>> {
@@ -270,11 +276,40 @@ export async function pollCastImage(
   if (!state) return { ok: false, error: "cast.image: run state not found (expired or bad token)" };
   if (state.prompts.length === 0) return { ok: true, output: readCastOutput(state) };
 
-  const key = refKey(state.cast_id, state.done.length + 1, "png");
-  await store.put(key, MIN_PNG, { httpMetadata: { contentType: "image/png" } });
-  state.done.push({ key, mime: "image/png" });
-  state.prompts.shift();
-  await writeJson(store, sk, state);
+  for (let i = 0; i < CAST_IMAGE_PER_POLL && state.prompts.length > 0; i++) {
+    const prompt = state.prompts[0];
+    let img: { bytes: Uint8Array; mime: string };
+    try {
+      img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+    } catch (e) {
+      if (isFlaggedError((e as Error).message) && state.model !== FLAG_FALLBACK_MODEL) {
+        state.model = FLAG_FALLBACK_MODEL;
+        state.fallback_used = true;
+        try {
+          img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+        } catch (e2) {
+          return { ok: false, error: "cast.image: generation failed (post-fallback): " + (e2 as Error).message };
+        }
+      } else {
+        return { ok: false, error: "cast.image: generation failed: " + (e as Error).message };
+      }
+    }
+    const ext = img.mime.includes("jpeg") ? "jpg" : img.mime.includes("webp") ? "webp" : "png";
+    const key = refKey(state.cast_id, state.done.length + 1, ext);
+    try {
+      await store.put(key, img.bytes, { httpMetadata: { contentType: img.mime } });
+    } catch (e) {
+      return { ok: false, error: "cast.image: store put failed: " + (e as Error).message };
+    }
+    state.done.push({ key, mime: img.mime });
+    state.prompts.shift();
+  }
+
+  try {
+    await writeJson(store, sk, state);
+  } catch {
+    /* best-effort: next poll re-reads prior state */
+  }
 
   return state.prompts.length === 0
     ? { ok: true, output: readCastOutput(state) }

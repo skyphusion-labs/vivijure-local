@@ -12,7 +12,12 @@ const planEnhanceMod: RegisteredModule = {
   config_schema: {
     model: {
       type: "enum",
-      values: ["anthropic/claude-opus-4-8", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"],
+      values: [
+        "anthropic/claude-opus-4-8",
+        "anthropic/claude-opus-4-7",
+        "anthropic/claude-sonnet-5",
+        "anthropic/claude-sonnet-4-6",
+      ],
       default: "anthropic/claude-opus-4-8",
       label: "model",
     },
@@ -24,7 +29,9 @@ describe("planning-models", () => {
     const models = planningModelsFromModules([planEnhanceMod]);
     expect(models.map((m) => m.id)).toEqual([
       "anthropic/claude-opus-4-8",
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "anthropic/claude-opus-4-7",
+      "anthropic/claude-sonnet-5",
+      "anthropic/claude-sonnet-4-6",
     ]);
   });
 

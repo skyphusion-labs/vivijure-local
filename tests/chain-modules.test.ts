@@ -5,7 +5,7 @@ import {
   parseEnhanced,
   scenePrompts,
 } from "../src/modules/chain/plan-enhance-core.js";
-import { LOCAL_MODEL, pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
+import { LOCAL_MODEL, opusModel, pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
 import { invokePlanEnhance } from "../src/modules/chain/handlers.js";
 import { coerceConfig, passthroughOutput } from "../src/modules/chain/speech-upscale-core.js";
 
@@ -38,9 +38,12 @@ describe("plan.enhance provider selection", () => {
     );
   });
 
-  it("picks local llama when gateway creds are absent", () => {
-    expect(pickProvider({})).toBe("local");
-    expect(LOCAL_MODEL).toContain("llama");
+  it("uses default opus when override is the module id", () => {
+    expect(opusModel({ GATEWAY_ID: "gw", CF_AIG_TOKEN: "tok" }, "plan-enhance")).toBe("claude-opus-4-8");
+  });
+
+  it("honors explicit anthropic model override", () => {
+    expect(opusModel({}, "anthropic/claude-sonnet-4-6")).toBe("claude-sonnet-4-6");
   });
 });
 

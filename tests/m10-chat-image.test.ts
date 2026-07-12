@@ -73,7 +73,7 @@ describe("POST /api/chat image", () => {
       "fetch",
       vi.fn(async (input: string | URL) => {
         const url = String(input);
-        if (url.includes("/ai/run/")) {
+        if (url.includes("/ai/run/@cf/black-forest-labs/flux-2-klein-9b")) {
           return new Response(JSON.stringify({ result: { image: b64 } }), { status: 200 });
         }
         throw new Error(`unexpected fetch: ${url}`);

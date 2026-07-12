@@ -79,7 +79,7 @@ export function createChainModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
-    if (moduleName === "cast-image") return c.json(await pollCastImage(store, body));
+    if (moduleName === "cast-image") return c.json(await pollCastImage(env, store, body));
     if (moduleName === "dialogue-gen") return c.json(await pollDialogueGen(store, body));
     return c.json(await pollSpeechUpscale(env, body));
   });

@@ -26,16 +26,24 @@ export interface ProviderEnv {
 
 export type Provider = "opus" | "local";
 
+function isAnthropicModelId(id: string): boolean {
+  const s = id.trim();
+  return s.startsWith("anthropic/") || s.startsWith("claude-");
+}
+
+/** Opus model id: explicit anthropic/claude-* override, else ENHANCE_MODEL, else default. */
+export function opusModel(env: ProviderEnv, override?: string): string {
+  const fromConfig = override?.trim();
+  if (fromConfig && isAnthropicModelId(fromConfig)) {
+    return fromConfig.replace(/^anthropic\//, "");
+  }
+  const m = env.ENHANCE_MODEL?.trim();
+  return m && m.length > 0 ? m.replace(/^anthropic\//, "") : DEFAULT_OPUS_MODEL;
+}
+
 export function pickProvider(env: ProviderEnv, modelId?: string): Provider {
   if (modelId?.startsWith("@cf/")) return "local";
   return env.GATEWAY_ID?.trim() && env.CF_AIG_TOKEN?.trim() ? "opus" : "local";
-}
-
-export function opusModel(env: ProviderEnv, override?: string): string {
-  const fromConfig = override?.trim();
-  if (fromConfig) return fromConfig.replace(/^anthropic\//, "");
-  const m = env.ENHANCE_MODEL?.trim();
-  return m && m.length > 0 ? m.replace(/^anthropic\//, "") : DEFAULT_OPUS_MODEL;
 }
 
 export function toAnthropic(

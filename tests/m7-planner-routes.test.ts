@@ -91,7 +91,7 @@ describe("GET /api/storyboard/models", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { models: Array<{ id: string }> };
     expect(body.models.length).toBeGreaterThan(0);
-    expect(body.models.some((m) => m.id === "plan-enhance")).toBe(true);
+    expect(body.models.some((m) => m.id === "anthropic/claude-opus-4-8")).toBe(true);
   });
 });
 
