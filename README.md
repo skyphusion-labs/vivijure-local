@@ -25,7 +25,7 @@ gate changes with the parity smoke tests. It is a **lab bench**, not a supported
 
 ```bash
 npm run install:studio        # mint token + seed platform_secrets
-npm run compose:up            # docker compose up -d --build
+npm run compose:up            # pull GHCR :latest + docker compose up -d
 curl -fsS http://127.0.0.1:8790/health
 ```
 

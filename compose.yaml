@@ -1,8 +1,12 @@
 # vivijure-local -- one-command homelab stack
 #
 #   npm run install:studio   # mint token + seed platform_secrets
-#   docker compose up -d --build
-#   COMPOSE_PROFILES=tunnel docker compose up -d --build   # + cloudflared (flatliners)
+#   npm run compose:up       # pull GHCR :latest + docker compose up -d
+#   COMPOSE_PROFILES=tunnel npm run compose:up   # + cloudflared (flatliners)
+#
+# Images are built on push to main and published to GHCR (see docker-build workflow).
+# Override VJ_IMAGE_REGISTRY / VJ_IMAGE_TAG in .env to pin a different registry or tag.
+# Private GHCR: docker login ghcr.io (read:packages) before compose:up.
 #
 # Studio UI:     http://127.0.0.1:8790  (or PUBLIC_BASE_URL via cloudflared)
 # MinIO console: http://127.0.0.1:9001  (minioadmin / minioadmin)
@@ -32,16 +36,15 @@ x-cpu-health: &cpu-health
 x-cpu-service: &cpu-service
   restart: unless-stopped
   networks: [studio]
+  pull_policy: always
   environment:
     PORT: "8000"
     ALLOW_HTTP_FETCH: ${S3_ALLOW_HTTP_FETCH:-true}
     ALLOWED_FETCH_HOSTS: ${S3_FETCH_ALLOW_HOSTS:-minio}
 
 x-module-sidecar: &module-sidecar
-  build:
-    context: ..
-    dockerfile: vivijure-local/Dockerfile
-  image: vivijure-local-studio:local
+  image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-studio:${VJ_IMAGE_TAG:-latest}
+  pull_policy: always
   restart: unless-stopped
   networks: [studio]
 
@@ -111,8 +114,7 @@ services:
 
   video-finish:
     <<: *cpu-service
-    build: ./containers/video-finish
-    image: vj-video-finish:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-video-finish:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8780:8000"
     healthcheck:
@@ -121,8 +123,7 @@ services:
 
   image-prep:
     <<: *cpu-service
-    build: ./containers/image-prep
-    image: vj-image-prep:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-image-prep:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8781:8000"
     healthcheck:
@@ -131,8 +132,7 @@ services:
 
   audio-beat-sync:
     <<: *cpu-service
-    build: ./containers/audio-beat-sync
-    image: vj-audio-beat-sync:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-audio-beat-sync:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8782:8000"
     healthcheck:
@@ -141,8 +141,7 @@ services:
 
   audio-mix:
     <<: *cpu-service
-    build: ./containers/audio-mix
-    image: vj-audio-mix:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-audio-mix:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8783:8000"
     healthcheck:
@@ -151,8 +150,7 @@ services:
 
   audio-master:
     <<: *cpu-service
-    build: ./containers/audio-master
-    image: vj-audio-master:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-audio-master:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8784:8000"
     healthcheck:
@@ -404,10 +402,8 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9144/module.json"]
 
   studio:
-    build:
-      context: ..
-      dockerfile: vivijure-local/Dockerfile
-    image: vivijure-local-studio:local
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-studio:${VJ_IMAGE_TAG:-latest}
+    pull_policy: always
     ports:
       - "127.0.0.1:8790:8790"
     env_file:

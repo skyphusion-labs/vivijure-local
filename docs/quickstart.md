@@ -33,7 +33,7 @@ You do **not** need:
 git clone https://github.com/skyphusion-labs/vivijure-local
 cd vivijure-local
 npm run install:studio      # mint token, seed platform_secrets, write .studio-token
-npm run compose:up          # docker compose up -d --build
+npm run compose:up          # docker compose pull && up -d
 curl -fsS http://127.0.0.1:8790/health
 ```
 
@@ -116,7 +116,7 @@ npm run conformance:compose
 - Render fails with "no keyframe module": ensure `module-keyframe` and `module-local-gpu` are
   healthy (`docker compose ps`).
 - Smoke times out: `docker compose logs -f studio` while polling; CPU containers must be healthy.
-- Re-running `npm run compose:up --build` after pulling is safe.
+- Re-running `npm run compose:up` after pulling git is safe (re-pulls GHCR :latest).
 
 For the full variable list and security model, use [DEPLOYMENT.md](DEPLOYMENT.md) and
 [SECURITY.md](SECURITY.md).
