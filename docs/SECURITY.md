@@ -108,4 +108,4 @@ Security-sensitive defects in this repo: open a **private** GitHub security advi
 `skyphusion-labs/vivijure-local`, or contact `conrad@skyphusion.org` for coordinated disclosure.
 
 Contract and module-boundary issues shared with upstream should be reported against
-`skyphusion-labs/vivijure` when they affect both hosts.
+`skyphusion-labs/vivijure-cf` when they affect both hosts.

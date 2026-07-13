@@ -2,7 +2,7 @@
 
 ## What this is
 
-**Vivijure Local:** provider-neutral host for the Vivijure Studio control plane. Same modular architecture and reference API as `skyphusion-labs/vivijure`; no Cloudflare runtime.
+**Vivijure Local:** provider-neutral host for the Vivijure Studio control plane. Same modular architecture and reference API as `skyphusion-labs/vivijure-cf`; no Cloudflare runtime.
 
 Upstream canon for the wire contract: `vivijure/docs/CONTRACT.md` and `vivijure/docs/module-api.md`.
 

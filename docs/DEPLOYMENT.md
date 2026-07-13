@@ -256,13 +256,13 @@ sites. Three surfaces are **verbatim copies** and must stay aligned with `viviju
 - `migrations/` (SQLite schema)
 - `src/modules/types.ts` (`vivijure-module/2` contract)
 
-CI runs `upstream-parity` on every PR: it checks out `skyphusion-labs/vivijure` `main` and diffs
+CI runs `upstream-parity` on every PR: it checks out `skyphusion-labs/vivijure-cf` `main` and diffs
 `public/` (the studio UI). For the full verbatim set including migrations and types:
 
 ```bash
-VIVIJURE_SRC=../vivijure npm run upstream:parity          # public/ only (CI gate)
-VIVIJURE_SRC=../vivijure npm run upstream:parity:verbatim # + migrations, types.ts
-./scripts/sync-from-vivijure.sh   # requires sibling ../vivijure clone
+VIVIJURE_SRC=../vivijure-cf npm run upstream:parity       # public/ only (CI gate)
+VIVIJURE_SRC=../vivijure-cf npm run upstream:parity:verbatim # + migrations, types.ts
+./scripts/sync-from-vivijure.sh   # requires sibling ../vivijure-cf clone
 ```
 
 When vivijure v2.0 lands `vivijure-core`, this repo will depend on the package instead of

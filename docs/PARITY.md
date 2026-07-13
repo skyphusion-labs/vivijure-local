@@ -1,6 +1,6 @@
 # API parity checklist
 
-Canonical spec: [vivijure/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/CONTRACT.md)
+Canonical spec: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)
 
 Mark each route when implemented **and** covered by a test. Status: `[ ]` pending, `[~]` partial, `[x]` done.
 

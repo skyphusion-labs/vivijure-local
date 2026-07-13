@@ -21,7 +21,7 @@ For bare-metal `npm run dev`, the same JSON lines go to the terminal.
 
 Every structured line is a single JSON object with an **`ev`** field (event name). Optional
 fields carry context (`film_id`, `project`, `job_id`, `shot_id`, etc.). This matches the
-`{"ev": ...}` convention documented in upstream vivijure (`docs/observability.md` in the `skyphusion-labs/vivijure` repo)
+`{"ev": ...}` convention documented in `skyphusion-labs/vivijure-cf` (`docs/observability.md`)
 so greps and smoke tests can be ported later.
 
 Implementation: `@skyphusion-labs/vivijure-core` (`emitStructuredEvent`).

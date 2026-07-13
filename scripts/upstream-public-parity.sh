@@ -5,8 +5,8 @@
 # Default (CI): public/ only -- the studio UI projection must not go stale while CF-native v1 ships.
 # Optional --verbatim: also migrations/ and ../vivijure-core/src/modules/types.ts.
 #
-#   VIVIJURE_SRC=../vivijure npm run upstream:parity
-#   VIVIJURE_SRC=../vivijure npm run upstream:parity:verbatim
+#   VIVIJURE_SRC=../vivijure-cf npm run upstream:parity
+#   VIVIJURE_SRC=../vivijure-cf npm run upstream:parity:verbatim
 #   bash scripts/upstream-public-parity.sh /path/to/vivijure [--verbatim]
 
 set -euo pipefail

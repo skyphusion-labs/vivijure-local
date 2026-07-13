@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Sync CPU media container build contexts from upstream vivijure.
+# Sync CPU media container build contexts from vivijure-cf.
 set -euo pipefail
-UP="${VIVIJURE_SRC:-$(cd "$(dirname "$0")/../.." && pwd)/vivijure}"
+UP="${VIVIJURE_SRC:-$(cd "$(dirname "$0")/../.." && pwd)/vivijure-cf}"
 DEST="$(cd "$(dirname "$0")/.." && pwd)/containers"
 if [[ ! -d "$UP/containers/video-finish" ]]; then
   echo "upstream containers not found: $UP/containers" >&2
