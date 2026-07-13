@@ -120,7 +120,9 @@ the studio container.
 | `S3_FETCH_ALLOW_HOSTS` | `minio` | CPU container SSRF allowlist for presigned fetches |
 | `S3_ALLOW_HTTP_FETCH` | `true` | Set `false` when presign uses HTTPS (cloudflared) |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials; rotate before tunnel expose (see below) |
-| `S3_BUCKET` | `vivijure` | Render + bundle bucket |
+| `S3_BUCKET` | `vivijure` | Render + bundle bucket (same name as prod R2 `vivijure`) |
+
+`minio-init` seeds prod-parity top-level prefixes on first boot: `renders/`, `bundles/`, `audio/`, `uploads/` (plus `README.txt` key map). Clip jobs for own-gpu/local-gpu stage keyframes at `renders/<project>/keyframes/<shot_id>.png`.
 | `S3_REGION` | `us-east-1` | SigV4 region |
 | `S3_FORCE_PATH_STYLE` | `true` | Required for MinIO |
 
