@@ -3,7 +3,7 @@ name: docker-build
 # Build compose images on GitHub-hosted runners. PRs = build-only smoke (:ci tag, no push).
 # Push to main publishes GHCR :latest (+ main-<sha> trace tag) for homelab compose pull.
 #
-# Studio image build context is the parent dir (sibling vivijure-core required).
+# Studio image installs @skyphusion-labs/vivijure-core and vivijure-mcp from npm.
 
 on:
   push:
@@ -39,11 +39,6 @@ jobs:
         with:
           path: vivijure-local
 
-      - uses: actions/checkout@v7
-        with:
-          repository: skyphusion-labs/vivijure-core
-          path: vivijure-core
-
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Log in to GHCR
@@ -74,7 +69,7 @@ jobs:
       - name: Build studio image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
         with:
-          context: .
+          context: vivijure-local
           file: vivijure-local/Dockerfile
           push: ${{ steps.meta.outputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
