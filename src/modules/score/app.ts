@@ -11,7 +11,7 @@ import {
 export function createScoreModuleApp(
   manifest: Record<string, unknown>,
   moduleName: string,
-  env: ScoreModuleEnv,
+  getEnv: () => Promise<ScoreModuleEnv>,
 ): Hono {
   if (!isScoreModuleName(moduleName)) {
     throw new Error(`unsupported score module: ${moduleName}`);
@@ -29,7 +29,7 @@ export function createScoreModuleApp(
     } catch {
       return c.json({ ok: false, error: "invalid JSON body" });
     }
-    return c.json(await invokeScoreModule(env, name, req as InvokeRequest<ScoreInput>));
+    return c.json(await invokeScoreModule(await getEnv(), name, req as InvokeRequest<ScoreInput>));
   });
 
   app.post("/poll", async (c) => {
@@ -42,7 +42,7 @@ export function createScoreModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
-    return c.json(await pollScoreModule(env, name, body));
+    return c.json(await pollScoreModule(await getEnv(), name, body));
   });
 
   app.post("/cancel", (c) => c.json({ ok: false, error: `${label} does not support /cancel` }));

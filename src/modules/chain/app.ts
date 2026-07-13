@@ -23,11 +23,15 @@ import {
   type ChainModuleName,
 } from "./handlers.js";
 
+export interface ChainModuleContext {
+  env: ChainModuleEnv;
+  store: ArtifactStore;
+}
+
 export function createChainModuleApp(
   manifest: Record<string, unknown>,
   moduleName: ChainModuleName,
-  store: ArtifactStore,
-  env: ChainModuleEnv,
+  getContext: () => Promise<ChainModuleContext>,
 ): Hono {
   if (!isChainModuleName(moduleName)) {
     throw new Error(`unsupported chain module: ${moduleName}`);
@@ -46,6 +50,7 @@ export function createChainModuleApp(
       return c.json({ ok: false, error: "invalid JSON body" });
     }
 
+    const { env, store } = await getContext();
     if (moduleName === "plan-enhance") {
       if (req.hook !== "plan.enhance") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
       return c.json(await invokePlanEnhance(env, req as InvokeRequest<PlanEnhanceInput>));
@@ -79,6 +84,7 @@ export function createChainModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
+    const { env, store } = await getContext();
     if (moduleName === "cast-image") return c.json(await pollCastImage(env, store, body));
     if (moduleName === "dialogue-gen") return c.json(await pollDialogueGen(store, body));
     return c.json(await pollSpeechUpscale(env, body));

@@ -62,6 +62,9 @@ export async function buildStudio(): Promise<StudioBoot> {
       ANTHROPIC_API_KEY: runtime.get("ANTHROPIC_API_KEY"),
       RUNPOD_API_KEY: runtime.get("RUNPOD_API_KEY"),
       RUNPOD_ENDPOINT_ID: runtime.get("RUNPOD_ENDPOINT_ID"),
+      VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID"),
+      MUSETALK_RUNPOD_ENDPOINT_ID: runtime.get("MUSETALK_RUNPOD_ENDPOINT_ID"),
+      AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID"),
       STORAGE_BACKEND: storage.backend,
     },
   };
