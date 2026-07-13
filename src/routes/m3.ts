@@ -19,7 +19,7 @@ import {
   handleCastSourceRemove,
   type CastMediaEnv,
 } from "../cast-media.js";
-import { badRequest, httpErrorResponse, notFound } from "../errors.js";
+import { badRequest, forbidden, httpErrorResponse, notFound } from "../errors.js";
 import { json, readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
 import type { ArtifactStore } from "../platform/create-storage.js";
@@ -36,7 +36,7 @@ import {
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
 import { isValidVoiceId, VOICE_CATALOG, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
 import { authEnvFromPlatform } from "../http.js";
-import { catalogForDeploy } from "../auth-gate.js";
+import { catalogForDeploy, isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import {
   handleCastTrainLora,
   handleCastLoraStatus,
@@ -304,6 +304,9 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/cast/:id/refs-job/:jobId", (c) =>
     handle(c, async () => {
+      // #46: this GET ADVANCES the cast-refs job with the ambient vivijure_token cookie; reject a
+      // cross-site browser request so a malicious page can't drive it via CSRF.
+      if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const castId = await resolveCastId(db(), c.req.param("id"));
       const job = await advanceCastRefsJob(oenv(), castId, c.req.param("jobId"));
       if (!job) throw notFound("cast refs job");

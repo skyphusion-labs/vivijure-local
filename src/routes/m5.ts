@@ -2,7 +2,8 @@
 
 import type { Hono } from "hono";
 import { resolveCastLoras, untrainedCastMessage } from "@skyphusion-labs/vivijure-core/cast-loras";
-import { badRequest, httpErrorResponse } from "../errors.js";
+import { badRequest, forbidden, httpErrorResponse } from "../errors.js";
+import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { readBody } from "../http.js";
 import {
   discoverModules,
@@ -194,6 +195,9 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/storyboard/render/:jobId", async (c) => {
     try {
+      // #46: this GET ADVANCES the render job (scatter/film) with the ambient vivijure_token cookie;
+      // reject a cross-site browser request so a malicious page can't drive it via CSRF.
+      if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const jobId = c.req.param("jobId");
       const oenv = env();
 

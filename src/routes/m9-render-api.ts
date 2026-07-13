@@ -41,7 +41,8 @@ import {
   type NewRenderRow,
   updateRenderFromView,
 } from "@skyphusion-labs/vivijure-core/renders-db";
-import { badRequest, httpErrorResponse, notFound } from "../errors.js";
+import { badRequest, forbidden, httpErrorResponse, notFound } from "../errors.js";
+import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { json, readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
 import { readKeyframeDone } from "../render-progress.js";
@@ -278,6 +279,9 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/render/film/:id", async (c) => {
     try {
+      // #46: this GET ADVANCES the film job with the ambient vivijure_token cookie; reject a cross-site
+      // browser request so a malicious page can't drive it via CSRF.
+      if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const jobId = c.req.param("id");
       if (!isFilmJobId(jobId)) throw notFound("film job");
       const oenv = env();
