@@ -125,29 +125,33 @@ function clipKey(project: string, shotId: string, suffix: string): string {
   return `renders/${safe(project)}/clips/${safe(shotId)}${suffix}.mp4`;
 }
 
-function extractVideoUrl(output: unknown): string | null {
-  const visit = (v: unknown): string | null => {
-    if (typeof v === "string") {
-      if (/^https?:\/\/\S+\.mp4(\?|$)/i.test(v)) return v;
-      if (/^https?:\/\//i.test(v)) return v;
-      return null;
-    }
+const VIDEO_URL_RE = /^https?:\/\/\S+\.(mp4|mov|webm|m4v)(\?|$)/i;
+const ANY_URL_RE = /^https?:\/\//i;
+
+export function extractVideoUrl(output: unknown): string | null {
+  const findFirst = (v: unknown, re: RegExp): string | null => {
+    if (typeof v === "string") return re.test(v) ? v : null;
     if (Array.isArray(v)) {
       for (const x of v) {
-        const hit = visit(x);
+        const hit = findFirst(x, re);
         if (hit) return hit;
       }
       return null;
     }
     if (v && typeof v === "object") {
       for (const x of Object.values(v as Record<string, unknown>)) {
-        const hit = visit(x);
+        const hit = findFirst(x, re);
         if (hit) return hit;
       }
     }
     return null;
   };
-  return visit(output);
+  // #51: prefer a URL that is actually a video ANYWHERE in the payload; only if none exists fall back to the
+  // first http(s) URL. The old single pass returned the first http(s) URL it hit, so a thumbnail / poster /
+  // preview / log URL appearing before the real clip in key order was downloaded and stored as the shot's
+  // .mp4 (wrong content shipped as success). The fallback still handles a provider that returns an
+  // extension-less video URL (no video-typed URL present -> fall back), but a real video URL always wins.
+  return findFirst(output, VIDEO_URL_RE) ?? findFirst(output, ANY_URL_RE);
 }
 
 export async function invokeFixedMotion(

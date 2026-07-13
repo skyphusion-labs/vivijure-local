@@ -51,8 +51,15 @@ export type RunState =
   | { status: "done"; project: string; audio: DialogueShotAudio[]; applied: string[] }
   | { status: "failed"; error: string };
 
+/** #50: this local build writes a silent placeholder WAV (no aiRun / Deepgram call ever happens), so the
+ *  `applied` tag must say so HONESTLY rather than claim the real `@cf/deepgram/aura-1` model -- otherwise a
+ *  downstream finish-lipsync consumes silence believing it is real speech and the studio records a real TTS
+ *  step that never ran. Real TTS is a separate feature (needs a provider binding); the honesty fix is the tag.
+ *  DialogueOutput carries no `degraded` field in the ICD, so the truthful `applied` tag is the signal. */
+export const SILENT_FALLBACK_TAG = "dialogue:silent-fallback" as const;
+
 export function appliedTags(audio: DialogueShotAudio[]): string[] {
-  return [`dialogue:${MODEL}`, `lines:${audio.length}`];
+  return [SILENT_FALLBACK_TAG, `lines:${audio.length}`];
 }
 
 export function readOutput(state: Extract<RunState, { status: "done" }>): DialogueOutput {
