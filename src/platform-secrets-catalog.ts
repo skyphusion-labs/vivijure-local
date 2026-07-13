@@ -333,7 +333,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "MODULE_ALIBABA_WAN_LORA_URL",
     label: "Alibaba Wan LoRA module URL",
-    blurb: "Cloud motion backend (Wan LoRA i2v).",
+    blurb: "Cloud motion backend (Wan LoRA i2v). Delisted from default compose (vivijure #772); enable COMPOSE_PROFILES=wan-lora.",
     category: "modules",
     sensitive: false,
     applies_on: "immediate",
