@@ -46,6 +46,8 @@
     "smoke:exhaustive": "tsx scripts/smoke-exhaustive.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "dev:mcp": "wrangler dev -c wrangler.mcp.toml",
+    "deploy:mcp": "wrangler deploy -c wrangler.mcp.toml",
     "conformance": "npm run test --prefix ../vivijure-core -- tests/conformance.test.ts",
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
     "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
@@ -59,7 +61,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.830.0",
     "@hono/node-server": "^1.14.3",
-    "@skyphusion-labs/vivijure-core": "^0.9.3",
+    "@skyphusion-labs/vivijure-core": "^0.9.4",
+    "@skyphusion-labs/vivijure-mcp": "^0.1.0",
     "dotenv": "^17.4.2",
     "hono": "^4.7.10"
   },
@@ -69,6 +72,7 @@
     "@vitest/coverage-v8": "^3.1.4",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.4"
+    "vitest": "^3.1.4",
+    "wrangler": "^4.110.0"
   }
 }

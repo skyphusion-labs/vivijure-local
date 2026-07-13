@@ -1,0 +1,26 @@
+# Vivijure Studio MCP Worker -- wrangler config (separate deploy from the studio core).
+#
+# Uses @skyphusion-labs/vivijure-mcp from npm. Opt-in: not deployed by a default self-host.
+# Copy to wrangler.mcp.toml and set STUDIO_URL to your vivijure-local studio base URL.
+#
+#   wrangler secret put STUDIO_API_TOKEN -c wrangler.mcp.toml
+#   wrangler secret put MCP_TOKEN         -c wrangler.mcp.toml
+#   npm run deploy:mcp
+
+name = "vivijure-studio-mcp"
+main = "node_modules/@skyphusion-labs/vivijure-mcp/dist/mcp.js"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+preview_urls = false
+workers_dev = false
+
+[observability]
+enabled = true
+
+[vars]
+STUDIO_URL = "${MCP_STUDIO_URL}"
+
+[[routes]]
+pattern = "${MCP_HOST}"
+custom_domain = true
