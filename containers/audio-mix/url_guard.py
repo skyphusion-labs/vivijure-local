@@ -41,11 +41,6 @@ def _is_ip_literal(host):
         return False
 
 
-def _allow_http():
-    raw = os.environ.get("ALLOW_HTTP_FETCH", "").strip().lower()
-    return raw in ("1", "true", "yes")
-
-
 def validate_fetch_url(url):
     """Return (True, None) if `url` is safe to fetch, else (False, reason).
 
@@ -60,9 +55,8 @@ def validate_fetch_url(url):
         parts = urlparse(url)
     except Exception:
         return False, "unparseable URL"
-    if parts.scheme not in (("https", "http") if _allow_http() else ("https",)):
-        allowed = "https/http" if _allow_http() else "https"
-        return False, f"scheme not allowed ({allowed} only): " + (parts.scheme or "none")
+    if parts.scheme != "https":
+        return False, "scheme not allowed (https only): " + (parts.scheme or "none")
     host = (parts.hostname or "").lower()
     if not host:
         return False, "missing host"
