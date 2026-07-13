@@ -223,22 +223,6 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9112/module.json"]
 
-  module-text-overlay:
-    <<: *cpu-module
-    command: ["npx", "tsx", "scripts/finish-cpu-module-server.ts", "9113", "text-overlay"]
-    healthcheck:
-      <<: *module-health-url
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9113/module.json"]
-    environment:
-      <<: *cpu-module-env
-      VIDEO_FINISH_URL: http://video-finish:8000
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
-      S3_BUCKET: vivijure
-      S3_REGION: us-east-1
-      S3_FORCE_PATH_STYLE: "true"
-
   module-seedance:
     <<: *runpod-module
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9150", "seedance"]
@@ -492,7 +476,6 @@ services:
       MODULE_FINISH_RIFE_URL: http://module-finish-rife:9110
       MODULE_LIPSYNC_URL: http://module-finish-lipsync:9111
       MODULE_UPSCALE_URL: http://module-finish-upscale:9112
-      MODULE_TEXT_OVERLAY_URL: http://module-text-overlay:9113
       MODULE_SEEDANCE_URL: http://module-seedance:9150
       MODULE_KLING_URL: http://module-kling:9151
       MODULE_GOOGLE_VEO_URL: http://module-google-veo:9152
@@ -542,8 +525,6 @@ services:
       module-finish-lipsync:
         condition: service_started
       module-finish-upscale:
-        condition: service_started
-      module-text-overlay:
         condition: service_started
       module-seedance:
         condition: service_started
