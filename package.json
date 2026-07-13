@@ -43,6 +43,9 @@
     "compose:down": "docker compose down",
     "compose:logs": "docker compose logs -f studio",
     "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
+    "smoke:exhaustive": "tsx scripts/smoke-exhaustive.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "conformance": "npm run test --prefix ../vivijure-core -- tests/conformance.test.ts",
     "conformance:sidecars": "tsx scripts/conformance-sidecars.ts",
     "conformance:compose": "docker compose exec -T studio npx tsx scripts/conformance-sidecars.ts",
@@ -61,6 +64,7 @@
     "hono": "^4.7.10"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^3.1.4",
     "tsx": "^4.19.4",

@@ -91,8 +91,13 @@ export const FIXED_MOTION: Record<string, FixedEndpointConfig> = {
     buildBody: (input, cfg) => ({
       prompt: input.prompt,
       image: input.keyframe_url,
-      duration: Math.max(4, Math.min(10, Math.round(Number(input.seconds) || 5))),
-      resolution: String(cfg.resolution ?? "720p"),
+      negative_prompt: "",
+      size: String(cfg.resolution ?? cfg.size ?? "720p"),
+      duration: clampWanDuration(Number(input.seconds) || 5),
+      shot_type: String(cfg.shot_type ?? "single"),
+      seed: -1,
+      enable_prompt_expansion: cfg.enable_prompt_expansion === true,
+      enable_safety_checker: true,
     }),
   },
   "alibaba-wan-lora": {
@@ -106,6 +111,13 @@ export const FIXED_MOTION: Record<string, FixedEndpointConfig> = {
     }),
   },
 };
+
+const WAN_DURATIONS = [5, 10, 15] as const;
+
+function clampWanDuration(seconds: number): number {
+  const n = Math.round(Number(seconds) || 5);
+  return WAN_DURATIONS.find((d) => d >= n) ?? WAN_DURATIONS[WAN_DURATIONS.length - 1];
+}
 
 function clipKey(project: string, shotId: string, suffix: string): string {
   const safe = (s: string) => (s || "x").replace(/[^a-zA-Z0-9_-]/g, "_");
