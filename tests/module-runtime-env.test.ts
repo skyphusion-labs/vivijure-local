@@ -38,4 +38,14 @@ describe("loadModuleRuntimeEnv", () => {
     expect(env.MUSETALK_RUNPOD_ENDPOINT_ID).toBe("musetalk-ep");
     expect(env.RUNPOD_ENDPOINT_ID).toBe("env-endpoint");
   });
+
+  it("RETHROWS on a real DB error instead of silently booting env-only (#48)", async () => {
+    // A non-ENOENT failure (here: the DB path's parent is a FILE, so mkdirSync throws EEXIST/ENOTDIR)
+    // means the sidecar would boot MISCONFIGURED without the DB-persisted operator secrets. #48: fail
+    // loudly (rethrow) rather than silently degrade to a process.env-only env.
+    const blocker = join(dbPath, "..", "blocker");
+    writeFileSync(blocker, "not a directory");
+    process.env.DATABASE_PATH = join(blocker, "studio.db"); // parent is a regular file
+    await expect(loadModuleRuntimeEnv()).rejects.toThrow();
+  });
 });
