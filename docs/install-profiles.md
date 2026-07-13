@@ -24,7 +24,7 @@ The demo path skips the finish GPU chain and assembles raw clips (see exit smoke
 ## Profile: `satellites` (finish GPU sidecars)
 
 Manifest-only finish modules (RIFE, lip-sync) run as HTTP sidecars. They do not execute GPU
-work in alpha; they prove discovery, routing, and conformance wiring.
+work by default; they prove discovery, routing, and conformance wiring.
 
 ```bash
 # In .env (studio reads these when set)
@@ -49,8 +49,8 @@ Unset or stop `module-local-gpu` if you run the backend on the host only. The mo
 is safe to leave running; the URL wins at discovery time.
 
 For **RunPod `own-gpu`** or cloud i2v modules, set the matching `MODULE_<NAME>_URL` to the
-module worker's HTTP base (same pattern as upstream vivijure `MODULE_*` bindings). Cloud
-modules are optional; alpha CI does not require them.
+module worker's HTTP base (same pattern as vivijure-cf `MODULE_*` bindings). Cloud
+modules are optional; CI does not require them.
 
 ## Storage: MinIO vs filesystem
 

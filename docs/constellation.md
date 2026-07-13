@@ -9,10 +9,10 @@ your cast, and it tells everything else what to do. You talk to the Studio; the 
 everything else.
 
 **This repo (`vivijure-local`)** is an alternate **host** for that same control plane. The
-production host is [`vivijure`](https://github.com/skyphusion-labs/vivijure) on Cloudflare Workers.
-`vivijure-local` runs the same API and UI on Node, SQLite, and S3-compatible storage (MinIO by
-default). It exists today as **alpha demonstration scaffolding** for a future homelab edition of the
-Vivijure Control Panel; it will change dramatically as we move toward a shared `vivijure-core`.
+Cloudflare-hosted studio is [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) on
+Cloudflare Workers. `vivijure-local` runs the same API and UI on Node, SQLite, and S3-compatible
+storage (MinIO by default), verified end to end. It is a single-operator host, still evolving toward
+a shared `vivijure-core` (its layout and adapters may still change).
 
 ```mermaid
 flowchart TD
@@ -21,8 +21,8 @@ flowchart TD
     end
 
     subgraph hosts[Control plane hosts]
-        studio_cf[vivijure Studio<br/>Cloudflare Workers<br/>production path]
-        studio_local[vivijure-local Studio<br/>Node + Docker<br/>THIS REPO -- alpha]
+        studio_cf[vivijure-cf Studio<br/>Cloudflare Workers]
+        studio_local[vivijure-local Studio<br/>Node + Docker<br/>THIS REPO]
     end
 
     subgraph modules[Modules: one job each, opt-in]
@@ -69,11 +69,11 @@ flowchart TD
 
 | Host | When to use it |
 |---|---|
-| **vivijure** (Cloudflare) | Production studio. Free-tier Workers, R2, AI Gateway. The path documented in upstream [quickstart.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/quickstart.md). |
-| **vivijure-local** (this repo) | Alpha homelab scaffold. No Cloudflare account required. Proves the same JSON API and module contract on your own box. **Not production-ready.** |
+| **vivijure-cf** (Cloudflare) | Cloudflare-hosted studio. Free-tier Workers, R2, AI Gateway. See [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md). |
+| **vivijure-local** (this repo) | Self-hosted homelab host. No Cloudflare account required. Runs the same JSON API and module contract on your own box; verified end to end. |
 
 Both hosts speak the same `vivijure-module/2` contract. Canonical ICD:
-[vivijure/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/CONTRACT.md).
+[vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).
 
 Route-level parity tracking lives in [PARITY.md](PARITY.md).
 

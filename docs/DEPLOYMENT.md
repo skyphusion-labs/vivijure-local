@@ -1,14 +1,15 @@
 # Deploying vivijure-local (homelab)
 
-This is the operator reference for the **alpha** Node/Docker host of Vivijure Studio. It covers
+This is the operator reference for the Node/Docker host of Vivijure Studio. It covers
 prerequisites, environment variables, compose services, GPU backends, verification gates, and
 how this path differs from upstream Cloudflare deploy.
 
-Canonical API contract: [vivijure/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/CONTRACT.md).
+Canonical API contract: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).
 
-> **Status: alpha, not production-ready.** This repo is demonstration scaffolding for a future
-> homelab Vivijure Control Panel. Layout, env vars, and internal adapters will change as we extract
-> `vivijure-core` (vivijure v2.0). Do not treat this stack as a hardened production deployment.
+> **Single-operator homelab host, still evolving.** Verified end to end on the homelab stack.
+> Layout, env vars, and internal adapters may still change as we extract `vivijure-core`. Run it on
+> a network you control (single-operator trust model, see [SECURITY.md](SECURITY.md)); it is not a
+> multi-tenant deployment.
 
 ---
 
@@ -282,12 +283,12 @@ See [ROADMAP.md](ROADMAP.md).
 
 ---
 
-## Production path
+## Prefer Cloudflare Workers?
 
-For a supported, Cloudflare-hosted studio with the full module catalog and deploy tooling, use
-upstream [`vivijure`](https://github.com/skyphusion-labs/vivijure):
+The Cloudflare-hosted studio, with the full module catalog and deploy tooling, is
+[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf):
 
-- [docs/quickstart.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/quickstart.md)
-- [docs/DEPLOYMENT.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/DEPLOYMENT.md)
+- [docs/quickstart.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)
+- [docs/DEPLOYMENT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/DEPLOYMENT.md)
 
 `vivijure-local` proves the same contract on your box; it does not replace that deploy today.
