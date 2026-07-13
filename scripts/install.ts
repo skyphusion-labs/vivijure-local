@@ -81,6 +81,11 @@ if (isStudioApiTokenPlaceholder(token)) {
   console.log(`minted STUDIO_API_TOKEN (replaced placeholder ${STUDIO_API_TOKEN_PLACEHOLDER})`);
 }
 
+// #45: .env holds STUDIO_API_TOKEN (gates every /api call) plus S3_SECRET_ACCESS_KEY / CF_AIG_TOKEN /
+// etc. copyFileSync + writeEnvFile use the umask (typically 0644), so lock it down to match the sibling
+// .studio-token. Unconditional so it covers both the from-example copy and the token-mint rewrite paths.
+chmodSync(envPath, 0o600);
+
 writeFileSync(tokenPath, `${token}\n`, { mode: 0o600 });
 chmodSync(tokenPath, 0o600);
 
