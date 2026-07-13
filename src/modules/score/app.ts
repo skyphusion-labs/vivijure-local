@@ -33,9 +33,6 @@ export function createScoreModuleApp(
   });
 
   app.post("/poll", async (c) => {
-    if (name === "music-gen") {
-      return c.json({ ok: false, error: `${label} does not support /poll` });
-    }
     let body: PollRequest;
     try {
       body = (await c.req.json()) as PollRequest;
