@@ -92,7 +92,7 @@ describe("film-titles module invoke", () => {
         },
       },
     };
-    const app = createCpuModuleApp(manifest, "film-titles", env);
+    const app = createCpuModuleApp(manifest, "film-titles", () => Promise.resolve(env));
     return { app, calls };
   }
 

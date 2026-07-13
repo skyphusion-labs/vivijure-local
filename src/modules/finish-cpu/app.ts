@@ -7,7 +7,7 @@ import { invokeTextOverlay, isFinishCpuModuleName } from "./handlers.js";
 export function createFinishCpuModuleApp(
   manifest: Record<string, unknown>,
   moduleName: string,
-  env: FinishCpuEnv,
+  getEnv: () => Promise<FinishCpuEnv>,
   store: ArtifactStore,
 ): Hono {
   if (!isFinishCpuModuleName(moduleName)) {
@@ -26,7 +26,7 @@ export function createFinishCpuModuleApp(
       return c.json({ ok: false, error: "invalid JSON body" });
     }
     if (req.hook !== "finish") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
-    return c.json(await invokeTextOverlay(env, store, req as InvokeRequest<FinishInput>));
+    return c.json(await invokeTextOverlay(await getEnv(), store, req as InvokeRequest<FinishInput>));
   });
 
   app.post("/poll", (c) => c.json({ ok: false, error: `${label} does not support /poll` }));

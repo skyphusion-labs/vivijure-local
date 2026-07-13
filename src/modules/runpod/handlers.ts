@@ -324,8 +324,7 @@ export type RunpodModuleName =
   | "minimax-hailuo"
   | "vidu-q3"
   | "alibaba-wan"
-  | "alibaba-wan-lora"
-  | "cloud-keyframe";
+  | "alibaba-wan-lora";
 
 export const RUNPOD_MODULE_NAMES: readonly RunpodModuleName[] = [
   "keyframe",
@@ -340,7 +339,6 @@ export const RUNPOD_MODULE_NAMES: readonly RunpodModuleName[] = [
   "vidu-q3",
   "alibaba-wan",
   "alibaba-wan-lora",
-  "cloud-keyframe",
 ];
 
 export function isRunpodModuleName(name: string): name is RunpodModuleName {
@@ -356,9 +354,6 @@ export async function invokeRunpodModule(
   moduleName: RunpodModuleName,
   req: InvokeRequest,
 ): Promise<InvokeResponse> {
-  if (moduleName === "cloud-keyframe") {
-    return { ok: false, error: "cloud-keyframe: bind a deployed cloud worker or configure image-gen keys" };
-  }
   if (moduleName === "keyframe") {
     if (req.hook !== "keyframe") return { ok: false, error: "unsupported hook " + String(req.hook) };
     return invokeKeyframeRunpod(env, req as InvokeRequest<KeyframeInput>);
@@ -400,6 +395,6 @@ export async function pollRunpodModule(
   return { ok: false, error: `${moduleName} does not support /poll` };
 }
 
-export function runpodModuleSupportsPoll(moduleName: RunpodModuleName): boolean {
-  return moduleName !== "cloud-keyframe";
+export function runpodModuleSupportsPoll(_moduleName: RunpodModuleName): boolean {
+  return true;
 }

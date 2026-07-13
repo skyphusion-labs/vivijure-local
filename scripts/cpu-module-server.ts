@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { createCpuModuleApp } from "../src/modules/cpu/app.js";
 import { isCpuModuleName } from "../src/modules/cpu/handlers.js";
 import { cpuModuleEnvFromProcess } from "../src/modules/cpu/vpc-env.js";
+import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
 const moduleName = process.argv[3];
@@ -27,8 +28,13 @@ if (!isCpuModuleName(moduleName)) {
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const manifestPath = join(repoRoot, "dev/manifests", `${moduleName}.json`);
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-const env = cpuModuleEnvFromProcess(process.env);
-const app = createCpuModuleApp(manifest, moduleName, env);
+
+async function getEnv() {
+  const runtime = await loadModuleRuntimeEnv();
+  return cpuModuleEnvFromProcess(runtime.asProcessEnv());
+}
+
+const app = createCpuModuleApp(manifest, moduleName, getEnv);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`cpu module sidecar ${moduleName} on http://127.0.0.1:${port}`);

@@ -13,13 +13,14 @@ import {
 
 export function createLocalGpuModuleApp(
   manifest: Record<string, unknown>,
-  env: LocalGpuEnv,
+  getEnv: () => Promise<LocalGpuEnv>,
   mockStore?: ArtifactStore,
 ): Hono {
   const app = new Hono();
-  const useMock = !localGpuConfigured(env) && mockStore != null;
 
   app.get("/module.json", async (c) => {
+    const env = await getEnv();
+    const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock) return c.json(manifest);
     const grid = await doorDurationGrid(env);
     return c.json(grid ? { ...manifest, duration_grid: grid } : manifest);
@@ -35,6 +36,8 @@ export function createLocalGpuModuleApp(
     if (req.hook !== "motion.backend") {
       return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
     }
+    const env = await getEnv();
+    const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock && mockStore) {
       return c.json(await invokeLocalGpuMock(mockStore, req as InvokeRequest<MotionBackendInput>));
     }
@@ -51,11 +54,15 @@ export function createLocalGpuModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
+    const env = await getEnv();
+    const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock) return c.json(await pollLocalGpuMock(body));
     return c.json(await pollLocalGpu(env, body));
   });
 
   app.post("/cancel", async (c) => {
+    const env = await getEnv();
+    const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock) return c.json({ ok: true });
     let body: CancelRequest;
     try {

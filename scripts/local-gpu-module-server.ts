@@ -10,8 +10,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalGpuModuleApp } from "../src/modules/local-gpu/app.js";
-import { localGpuConfigured, localGpuEnvFromProcess } from "../src/modules/local-gpu/handlers.js";
+import { localGpuEnvFromProcess } from "../src/modules/local-gpu/handlers.js";
 import { createStorage } from "../src/platform/create-storage.js";
+import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
 if (!port) {
@@ -22,12 +23,18 @@ if (!port) {
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const manifestPath = join(repoRoot, "dev/manifests", "local-gpu.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-const env = localGpuEnvFromProcess(process.env);
-const storage = createStorage(process.env);
-const useMock = !localGpuConfigured(env);
-const app = createLocalGpuModuleApp(manifest, env, useMock ? storage.renders : undefined);
 
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
-  const mode = useMock ? "mock" : `backend=${env.LOCAL_BACKEND_URL}`;
+async function getEnv() {
+  const runtime = await loadModuleRuntimeEnv();
+  return localGpuEnvFromProcess(runtime.asProcessEnv());
+}
+
+const runtime = await loadModuleRuntimeEnv();
+const storage = createStorage(runtime.asProcessEnv());
+const app = createLocalGpuModuleApp(manifest, getEnv, storage.renders);
+
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, async () => {
+  const env = await getEnv();
+  const mode = env.LOCAL_BACKEND_URL?.trim() ? `backend=${env.LOCAL_BACKEND_URL}` : "mock";
   console.log(`local-gpu module on http://127.0.0.1:${port} (${mode})`);
 });
