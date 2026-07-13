@@ -11,13 +11,15 @@ WORKDIR /app/vivijure-local
 RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
-# Sibling vivijure-core (file:../vivijure-core in package.json)
+# Sibling vivijure-core: copied into the image and linked at install (see npm pkg set below).
 COPY vivijure-core /app/vivijure-core
 RUN cd /app/vivijure-core && npm ci && npm run build
 
 WORKDIR /app/vivijure-local
 COPY vivijure-local/package.json vivijure-local/package-lock.json ./
-RUN npm ci --ignore-scripts
+# Match ci.yml: lock may pin registry ^0.9.x; always link the copied sibling.
+RUN npm pkg set dependencies.@skyphusion-labs/vivijure-core=file:../vivijure-core \
+  && npm ci --ignore-scripts
 
 COPY vivijure-local .
 
