@@ -1,11 +1,11 @@
 # Architecture -- vivijure-local (Option B)
 
-Provider-neutral host for Vivijure Studio. Upstream reference: `vivijure` on Cloudflare Workers.
+Provider-neutral host for Vivijure Studio. Cloudflare-hosted reference: `vivijure-cf` on Cloudflare Workers.
 
 Operator docs: [quickstart.md](quickstart.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [SECURITY.md](SECURITY.md) · [constellation.md](constellation.md).
 
-> **Alpha.** This architecture is demonstration scaffolding; adapters and compose layout will
-> change as we extract `vivijure-core` (see [ROADMAP.md](ROADMAP.md)).
+> **Still evolving.** Adapters and compose layout may still change as we extract `vivijure-core`
+> (see [ROADMAP.md](ROADMAP.md)).
 
 ## Design principle
 
@@ -107,6 +107,6 @@ Track route-level progress in `docs/PARITY.md`.
 
 ## Syncing from upstream
 
-During Option B, core logic is copied from `vivijure/src/` and adapted at binding call sites (`env.DB` -> `platform.db`, etc.). Use `scripts/sync-from-vivijure.sh` before large ports to diff upstream changes.
+During Option B, core logic is copied from `vivijure-cf/src/` and adapted at binding call sites (`env.DB` -> `platform.db`, etc.). Use `scripts/sync-from-vivijure.sh` before large ports to diff upstream changes.
 
 When vivijure v2.0 lands shared core, this repo deletes duplicated orchestration and depends on the package instead.

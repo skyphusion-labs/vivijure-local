@@ -1,15 +1,15 @@
-# Quick start: homelab demo stack
+# Quick start: homelab stack
 
 This is the short path to a **local** Vivijure Studio: one `docker compose` command, no
 Cloudflare account, no Workers bindings. When you finish this page you will have the studio API,
 the planner UI, MinIO object storage, CPU media containers, and module sidecars (including GPU
 mocks) on your machine.
 
-> **Alpha software.** `vivijure-local` is demonstration scaffolding for a future homelab edition
-> of the Vivijure Control Panel. It is **not production-ready**. APIs, compose layout, and
-> platform adapters will change dramatically as we move toward `vivijure-core` and vivijure v2.0.
-> Use it to explore the architecture and run the parity smoke tests; use upstream
-> [`vivijure`](https://github.com/skyphusion-labs/vivijure) for a production studio today.
+> **Homelab host, still evolving.** `vivijure-local` runs the Vivijure studio contract on Node +
+> SQLite + object storage, verified end to end. It is a single-operator host under active
+> development toward the shared `vivijure-core`, so the compose layout and platform adapters may
+> still change. Prefer Cloudflare Workers? See
+> [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
 
 New here? The one-page picture of how the parts fit together is in [constellation.md](constellation.md).
 You are standing up the **vivijure-local** box on that map.
@@ -73,7 +73,7 @@ openssl rand -hex 32
 
 One `compose.yaml` brings up:
 
-1. **studio** -- Node control plane (API + static UI from upstream `public/`).
+1. **studio** -- Node control plane (API + static UI from the shared `public/`).
 2. **minio** -- S3-compatible object store for renders, bundles, and job state.
 3. **CPU media** -- `video-finish`, `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`.
 4. **Module sidecars** -- HTTP servers for `keyframe`, `local-gpu` (mocks by default), `beat-sync`,
@@ -106,8 +106,8 @@ npm run conformance:compose
 - **Structured logs** (`docker compose logs studio`, `ev` JSON lines): [observability.md](observability.md).
 - **Real GPU motion:** point `MODULE_LOCAL_GPU_URL` at `vivijure-local-12gb` / `-16gb` on your host,
   or at `vivijure-backend` on RunPod. See [DEPLOYMENT.md](DEPLOYMENT.md).
-- **Production studio on Cloudflare:** follow upstream
-  [docs/quickstart.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/quickstart.md).
+- **Prefer Cloudflare Workers?** The CF-hosted studio is
+  [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) ([quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)).
 - **Full operator reference:** [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## If something goes wrong
