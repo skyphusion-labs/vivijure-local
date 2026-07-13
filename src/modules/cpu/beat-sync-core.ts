@@ -67,26 +67,51 @@ export function parseAudioBeatPlan(raw: unknown): AudioBeatPlan | null {
   const r = raw as Record<string, unknown>;
   const mode = r.mode === "beat" || r.mode === "duration" ? r.mode : null;
   if (!mode) return null;
+  // #56: the duration fields feed the core duration-honesty math, so a non-numeric container value must not
+  // silently become NaN. Coerce with a finite guard and REJECT the whole plan (return null) if any required
+  // duration is non-finite, rather than propagating NaN downstream.
+  const num = (v: unknown): number | null => {
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) ? n : null;
+  };
+  const durationSeconds = num(r.duration_seconds);
+  const suggestedShots = num(r.suggested_shots);
+  const clipSeconds = num(r.clip_seconds);
+  const filmSeconds = num(r.film_seconds);
+  const remainderSeconds = num(r.remainder_seconds);
+  if (
+    durationSeconds === null ||
+    suggestedShots === null ||
+    clipSeconds === null ||
+    filmSeconds === null ||
+    remainderSeconds === null
+  ) {
+    return null;
+  }
+  const timedScenes: AudioBeatPlan["timedScenes"] = [];
+  if (Array.isArray(r.timed_scenes)) {
+    for (const s of r.timed_scenes) {
+      if (!s || typeof s !== "object") continue;
+      const sr = s as Record<string, unknown>;
+      const index = num(sr.index);
+      const start = num(sr.start);
+      const end = num(sr.end);
+      const targetSeconds = num(sr.target_seconds);
+      if (index === null || start === null || end === null || targetSeconds === null) return null;
+      timedScenes.push({ index, start, end, targetSeconds });
+    }
+  }
   return {
     mode,
     audioKey: String(r.audio_key ?? ""),
-    durationSeconds: Number(r.duration_seconds ?? 0),
+    durationSeconds,
     bpm: typeof r.bpm === "number" ? r.bpm : undefined,
     beatCount: typeof r.beat_count === "number" ? r.beat_count : undefined,
-    suggestedShots: Number(r.suggested_shots ?? 0),
-    clipSeconds: Number(r.clip_seconds ?? 0),
-    filmSeconds: Number(r.film_seconds ?? 0),
-    remainderSeconds: Number(r.remainder_seconds ?? 0),
-    timedScenes: Array.isArray(r.timed_scenes)
-      ? r.timed_scenes
-          .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
-          .map((s) => ({
-            index: Number(s.index ?? 0),
-            start: Number(s.start ?? 0),
-            end: Number(s.end ?? 0),
-            targetSeconds: Number(s.target_seconds ?? 0),
-          }))
-      : [],
+    suggestedShots,
+    clipSeconds,
+    filmSeconds,
+    remainderSeconds,
+    timedScenes,
     note: String(r.note ?? ""),
   };
 }

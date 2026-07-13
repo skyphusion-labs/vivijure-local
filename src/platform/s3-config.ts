@@ -50,5 +50,6 @@ export function s3PresignConfig(cfg: S3StoreConfig, bucket = cfg.bucket) {
     endpoint: cfg.presignEndpoint || cfg.endpoint,
     bucket,
     region: cfg.region,
+    forcePathStyle: cfg.forcePathStyle, // #54: honor vhost-style signing when the store is configured for it
   };
 }

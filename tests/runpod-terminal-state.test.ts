@@ -52,4 +52,11 @@ describe("RunPod poll fails a terminal-state job instead of hanging on pending (
     expect(r.ok).toBe(true);
     if (r.ok) expect((r as { pending?: boolean }).pending).toBe(true);
   });
+
+  it("#52: COMPLETED with ZERO keyframes -> ok:false (a keyframe job that produced nothing is a miss)", async () => {
+    stubStatus({ status: "COMPLETED", output: { keyframes: [] } });
+    const r = await pollKeyframeRunpod(env, poll);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no keyframes/i);
+  });
 });

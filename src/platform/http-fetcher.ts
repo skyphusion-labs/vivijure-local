@@ -35,6 +35,11 @@ export class HttpFetcher {
           method: input.method,
           headers: input.headers,
           body: input.body,
+          // #55: forward the caller's AbortSignal (+ redirect/credentials) so a hung sidecar call is actually
+          // cancellable; the old rebuild dropped them, so an abort never propagated to the outbound fetch.
+          signal: input.signal,
+          redirect: input.redirect,
+          credentials: input.credentials,
         },
         hasBody,
       )!,
