@@ -94,6 +94,37 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
   return { ok: false, status: 403, reason: "bad API token" };
 }
 
+/** #46: cross-site CSRF guard for the few state-ADVANCING GET routes. `presentedToken` accepts the
+ *  `vivijure_token` cookie on GET/HEAD so the same-origin operator UI can poll with the ambient
+ *  cookie -- but a handful of GETs advance jobs / write render rows, so a malicious cross-site page in
+ *  the operator's browser could drive them with that ambient cookie (classic CSRF; bounded -- no fresh
+ *  spend, the attacker must already know the job id). Block a request the BROWSER labels cross-site.
+ *
+ *  FAIL OPEN when the browser fetch-metadata is absent: a non-browser client (the Slate bot, curl, any
+ *  API consumer) authenticates with `Authorization: Bearer` and sends no `Sec-Fetch-Site`, and a
+ *  cross-site fetch there is not forgeable anyway (the attacker cannot read the Bearer token). We also
+ *  pass `same-origin` / `same-site` and user-initiated (`Sec-Fetch-Site: none`, e.g. an address-bar
+ *  hit) so the operator UI is unaffected. Only an explicit `cross-site` (or, absent the header, a
+ *  cross-origin `Origin`) is rejected. */
+/** Shared 403 message for a cross-site request to a state-advancing GET (thrown as `forbidden(...)`). */
+export const CSRF_ADVANCE_MSG =
+  "cross-site request blocked (CSRF guard): this route advances a job -- use Authorization: Bearer for cross-origin access";
+
+export function isCrossSiteRequest(request: Request): boolean {
+  const site = (request.headers.get("sec-fetch-site") || "").trim().toLowerCase();
+  if (site) return site === "cross-site";
+  // No Sec-Fetch-Site (non-browser client, or a browser too old to send it). Best-effort Origin
+  // check: a cross-origin Origin on a credentialed GET is a browser cross-site fetch; an absent
+  // Origin is a same-origin navigation or a non-browser client -> allow.
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== new URL(request.url).host;
+  } catch {
+    return true; // a malformed Origin is suspicious -> treat as cross-site
+  }
+}
+
 export function isDemoMode(env: AuthEnv): boolean {
   return (env.AUTH_MODE || "").trim() === "demo";
 }
