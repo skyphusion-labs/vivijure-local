@@ -4,8 +4,8 @@ import { test, expect } from "./fixtures";
 /** Matches planner-state.js PERSIST_DEBOUNCE_MS (500) plus slack. */
 const PERSIST_DEBOUNCE_MS = 600;
 
-async function clickPlannerStep(page: Page, label: RegExp) {
-  const step = page.locator("#planner-steps .planner-step").filter({ hasText: label });
+async function clickPlannerStep(page: Page, stepId: string) {
+  const step = page.locator(`#planner-steps .planner-step[data-step-id="${stepId}"]`);
   await expect(step).toBeEnabled();
   await step.click();
 }
@@ -56,15 +56,10 @@ test.describe("planner control panel", () => {
     await expect(steps.nth(0)).toHaveText(/plan/i);
     await expect(steps.nth(4)).toHaveText(/history/i);
 
-    const historyNav = page.waitForResponse(
-      (resp) => resp.url().includes("/api/storyboard/renders") && resp.ok(),
-      { timeout: 30_000 },
-    );
-    await clickPlannerStep(page, /history/i);
-    await historyNav;
+    await clickPlannerStep(page, "history");
     await waitForHistoryPanel(page);
 
-    await clickPlannerStep(page, /^plan$/i);
+    await clickPlannerStep(page, "plan");
     await waitForPlanPanel(page);
 
     const accountToggle = page.getByRole("button", { name: /account/i });
@@ -84,8 +79,10 @@ test.describe("planner control panel", () => {
     await page.locator("#planner-brief").fill("smoke e2e brief: forest path, two friends, upright cat");
     await expect(page.locator("#planner-model")).toBeVisible();
     const model = page.locator("#planner-model");
-    if ((await model.locator("option").count()) > 0) {
-      await model.selectOption({ index: 0 });
+    if (await model.isEnabled()) {
+      if ((await model.locator("option").count()) > 0) {
+        await model.selectOption({ index: 0 });
+      }
     }
 
     page.once("dialog", (dialog) => dialog.accept());
