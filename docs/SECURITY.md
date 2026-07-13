@@ -1,12 +1,12 @@
 # Security model (vivijure-local)
 
-This document describes how the **alpha** homelab host authenticates callers and what it does
-**not** protect against. Upstream Vivijure documents the full product model in
-[vivijure/docs/SECURITY.md](https://github.com/skyphusion-labs/vivijure/blob/main/docs/SECURITY.md).
+This document describes how the homelab host authenticates callers and what it does
+**not** protect against. vivijure-cf documents the full product security model in
+[vivijure-cf/docs/SECURITY.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/SECURITY.md).
 This file covers only what differs or applies directly on the Node host.
 
-> **Alpha software.** Do not expose this stack to untrusted networks without understanding the
-> limits below. This is demonstration scaffolding, not a hardened production deployment.
+> **Single-operator by design.** Do not expose this stack to untrusted networks without
+> understanding the limits below. It is not a multi-tenant deployment.
 
 ---
 
@@ -90,7 +90,7 @@ SSRF guards in `containers/*/url_guard.py` restrict outbound fetch hosts (MinIO 
 
 ---
 
-## What this alpha build does not include
+## What this build does not include
 
 - Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- not ported in v1.
 - Cloudflare Access / SSO / device posture.
@@ -108,4 +108,4 @@ Security-sensitive defects in this repo: open a **private** GitHub security advi
 `skyphusion-labs/vivijure-local`, or contact `conrad@skyphusion.org` for coordinated disclosure.
 
 Contract and module-boundary issues shared with upstream should be reported against
-`skyphusion-labs/vivijure` when they affect both hosts.
+`skyphusion-labs/vivijure-cf` when they affect both hosts.

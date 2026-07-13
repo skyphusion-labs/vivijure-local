@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
- * Extract MANIFEST JSON from vivijure module workers into dev/manifests/.
- * Requires sibling clone: ../vivijure (override with VIVIJURE_SRC).
+ * Extract MANIFEST JSON from vivijure-cf module workers into dev/manifests/.
+ * Requires sibling clone: ../vivijure-cf (override with VIVIJURE_SRC).
  *
  * Tries dynamic import when MANIFEST is exported; otherwise parses the source literal.
  * Skips modules whose entry graph requires cloudflare: or other Node-unsupported imports.
@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const ROOT = join(import.meta.dirname, "..");
-const VIV = process.env.VIVIJURE_SRC ?? join(ROOT, "..", "vivijure");
+const VIV = process.env.VIVIJURE_SRC ?? join(ROOT, "..", "vivijure-cf");
 const OUT = join(ROOT, "dev", "manifests");
 
 const MODULES = [

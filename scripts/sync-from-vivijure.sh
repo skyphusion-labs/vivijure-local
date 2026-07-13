@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copy port candidates from upstream vivijure into this repo for Option B adaptation.
+# Copy port candidates from vivijure-cf into this repo (extraction-era helper; the monolith was retired).
 # Does NOT overwrite existing files. Review diffs before committing.
 set -euo pipefail
 
-UP="${VIVIJURE_SRC:-$HOME/Documents/GitHub/vivijure}"
+UP="${VIVIJURE_SRC:-$(cd "$(dirname "$0")/../.." && pwd)/vivijure-cf}"
 DEST="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [[ ! -d "$UP/src" ]]; then

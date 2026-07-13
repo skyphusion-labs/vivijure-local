@@ -1,7 +1,9 @@
 name: upstream-parity
 
-# Keep verbatim-copy surfaces aligned with skyphusion-labs/vivijure main so the homelab host
+# Keep verbatim-copy surfaces aligned with skyphusion-labs/vivijure-cf main so the homelab host
 # does not ship a stale public/ UI (planner, cast, settings) while CF-native v1 moves forward.
+# (vivijure-cf is the Cloudflare studio host: the old monolith skyphusion-labs/vivijure was
+# retired into a constellation hub and no longer carries public/ or the wire contract.)
 on:
   push:
     branches: [main]
@@ -26,10 +28,10 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          repository: skyphusion-labs/vivijure
+          repository: skyphusion-labs/vivijure-cf
           ref: main
           path: vivijure-local/.upstream/vivijure
 
-      - name: Diff public/ against vivijure main
+      - name: Diff public/ against vivijure-cf main
         working-directory: vivijure-local
         run: bash scripts/upstream-public-parity.sh .upstream/vivijure
