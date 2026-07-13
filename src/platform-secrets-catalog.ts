@@ -283,14 +283,6 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
-    key: "MODULE_TEXT_OVERLAY_URL",
-    label: "text-overlay module URL",
-    blurb: "CPU drawtext overlay finish module sidecar.",
-    category: "modules",
-    sensitive: false,
-    applies_on: "immediate",
-  },
-  {
     key: "MODULE_SEEDANCE_URL",
     label: "Seedance module URL",
     blurb: "Cloud motion backend (Seedance i2v).",

@@ -22,7 +22,6 @@ const MODULES = [
   "finish-rife",
   "finish-lipsync",
   "finish-upscale",
-  "text-overlay",
   "beat-sync",
   "audio-master",
   "film-titles",
