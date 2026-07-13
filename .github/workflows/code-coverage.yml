@@ -29,12 +29,6 @@ jobs:
         with:
           path: vivijure-local
 
-      - name: Checkout vivijure-core
-        uses: actions/checkout@v7
-        with:
-          repository: skyphusion-labs/vivijure-core
-          path: vivijure-core
-
       - name: Setup Node.js environment
         uses: actions/setup-node@v6
         with:
@@ -44,9 +38,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: vivijure-local
-        run: |
-          npm pkg set dependencies.@skyphusion-labs/vivijure-core=file:../vivijure-core
-          npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Run tests with coverage
         working-directory: vivijure-local
