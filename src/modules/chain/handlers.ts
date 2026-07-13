@@ -491,9 +491,15 @@ export async function invokeNotifyEmail(
   const to = typeof req.config?.notify_email === "string" ? req.config.notify_email.trim() : "";
   if (!to) return { ok: true, output: { delivered: [] } };
   const { subject, html, text } = renderCompleteEmail(input);
+  // #50: this local build has NO email transport -- it only logs the rendered message. Report `delivered: []`
+  // HONESTLY instead of `["email:" + to]`, which claimed a delivery that never happened (the studio would
+  // record a completion email the user never receives). A real send (postern / CF Email / SMTP) is a separate
+  // feature; until then the honest output is "nothing delivered". The log below keeps the content visible to
+  // the operator running the stub.
   console.log(
     JSON.stringify({
       event: "notify-email",
+      note: "local stub: logged only, not delivered",
       to,
       from: FROM.email,
       subject,
@@ -501,5 +507,5 @@ export async function invokeNotifyEmail(
       html_length: html.length,
     }),
   );
-  return { ok: true, output: { delivered: ["email:" + to] } };
+  return { ok: true, output: { delivered: [] } };
 }
