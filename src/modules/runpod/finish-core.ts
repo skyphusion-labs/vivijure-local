@@ -136,8 +136,9 @@ export function parseFinishOutput(shotId: string, output: unknown, srcFps: numbe
     clip_key,
     out_fps: typeof inner.out_fps === "number" ? inner.out_fps : srcFps,
     frames: typeof inner.frames === "number" ? inner.frames : frames,
-    applied: Array.isArray(inner.applied)
-      ? (inner.applied as string[])
-      : ["finish:applied"],
+    // #52: when the backend omits `applied` entirely (a no-op that echoed the input clip), do NOT invent a
+    // positive `finish:applied` tag -- that masks a no-op as a real finish. Default to []; a backend that
+    // genuinely applied steps returns them, and one that ran nothing honestly reports nothing.
+    applied: Array.isArray(inner.applied) ? (inner.applied as string[]) : [],
   };
 }

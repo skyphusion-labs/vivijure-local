@@ -116,6 +116,12 @@ export async function pollKeyframeRunpod(
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
   const keyframes = parseKeyframes(s.output);
+  // #52: a keyframe job's whole purpose is to produce keyframes; a COMPLETED job that parsed ZERO (malformed
+  // entries, or a backend that produced nothing) is a miss, not a success. Fail honestly rather than return
+  // ok:true with an empty set the caller may not notice until far downstream.
+  if (keyframes.length === 0) {
+    return { ok: false, error: "keyframe job COMPLETED but produced no keyframes" };
+  }
   const trained_loras = parseTrainedLoras(s.output);
   return {
     ok: true,

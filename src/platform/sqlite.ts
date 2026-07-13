@@ -11,13 +11,21 @@ type SqlValue = string | number | bigint | null | Uint8Array;
 
 function sqlArgs(values: unknown[]): SqlValue[] {
   return values.map((v) => {
-    if (v === undefined) return null;
+    // #53: match D1's bind strictness. D1 rejects an `undefined` or a plain-object bind with a type error;
+    // the old adapter coerced undefined->null and object->String(v) ("[object Object]"), silently absorbing a
+    // core bug (e.g. an undefined bound to a NOT NULL column) that D1 would have surfaced loudly. Throw here
+    // so the two hosts fail the same way.
+    if (v === undefined) {
+      throw new TypeError("SQLite bind: undefined value (D1 rejects this; bind null explicitly)");
+    }
     if (typeof v === "boolean") return v ? 1 : 0;
     if (typeof v === "bigint" || typeof v === "number" || typeof v === "string" || v === null) {
       return v;
     }
     if (v instanceof Uint8Array) return v;
-    return String(v);
+    throw new TypeError(
+      `SQLite bind: unsupported ${typeof v} value (D1 accepts only null / number / bigint / string / boolean / Uint8Array)`,
+    );
   });
 }
 
@@ -32,6 +40,13 @@ class SqliteStatement implements PreparedStatement {
   bind(...values: unknown[]): PreparedStatement {
     this.binds = values;
     return this;
+  }
+
+  /** #53: a SELECT or a RETURNING statement yields rows; batch() must run it via .all() (not .run()) to
+   *  preserve the per-statement `results` D1's batch() returns, else a batched read gives `results:
+   *  undefined`. */
+  isReadStatement(): boolean {
+    return /^\s*(SELECT|WITH)\b/i.test(this.sql) || /\bRETURNING\b/i.test(this.sql);
   }
 
   async first<T = unknown>(column?: string): Promise<T | null> {
@@ -73,7 +88,9 @@ class SqliteDatabase implements DatabaseIface {
     try {
       const out: unknown[] = [];
       for (const stmt of statements) {
-        out.push(await stmt.run());
+        // #53: preserve rows for a batched SELECT/RETURNING (D1's batch() returns per-statement results).
+        const s = stmt as SqliteStatement;
+        out.push(typeof s.isReadStatement === "function" && s.isReadStatement() ? await s.all() : await stmt.run());
       }
       this.db.exec("COMMIT");
       return out;

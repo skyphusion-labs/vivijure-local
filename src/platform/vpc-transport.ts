@@ -36,6 +36,10 @@ export class VpcHttpFetcher {
       method: input.method,
       headers: input.headers,
       body: input.body,
+      // #55: forward AbortSignal (+ redirect/credentials) so a caller can actually cancel a VPC call.
+      signal: input.signal,
+      redirect: input.redirect,
+      credentials: input.credentials,
       ...(hasBody ? { duplex: "half" as const } : {}),
     });
   }
