@@ -39,6 +39,39 @@ export function coerceFinishConfig(cfg: Record<string, unknown>): FinishConfig {
   };
 }
 
+export interface LipsyncConfig {
+  version: string;
+  bbox_shift: number;
+}
+
+const LIPSYNC_VERSIONS = ["v15", "v1"] as const;
+
+export function coerceLipsyncConfig(cfg: Record<string, unknown>): LipsyncConfig {
+  return {
+    version: (LIPSYNC_VERSIONS as readonly string[]).includes(String(cfg.version)) ? String(cfg.version) : "v15",
+    bbox_shift: Number.isFinite(Number(cfg.bbox_shift)) ? Math.trunc(Number(cfg.bbox_shift)) : 0,
+  };
+}
+
+export function lipsyncedKey(clipKey: string): string {
+  const dot = clipKey.lastIndexOf(".");
+  return dot > clipKey.lastIndexOf("/") ? `${clipKey.slice(0, dot)}_ls${clipKey.slice(dot)}` : `${clipKey}_ls`;
+}
+
+/** RunPod body for the dedicated vivijure-musetalk endpoint (R2 mode). */
+export function buildLipsyncBody(input: FinishInput, cfg: LipsyncConfig): { input: Record<string, unknown> } {
+  return {
+    input: {
+      clip_key: input.clip_key,
+      audio_key: input.audio_key,
+      output_key: lipsyncedKey(input.clip_key),
+      version: cfg.version,
+      bbox_shift: cfg.bbox_shift,
+      ...(input.output_hash ? { output_hash: input.output_hash } : {}),
+    },
+  };
+}
+
 export function buildFinishBody(
   input: FinishInput,
   cfg: FinishConfig,
@@ -69,6 +102,7 @@ export function buildFinishBody(
 export interface FinishPollState {
   jobId: string;
   shotId: string;
+  clipKey?: string;
   srcFps: number;
   frames: number;
   submittedAt?: number;

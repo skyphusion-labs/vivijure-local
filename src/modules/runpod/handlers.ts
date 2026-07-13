@@ -36,7 +36,9 @@ import {
 } from "./keyframe-core.js";
 import {
   buildFinishBody,
+  buildLipsyncBody,
   coerceFinishConfig,
+  coerceLipsyncConfig,
   decodeFinishPoll,
   encodeFinishPoll,
   parseFinishOutput,
@@ -200,6 +202,9 @@ async function invokeFinish(
   if (!input?.shot_id || !input.clip_key) {
     return { ok: false, error: `${moduleName}: input needs shot_id and clip_key` };
   }
+  if (action === "lipsync_clip" && !input.audio_key) {
+    return { ok: true, output: passthroughOutput(input, "no-dialogue", { degraded: false }) };
+  }
   const cfg = coerceFinishConfig(req.config ?? {});
   if (moduleName === "finish-rife" && !cfg.interpolate && cfg.face_restore === "none") {
     return { ok: true, output: passthroughOutput(input, "nothing-enabled", { degraded: false }) };
@@ -208,12 +213,16 @@ async function invokeFinish(
   if (!creds) {
     return { ok: true, output: passthroughOutput(input, "no-runpod-secrets") };
   }
+  const runBody =
+    action === "lipsync_clip"
+      ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
+      : buildFinishBody(input, cfg, req.context.project, action, extra);
   const base = runpodBase(creds.endpointId);
   try {
     const r = await fetch(`${base}/run`, {
       method: "POST",
       headers: { ...authHeader(creds.apiKey), "content-type": "application/json" },
-      body: JSON.stringify(buildFinishBody(input, cfg, req.context.project, action, extra)),
+      body: JSON.stringify(runBody),
     });
     if (!r.ok) {
       return { ok: true, output: passthroughOutput(input, "runpod-run-failed", { detail: `HTTP ${r.status}` }) };
@@ -228,6 +237,7 @@ async function invokeFinish(
       poll: encodeFinishPoll({
         jobId,
         shotId: input.shot_id,
+        clipKey: input.clip_key,
         srcFps: input.src_fps ?? 24,
         frames: input.frames ?? 0,
         submittedAt: Date.now(),
@@ -266,6 +276,25 @@ async function pollFinish(
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
+  const root = (s.output && typeof s.output === "object" ? s.output : null) as Record<string, unknown> | null;
+  if (moduleName === "finish-lipsync" && root?.ok === false) {
+    const reason =
+      typeof root.detail === "string" && root.detail.length > 0
+        ? root.detail
+        : typeof root.error === "string" && root.error.length > 0
+          ? root.error
+          : undefined;
+    const clipKey = st.clipKey ?? "";
+    if (!clipKey) return { ok: false, error: "finish-lipsync: backend soft-degrade but poll token missing clip_key" };
+    return {
+      ok: true,
+      output: passthroughOutput(
+        { shot_id: st.shotId, clip_key: clipKey, src_fps: st.srcFps, frames: st.frames, width: 0, height: 0 },
+        "backend-soft-degrade",
+        { detail: reason?.slice(0, 120) },
+      ),
+    };
+  }
   const output = parseFinishOutput(st.shotId, s.output, st.srcFps, st.frames);
   if (!output) return { ok: false, error: `${moduleName} completed but returned no clip_key` };
   return { ok: true, output };
