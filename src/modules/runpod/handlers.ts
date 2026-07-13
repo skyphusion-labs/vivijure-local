@@ -19,6 +19,7 @@ import {
   classifyGoneState,
   runpodBase,
   runpodJobGone,
+  runpodTerminalFailure,
   terminalErrorInOutput,
 } from "./shared.js";
 import {
@@ -111,6 +112,8 @@ export async function pollKeyframeRunpod(
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
+  const failed = runpodTerminalFailure("keyframe", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
+  if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
   const keyframes = parseKeyframes(s.output);
   const trained_loras = parseTrainedLoras(s.output);
@@ -185,6 +188,8 @@ export async function pollOwnGpu(
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
+  const failed = runpodTerminalFailure("own-gpu", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
+  if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
   const output = readI2vOutput(st.shotId, s.output);
   if (!output) return { ok: false, error: "own-gpu output had no clip_key" };
@@ -275,6 +280,8 @@ async function pollFinish(
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
+  const failed = runpodTerminalFailure(moduleName, s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
+  if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
   const root = (s.output && typeof s.output === "object" ? s.output : null) as Record<string, unknown> | null;
   if (moduleName === "finish-lipsync" && root?.ok === false) {

@@ -14,6 +14,7 @@ import {
   classifyGoneState,
   runpodBase,
   runpodJobGone,
+  runpodTerminalFailure,
   terminalErrorInOutput,
 } from "../runpod/shared.js";
 import { putAudioBytes } from "../runpod/storage.js";
@@ -278,6 +279,8 @@ export async function pollNarrationGen(
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
+  const failed = runpodTerminalFailure("narration-gen", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
+  if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
 
   const out = (s.output ?? {}) as Record<string, unknown>;
