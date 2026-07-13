@@ -3,7 +3,7 @@
 // After running: npm run sync:tunnel-secrets && docker compose up -d --force-recreate minio minio-init studio
 
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -58,5 +58,6 @@ if (!wroteAccess) out.push(`S3_ACCESS_KEY_ID=${access}`);
 if (!wroteSecret) out.push(`S3_SECRET_ACCESS_KEY=${secret}`);
 
 writeFileSync(envPath, out.join("\n").replace(/\n*$/, "\n"));
+chmodSync(envPath, 0o600); // #45: .env holds the new secret key -- lock to 0600 (match install.ts / .studio-token)
 console.log("updated .env with new MinIO root credentials");
 console.log("next: npm run sync:tunnel-secrets && docker compose up -d --force-recreate minio minio-init studio");

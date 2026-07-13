@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   gateApi,
   constantTimeEqual,
+  isDemoDeniedRead,
   sha256Hex,
   TOKEN_COOKIE,
 } from "../src/auth-gate.js";
@@ -139,5 +140,37 @@ describe("HTTP routes (M1)", () => {
     const res = await app.request("/planner");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/html/);
+  });
+});
+
+describe("gateApi -- demo mode operator-config exposure (#43)", () => {
+  const demo = { AUTH_MODE: "demo" };
+
+  it("DENIES GET /api/settings/secrets (operator connection config: S3 key id, account/endpoint ids, topology)", async () => {
+    const d = await gateApi(req({}, "GET", "/api/settings/secrets"), demo);
+    expect(d).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("DENIES GET /api/settings and GET /api/modules/:name/config", async () => {
+    expect(await gateApi(req({}, "GET", "/api/settings"), demo)).toMatchObject({ ok: false, status: 403 });
+    expect(await gateApi(req({}, "GET", "/api/modules/keyframe/config"), demo)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
+  });
+
+  it("still ALLOWS the demo UI reads: /api/modules catalog and ordinary /api reads", async () => {
+    expect(await gateApi(req({}, "GET", "/api/modules"), demo)).toMatchObject({ ok: true });
+    expect(await gateApi(req({}, "GET", "/api/cast"), demo)).toMatchObject({ ok: true });
+    expect(await gateApi(req({}, "GET", "/api/projects"), demo)).toMatchObject({ ok: true });
+  });
+
+  it("isDemoDeniedRead: settings + module-config denied, catalog + other reads allowed", () => {
+    expect(isDemoDeniedRead("/api/settings/secrets")).toBe(true);
+    expect(isDemoDeniedRead("/api/settings")).toBe(true);
+    expect(isDemoDeniedRead("/api/modules/musetalk/config")).toBe(true);
+    expect(isDemoDeniedRead("/api/modules")).toBe(false);
+    expect(isDemoDeniedRead("/api/modules/musetalk")).toBe(false);
+    expect(isDemoDeniedRead("/api/cast")).toBe(false);
   });
 });

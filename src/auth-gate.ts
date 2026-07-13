@@ -105,9 +105,29 @@ export function catalogForDeploy<T>(env: AuthEnv, catalog: readonly T[]): readon
 
 export const DEMO_WRITE_ROUTES: ReadonlySet<string> = new Set(["/api/demo/render", "/api/demo/chat"]);
 
+/** #43: operator-only read surfaces that a public demo GET must NOT reach. Demo allows all GETs so the
+ *  read-only studio UI works, but these routes disclose the operator's connection config -- an S3
+ *  access-key id, Cloudflare account/gateway ids, RunPod endpoint ids, and the full internal module/backend
+ *  topology (every `sensitive:false` field is returned in cleartext for the operator's own view). The demo
+ *  UI never needs them, so deny at the GATE (defence-in-depth: covers both routes and any future
+ *  handler under these paths, not one per-route check that can be forgotten). Note: `/api/modules` (the
+ *  registry catalog the demo UI renders from) stays allowed; only `/api/modules/:name/config` is denied. */
+export function isDemoDeniedRead(pathname: string): boolean {
+  if (pathname === "/api/settings" || pathname.startsWith("/api/settings/")) return true;
+  if (/^\/api\/modules\/[^/]+\/config$/.test(pathname)) return true;
+  return false;
+}
+
 export function verifyDemoRequest(request: Request): AccessDecision {
   const method = request.method.toUpperCase();
   if (method === "GET" || method === "HEAD") {
+    if (isDemoDeniedRead(new URL(request.url).pathname)) {
+      return {
+        ok: false,
+        status: 403,
+        reason: "operator settings are not exposed on the demo studio",
+      };
+    }
     return { ok: true, sub: "demo-visitor", email: null };
   }
   if (method === "POST" && DEMO_WRITE_ROUTES.has(new URL(request.url).pathname)) {

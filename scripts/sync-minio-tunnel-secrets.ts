@@ -54,7 +54,11 @@ for (const key of TUNNEL_KEYS) {
   }
   const prior = existing.get(key);
   await upsertPlatformSecret(db, key, value);
-  updated.push(prior && prior !== value ? `${key} (was ${prior})` : key);
+  // #44: never interpolate `prior` -- TUNNEL_KEYS holds S3_SECRET_ACCESS_KEY / CF_AIG_TOKEN /
+  // RUNPOD_API_KEY / LOCAL_BACKEND_TOKEN, and this runs right after a rotation, so `(was <old>)` would
+  // print the just-rotated-away secret to stdout -> scrollback + `docker compose logs`. Log the fact of
+  // change only.
+  updated.push(prior && prior !== value ? `${key} (changed)` : key);
 }
 
 if (updated.length) {
