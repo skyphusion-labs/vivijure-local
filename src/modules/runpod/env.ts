@@ -1,6 +1,10 @@
 export interface RunpodModuleEnv {
   RUNPOD_API_KEY?: string;
   RUNPOD_ENDPOINT_ID?: string;
+  /** Wan i2v / own-gpu backend (upstream: BACKEND_RUNPOD_ENDPOINT_ID). Falls back to RUNPOD_ENDPOINT_ID. */
+  BACKEND_RUNPOD_ENDPOINT_ID?: string;
+  /** SDXL keyframe endpoint when split from the i2v backend. Falls back to RUNPOD_ENDPOINT_ID. */
+  KEYFRAME_RUNPOD_ENDPOINT_ID?: string;
   VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
   MUSETALK_RUNPOD_ENDPOINT_ID?: string;
   AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
@@ -19,6 +23,12 @@ export function resolveRunpodEndpointId(moduleName: string, env: RunpodModuleEnv
   if (moduleName === "finish-lipsync") {
     return env.MUSETALK_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
   }
+  if (moduleName === "keyframe") {
+    return env.KEYFRAME_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
+  }
+  if (moduleName === "own-gpu" || moduleName === "finish-rife") {
+    return env.BACKEND_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
+  }
   return env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
 }
 
@@ -26,6 +36,8 @@ export function runpodModuleEnvFromProcess(env: NodeJS.ProcessEnv): RunpodModule
   return {
     RUNPOD_API_KEY: env.RUNPOD_API_KEY?.trim() || undefined,
     RUNPOD_ENDPOINT_ID: env.RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    BACKEND_RUNPOD_ENDPOINT_ID: env.BACKEND_RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    KEYFRAME_RUNPOD_ENDPOINT_ID: env.KEYFRAME_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: env.VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     MUSETALK_RUNPOD_ENDPOINT_ID: env.MUSETALK_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: env.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
