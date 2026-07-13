@@ -1,0 +1,21 @@
+-- Vivijure Studio -- film-advance leaseholder token (migration 0012, #29 idempotency fix).
+--
+-- The film-advance lease (migration 0007) stored only `advance_lease`, the winner's expiry (unix
+-- ms). That is NOT a unique leaseholder identity: on Cloudflare, Date.now() is coarsened + frozen
+-- per-invocation, so two drivers racing in the same millisecond compute the IDENTICAL expiry. That
+-- made claimFilmAdvance non-idempotent under withD1Retry -- a committed-but-lost UPDATE response
+-- retried, the `advance_lease < now` predicate no longer matched (the lease is now future), and the
+-- TRUE HOLDER wrongly read { won: false } and wedged the film up to a full TTL (300s) -- while a
+-- naive value-equality idempotency check let a genuine same-ms loser double-win (duplicate GPU
+-- submit).
+--
+-- vivijure-core now writes a per-claim UUID here (generated ONCE, so every retry re-binds the same
+-- token) and adds `OR advance_lease_token = ?` to the claim predicate: a lost-response retry matches
+-- its own committed token (a real win, no stall), a same-ms loser carries a different token (correctly
+-- loses), and releaseFilmAdvance clears by token (a stale release can never free another driver's
+-- live lease). NULL = unleased / a legacy row (a fresh UUID never equals NULL).
+--
+-- Additive (ALTER TABLE ADD COLUMN only) -> rides the normal auto-apply; no manual gate. Backward
+-- compatible: an older core build that never sets the column simply leaves it NULL.
+
+ALTER TABLE renders ADD COLUMN advance_lease_token TEXT;
