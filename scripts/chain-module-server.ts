@@ -10,9 +10,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createChainModuleApp } from "../src/modules/chain/app.js";
-import { chainModuleEnvFromProcess } from "../src/modules/chain/chain-env.js";
+import { chainModuleEnvFromRuntime } from "../src/modules/chain/chain-env.js";
 import { isChainModuleName } from "../src/modules/chain/handlers.js";
 import { createStorage } from "../src/platform/create-storage.js";
+import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
 const moduleName = process.argv[3];
@@ -28,10 +29,17 @@ if (!isChainModuleName(moduleName)) {
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const manifestPath = join(repoRoot, "dev/manifests", `${moduleName}.json`);
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-const storage = createStorage(process.env);
-const env = chainModuleEnvFromProcess(process.env);
-const app = createChainModuleApp(manifest, moduleName, storage.renders, env);
 
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
+async function getContext() {
+  const runtime = await loadModuleRuntimeEnv();
+  const storage = createStorage(runtime.asProcessEnv());
+  return { env: chainModuleEnvFromRuntime(runtime), store: storage.renders };
+}
+
+const app = createChainModuleApp(manifest, moduleName, getContext);
+
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, async () => {
+  const runtime = await loadModuleRuntimeEnv();
+  const storage = createStorage(runtime.asProcessEnv());
   console.log(`chain module ${moduleName} on http://127.0.0.1:${port} (storage=${storage.backend})`);
 });

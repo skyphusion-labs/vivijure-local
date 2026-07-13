@@ -57,6 +57,10 @@ export function scoreModuleEnvFromProcess(env: NodeJS.ProcessEnv): ScoreModuleEn
   };
 }
 
+export function scoreModuleEnvFromRuntime(runtime: { asProcessEnv(): NodeJS.ProcessEnv }): ScoreModuleEnv {
+  return scoreModuleEnvFromProcess(runtime.asProcessEnv());
+}
+
 function narrationText(input: ScoreInput, config: Record<string, unknown>): string {
   const configured = typeof config.text === "string" ? config.text.trim() : "";
   if (configured) return configured.slice(0, 10_000);

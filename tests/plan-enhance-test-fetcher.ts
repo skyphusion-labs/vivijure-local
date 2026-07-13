@@ -19,12 +19,11 @@ export function createPlanEnhanceTestFetcher(
   const prev = { ...process.env };
   Object.assign(process.env, env);
   const store = new FilesystemObjectStore(storeDir);
-  const app = createChainModuleApp(
-    manifest,
-    "plan-enhance",
+  const chainEnv = chainModuleEnvFromProcess(process.env);
+  const app = createChainModuleApp(manifest, "plan-enhance", async () => ({
+    env: chainEnv,
     store,
-    chainModuleEnvFromProcess(process.env),
-  );
+  }));
   Object.assign(process.env, prev);
 
   return {

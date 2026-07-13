@@ -13,7 +13,7 @@ import {
 export function createRunpodModuleApp(
   manifest: Record<string, unknown>,
   moduleName: string,
-  env: RunpodModuleEnv,
+  getEnv: () => Promise<RunpodModuleEnv>,
 ): Hono {
   if (!isRunpodModuleName(moduleName)) {
     throw new Error(`unsupported RunPod module: ${moduleName}`);
@@ -31,7 +31,7 @@ export function createRunpodModuleApp(
     } catch {
       return c.json({ ok: false, error: "invalid JSON body" });
     }
-    return c.json(await invokeRunpodModule(env, name, req));
+    return c.json(await invokeRunpodModule(await getEnv(), name, req));
   });
 
   app.post("/poll", async (c) => {
@@ -47,7 +47,7 @@ export function createRunpodModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
-    return c.json(await pollRunpodModule(env, name, body));
+    return c.json(await pollRunpodModule(await getEnv(), name, body));
   });
 
   app.post("/cancel", async (c) => {
@@ -60,7 +60,7 @@ export function createRunpodModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
-    return c.json(await cancelRunpodPoll(env, body));
+    return c.json(await cancelRunpodPoll(await getEnv(), body));
   });
 
   return app;

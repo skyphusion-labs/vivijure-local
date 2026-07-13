@@ -38,6 +38,10 @@ export function runpodModuleEnvFromProcess(env: NodeJS.ProcessEnv): RunpodModule
   };
 }
 
+export function runpodModuleEnvFromRuntime(runtime: { asProcessEnv(): NodeJS.ProcessEnv }): RunpodModuleEnv {
+  return runpodModuleEnvFromProcess(runtime.asProcessEnv());
+}
+
 export function runpodConfigured(env: RunpodModuleEnv, moduleName = ""): boolean {
   return Boolean(env.RUNPOD_API_KEY && resolveRunpodEndpointId(moduleName, env));
 }

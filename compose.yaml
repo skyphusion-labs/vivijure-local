@@ -56,7 +56,10 @@ x-module-health: &module-health
 
 x-runpod-module: &runpod-module
   <<: *module-sidecar
+  volumes:
+    - studio-data:/app/vivijure-local/data:ro
   environment:
+    DATABASE_PATH: /app/vivijure-local/data/studio.db
     RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
     RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
     VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
@@ -283,11 +286,14 @@ services:
 
   module-music-gen:
     <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/score-module-server.ts", "9158", "music-gen"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9158/module.json"]
     environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -341,11 +347,14 @@ services:
 
   module-plan-enhance:
     <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9140", "plan-enhance"]
     healthcheck:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9140/module.json"]
     environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
@@ -357,11 +366,14 @@ services:
 
   module-cast-image:
     <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9141", "cast-image"]
     healthcheck:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9141/module.json"]
     environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -372,11 +384,14 @@ services:
 
   module-dialogue-gen:
     <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9142", "dialogue-gen"]
     healthcheck:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9142/module.json"]
     environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -386,11 +401,14 @@ services:
 
   module-speech-upscale:
     <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9143", "speech-upscale"]
     healthcheck:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9143/module.json"]
     environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
       RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
@@ -437,6 +455,9 @@ services:
       AUDIO_MASTER_URL: http://audio-master:8000
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
       RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+      VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+      MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
+      AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       MODULE_KEYFRAME_URL: http://module-keyframe:9101

@@ -20,6 +20,10 @@ export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = proces
   };
 }
 
+export function chainModuleEnvFromRuntime(runtime: { asProcessEnv(): NodeJS.ProcessEnv }): ChainModuleEnv {
+  return chainModuleEnvFromProcess(runtime.asProcessEnv());
+}
+
 export function speechRunpodEndpointId(env: ChainModuleEnv): string | undefined {
   return env.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || env.RUNPOD_ENDPOINT_ID?.trim() || undefined;
 }
