@@ -136,10 +136,12 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^0.9.1` (orchestration parity; host-only routes above)
+- [x] `@skyphusion-labs/vivijure-core` `^0.9.2` (mux hasAudio guard; orchestration parity)
 
 ## Ops hardening (compose / flatliners)
 
 - [x] MinIO root creds from `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` (not hardcoded `minioadmin`)
 - [x] `npm run rotate:minio-creds` helper + docs
 - [x] CPU module sidecar healthchecks on module ports (`9120`–`9131`, not studio `:8790`)
+- [x] Background `render-sweep` cron in studio host (`server.ts`, every 60s; disable with `RENDER_SWEEP_ENABLED=false`)
+- [x] `cloud-keyframe` sidecar (AI Gateway image gen, not RunPod stub)

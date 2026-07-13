@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { join } from "node:path";
+import { sweepUnresolvedJobs } from "@skyphusion-labs/vivijure-core/render-sweep";
+import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import { createApp, repoRoot } from "./app.js";
 import {
   createModuleTransport,
@@ -79,6 +81,31 @@ const boot = await buildStudio();
 export const platform = boot.platform;
 export const app = createApp(boot.settingsHost);
 
+const SWEEP_INTERVAL_MS = 60_000;
+let sweepInFlight = false;
+
+function startRenderSweep(): void {
+  if (process.env.RENDER_SWEEP_ENABLED === "false") {
+    console.log("  render-sweep: disabled (RENDER_SWEEP_ENABLED=false)");
+    return;
+  }
+  const tick = async (): Promise<void> => {
+    if (sweepInFlight) return;
+    sweepInFlight = true;
+    try {
+      const env = orchestratorContextFromPlatform(platform);
+      const n = await sweepUnresolvedJobs(env);
+      if (n > 0) console.log(`render-sweep: advanced ${n} job(s)`);
+    } catch (e) {
+      console.warn(`render-sweep failed: ${(e as Error).message}`);
+    } finally {
+      sweepInFlight = false;
+    }
+  };
+  void tick();
+  setInterval(() => void tick(), SWEEP_INTERVAL_MS);
+}
+
 const port = Number(env("PORT", "8790"));
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`vivijure-local listening on http://127.0.0.1:${info.port}`);
@@ -86,6 +113,7 @@ serve({ fetch: app.fetch, port }, (info) => {
   console.log(`  storage=${platform.vars.STORAGE_BACKEND || "unknown"}`);
   console.log(`  modules bound: ${platform.modules.listBindings().join(", ") || "(none)"}`);
   console.log(`  operator settings: ${boot.publicBase}/settings`);
+  startRenderSweep();
 });
 
 export { boot };

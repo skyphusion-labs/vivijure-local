@@ -54,6 +54,16 @@ x-module-health: &module-health
   retries: 6
   start_period: 20s
 
+x-cpu-module-env: &cpu-module-env
+  DATABASE_PATH: /app/vivijure-local/data/studio.db
+
+x-cpu-module: &cpu-module
+  <<: *module-sidecar
+  volumes:
+    - studio-data:/app/vivijure-local/data:ro
+  environment:
+    <<: *cpu-module-env
+
 x-runpod-module: &runpod-module
   <<: *module-sidecar
   volumes:
@@ -170,7 +180,7 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9101/module.json"]
 
   module-local-gpu:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/local-gpu-module-server.ts", "9102"]
     healthcheck:
       <<: *module-health-url
@@ -214,12 +224,13 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9112/module.json"]
 
   module-text-overlay:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/finish-cpu-module-server.ts", "9113", "text-overlay"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9113/module.json"]
     environment:
+      <<: *cpu-module-env
       VIDEO_FINISH_URL: http://video-finish:8000
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -278,11 +289,22 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9156/module.json"]
 
   module-cloud-keyframe:
-    <<: *runpod-module
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9157", "cloud-keyframe"]
+    <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
+    command: ["npx", "tsx", "scripts/cloud-keyframe-module-server.ts", "9157"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9157/module.json"]
+    environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
+      <<: *ai-gateway-env
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
 
   module-music-gen:
     <<: *module-sidecar
@@ -310,39 +332,43 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9159/module.json"]
 
   module-beat-sync:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9120", "beat-sync"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9120/module.json"]
     environment:
+      <<: *cpu-module-env
       AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
 
   module-audio-master:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9121", "audio-master"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9121/module.json"]
     environment:
+      <<: *cpu-module-env
       AUDIO_MASTER_URL: http://audio-master:8000
 
   module-film-titles:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9130", "film-titles"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9130/module.json"]
     environment:
+      <<: *cpu-module-env
       VIDEO_FINISH_URL: http://video-finish:8000
 
   module-subtitle:
-    <<: *module-sidecar
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9131", "subtitle"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9131/module.json"]
     environment:
+      <<: *cpu-module-env
       VIDEO_FINISH_URL: http://video-finish:8000
 
   module-plan-enhance:

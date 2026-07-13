@@ -21,7 +21,7 @@ import type { CpuModuleEnv } from "./vpc-env.js";
 export function createCpuModuleApp(
   manifest: Record<string, unknown>,
   moduleName: string,
-  env: CpuModuleEnv,
+  getEnv: () => Promise<CpuModuleEnv>,
 ): Hono {
   if (!isCpuModuleName(moduleName)) {
     throw new Error(`unsupported CPU module: ${moduleName}`);
@@ -40,6 +40,7 @@ export function createCpuModuleApp(
       return c.json({ ok: false, error: "invalid JSON body" });
     }
 
+    const env = await getEnv();
     const hook = req.hook;
     if (moduleName === "beat-sync") {
       if (hook !== "score") return c.json({ ok: false, error: "unsupported hook " + String(hook) });
@@ -74,6 +75,7 @@ export function createCpuModuleApp(
     if (!body?.poll || typeof body.poll !== "string") {
       return c.json({ ok: false, error: "poll token required" });
     }
+    const env = await getEnv();
     const result =
       moduleName === "film-titles"
         ? await pollFilmTitles(env, body)

@@ -275,9 +275,8 @@ async function submitRender() {
 }
 
 // v0.162.0: enable/disable the scatter checkbox based on current state.
-// Conditions: >= 2 shots in the storyboard AND castLoras non-empty (the
-// server hard-400s a scatter with no castLoras; shards would diverge
-// without a shared pre-trained LoRA). Shows a short reason when disabled.
+// Conditions: >= 2 shots in the storyboard. castLoras are optional (#739): generic
+// scatter works without trained LoRAs when using cloud-keyframe + cloud i2v.
 function updateScatterGate() {
   const checkbox = $("#planner-scatter");
   const reasonEl = $("#planner-scatter-reason");
@@ -288,12 +287,9 @@ function updateScatterGate() {
     planState.storyboard && Array.isArray(planState.storyboard.scenes)
       ? planState.storyboard.scenes
       : [];
-  const castLoras = buildCastLoraSubmit();
-  const hasLoras = Object.keys(castLoras).length > 0;
 
   let reason = "";
   if (scenes.length < 2) reason = "needs >= 2 shots";
-  else if (!hasLoras) reason = "every character needs a trained LoRA first";
 
   checkbox.disabled = !!reason;
   if (reason) checkbox.checked = false;
@@ -365,14 +361,6 @@ async function submitScatterRender() {
     return;
   }
   const castLoras = buildCastLoraSubmit();
-  if (Object.keys(castLoras).length === 0) {
-    setRenderStatus(
-      "scatter requires at least one character with a trained LoRA bound",
-      "error",
-    );
-    renderState.submitting = false;
-    return;
-  }
 
   // Talking characters: the scatter render reads per-shot dialogue from the SAVED storyboard in D1
   // (last_storyboard), so flush any unsaved edits (incl. dialogue lines) before submitting. No-ops

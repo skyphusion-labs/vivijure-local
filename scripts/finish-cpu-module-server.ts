@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createFinishCpuModuleApp } from "../src/modules/finish-cpu/app.js";
 import { finishCpuEnvFromProcess, isFinishCpuModuleName } from "../src/modules/finish-cpu/handlers.js";
 import { createStorage } from "../src/platform/create-storage.js";
+import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
 const moduleName = process.argv[3] ?? "text-overlay";
@@ -17,9 +18,15 @@ if (!port || !isFinishCpuModuleName(moduleName)) {
 
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const manifest = JSON.parse(readFileSync(join(repoRoot, "dev/manifests", `${moduleName}.json`), "utf8"));
-const storage = createStorage(process.env);
-const env = finishCpuEnvFromProcess(process.env);
-const app = createFinishCpuModuleApp(manifest, moduleName, env, storage.renders);
+
+async function getEnv() {
+  const runtime = await loadModuleRuntimeEnv();
+  return finishCpuEnvFromProcess(runtime.asProcessEnv());
+}
+
+const runtime = await loadModuleRuntimeEnv();
+const storage = createStorage(runtime.asProcessEnv());
+const app = createFinishCpuModuleApp(manifest, moduleName, getEnv, storage.renders);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`finish cpu module ${moduleName} on http://127.0.0.1:${port}`);

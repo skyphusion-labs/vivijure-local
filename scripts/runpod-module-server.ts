@@ -6,6 +6,7 @@
  * Usage: tsx scripts/runpod-module-server.ts <port> <module-name>
  */
 import { serve } from "@hono/node-server";
+import { Hono } from "hono";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,16 +41,28 @@ const runtime = await loadModuleRuntimeEnv();
 const env = runpodModuleEnvFromRuntime(runtime);
 const storage = createStorage(runtime.asProcessEnv());
 
-const useKeyframeMock = moduleName === "keyframe" && !runpodConfigured(env, "keyframe");
-let app;
-if (useKeyframeMock) {
+let app: Hono;
+if (moduleName === "keyframe") {
   const mockApp = createGpuMockModuleApp(manifest, "keyframe", storage.renders);
-  app = mockApp;
+  const runpodApp = createRunpodModuleApp(manifest, moduleName, getEnv);
+  app = new Hono();
+  app.all("*", async (c) => {
+    const live = await getEnv();
+    const target = runpodConfigured(live, "keyframe") ? runpodApp : mockApp;
+    return target.fetch(c.req.raw, c.env);
+  });
 } else {
   app = createRunpodModuleApp(manifest, moduleName, getEnv);
 }
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
-  const mode = useKeyframeMock ? "mock" : runpodConfigured(env, moduleName) ? "runpod" : "runpod-unconfigured";
+  const mode =
+    moduleName === "keyframe"
+      ? runpodConfigured(env, "keyframe")
+        ? "runpod"
+        : "mock"
+      : runpodConfigured(env, moduleName)
+        ? "runpod"
+        : "runpod-unconfigured";
   console.log(`runpod module ${moduleName} on http://127.0.0.1:${port} (${mode})`);
 });
