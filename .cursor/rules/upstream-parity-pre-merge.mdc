@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Upstream parity before merge
 
-`public/` is a verbatim copy from `skyphusion-labs/vivijure` `main`. CI enforces this via the required **`upstream-parity`** check.
+`public/` is a verbatim copy from `skyphusion-labs/vivijure-cf` `main`. CI enforces this via the required **`upstream-parity`** check.
 
 ## Before opening or recommending a PR merge
 
