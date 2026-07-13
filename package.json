@@ -28,6 +28,8 @@
     "bootstrap:secrets": "tsx scripts/bootstrap-secrets.ts",
     "sync:tunnel-secrets": "tsx scripts/sync-minio-tunnel-secrets.ts",
     "sync:tunnel-secrets:compose": "docker compose exec -T studio npx tsx scripts/sync-minio-tunnel-secrets.ts",
+    "sync:tunnel-dns": "bash scripts/sync-tunnel-dns.sh",
+    "sync:minio-cache-rules": "bash scripts/sync-minio-cache-rules.sh",
     "rotate:minio-creds": "tsx scripts/rotate-minio-creds.ts",
     "install:studio": "tsx scripts/install.ts",
     "module-manifests": "tsx scripts/sync-module-manifests.ts",

@@ -7,6 +7,8 @@ credentials-file: /etc/cloudflared/credentials.json
 ingress:
   - hostname: vivijure-local.skyphusion.org
     service: http://127.0.0.1:8790
+  - hostname: vivijure.minio-flatliners.skyphusion.org
+    service: http://127.0.0.1:9000
   - hostname: minio-flatliners.skyphusion.org
     service: http://127.0.0.1:9000
   - service: http_status:404
