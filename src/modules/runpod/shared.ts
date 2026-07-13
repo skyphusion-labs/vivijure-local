@@ -46,6 +46,22 @@ export function terminalErrorInOutput(output: unknown): string | null {
   return null;
 }
 
+/** #47: a RunPod job in a terminal FAILURE state that carries NO error string -- TIMED_OUT, CANCELLED,
+ *  or FAILED with a crashed/OOM worker (non-string `error`) -- must fail the shot, not poll `pending`
+ *  forever. terminalErrorInOutput + a string `error` only catch the error-carrying failures; these
+ *  states fall through and hang the render otherwise. Call after the jobGone/term checks and before the
+ *  `!== "COMPLETED"` pending return, mirroring pollLocalGpu's explicit FAILED branch. Returns the failed
+ *  envelope, or null when the status is not one of these terminal-failure states (still running/queued). */
+export function runpodTerminalFailure(
+  label: string,
+  s: { status?: string; error?: unknown },
+): { ok: false; error: string } | null {
+  if (s.status === "FAILED" || s.status === "CANCELLED" || s.status === "TIMED_OUT") {
+    return { ok: false, error: `${label} job ${s.status}: ${JSON.stringify(s.error ?? s).slice(0, 200)}` };
+  }
+  return null;
+}
+
 export function runpodJobGone(httpStatus: number, body: unknown): boolean {
   if (httpStatus === 404) return true;
   if (body && typeof body === "object") {

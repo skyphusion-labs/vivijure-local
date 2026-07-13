@@ -18,6 +18,7 @@ import {
   encodePoll,
   runpodBase,
   runpodJobGone,
+  runpodTerminalFailure,
   terminalErrorInOutput,
 } from "./shared.js";
 import { putClipBytes } from "./storage.js";
@@ -206,6 +207,8 @@ export async function pollFixedMotion(
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
   if (term) return { ok: false, error: term };
+  const failed = runpodTerminalFailure(name, s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
+  if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
 
   const videoUrl = extractVideoUrl(s.output);
