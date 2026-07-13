@@ -89,6 +89,11 @@ export function openDatabase(path: string): DatabaseIface {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
+  // #49: the studio process and every module sidecar open independent connections to the same DB.
+  // WAL allows one writer; without a busy_timeout a second concurrent writer (a sidecar boot migration
+  // racing an operator "Save settings" upsert) gets an IMMEDIATE SQLITE_BUSY throw. Wait up to 5s for
+  // the lock instead so cross-process writes serialize rather than fail.
+  db.exec("PRAGMA busy_timeout = 5000");
   return new SqliteDatabase(db);
 }
 
@@ -96,6 +101,7 @@ export function openDatabase(path: string): DatabaseIface {
 export function migrateDatabase(dbPath: string, migrationsDir: string): void {
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
+  db.exec("PRAGMA busy_timeout = 5000"); // #49: don't throw SQLITE_BUSY if a sibling connection holds the write lock
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       name TEXT PRIMARY KEY,
@@ -111,8 +117,22 @@ export function migrateDatabase(dbPath: string, migrationsDir: string): void {
   for (const file of files) {
     if (applied.has(file)) continue;
     const sql = readFileSync(join(migrationsDir, file), "utf8");
-    db.exec(sql);
-    db.prepare("INSERT INTO _migrations (name, applied_at) VALUES (?, ?)").run(file, Date.now());
+    // #49: apply each migration file ATOMICALLY. Without the transaction, SQLite auto-commits each
+    // statement and the _migrations row is written only after the whole file -- so a mid-file failure
+    // (constraint / SQLITE_BUSY / disk) leaves statements 1..N-1 committed but the file UNRECORDED, and
+    // the next boot re-runs from statement 1 -> "table already exists" -> boot wedged until DB surgery.
+    // BEGIN/COMMIT makes the file + its _migrations row all-or-nothing; a throw rolls back cleanly so the
+    // next boot re-runs the file from a clean slate.
+    db.exec("BEGIN");
+    try {
+      db.exec(sql);
+      db.prepare("INSERT INTO _migrations (name, applied_at) VALUES (?, ?)").run(file, Date.now());
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      db.close();
+      throw e;
+    }
   }
   db.close();
 }
