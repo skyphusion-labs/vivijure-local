@@ -6,6 +6,8 @@ import type {
   ScoreInput,
   ScoreOutput,
 } from "@skyphusion-labs/vivijure-core";
+import { aiGatewayConfigured } from "../../platform/ai-gateway.js";
+import { aiRun } from "../../platform/ai-run.js";
 import type { RunpodModuleEnv } from "../runpod/env.js";
 import {
   authHeader,
@@ -15,6 +17,21 @@ import {
   terminalErrorInOutput,
 } from "../runpod/shared.js";
 import { putAudioBytes } from "../runpod/storage.js";
+import {
+  MODEL,
+  appliedTags,
+  audioKey,
+  buildMusicParams,
+  decodePoll,
+  encodePoll,
+  mimeForFormat,
+  normalizeConfig,
+  parseAudioUrl,
+  promptFromScoreInput,
+  readOutput,
+  type MusicGenerateConfig,
+} from "./music-gen-core.js";
+import { readMusicState, writeMusicState } from "./music-gen-state.js";
 
 const NARRATION_ENDPOINT = "minimax-speech-02-hd";
 
@@ -76,20 +93,108 @@ function decodeNarrationPoll(token: string): NarrationPollState | null {
   return null;
 }
 
+const musicGenInflight = new Set<string>();
+
+async function runMusicGeneration(
+  env: ScoreModuleEnv,
+  jobId: string,
+  input: ScoreInput,
+  config: MusicGenerateConfig,
+): Promise<void> {
+  const format = config.format ?? "mp3";
+  const applied = appliedTags(format, config);
+  try {
+    const prompt = promptFromScoreInput(input, config);
+    const params = buildMusicParams(prompt, config);
+    const result = await aiRun(env, MODEL, params);
+    const url = parseAudioUrl(result);
+    if (!url) throw new Error("model completed but returned no audio URL");
+    const aresp = await fetch(url);
+    if (!aresp.ok) throw new Error(`audio fetch ${aresp.status}`);
+    const mime = aresp.headers.get("content-type")?.split(";")[0]?.trim() || mimeForFormat(format);
+    const bytes = new Uint8Array(await aresp.arrayBuffer());
+    const key = audioKey(jobId, format);
+    await putAudioBytes(env, key, bytes, mime);
+    await writeMusicState(env, jobId, {
+      status: "done",
+      film_key: input.film_key,
+      audio_key: key,
+      mime,
+      applied: [...applied, `audio:${key}`],
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await writeMusicState(env, jobId, {
+      status: "failed",
+      error: msg.slice(0, 500),
+      applied,
+    });
+  } finally {
+    musicGenInflight.delete(jobId);
+  }
+}
+
+function startMusicGeneration(
+  env: ScoreModuleEnv,
+  jobId: string,
+  input: ScoreInput,
+  config: MusicGenerateConfig,
+): void {
+  if (musicGenInflight.has(jobId)) return;
+  musicGenInflight.add(jobId);
+  void runMusicGeneration(env, jobId, input, config);
+}
+
 export async function invokeMusicGen(
   env: ScoreModuleEnv,
   req: InvokeRequest<ScoreInput>,
 ): Promise<InvokeResponse<ScoreOutput>> {
   const filmKey = typeof req.input?.film_key === "string" ? req.input.film_key.trim() : "";
   if (!filmKey) return { ok: false, error: "score: input.film_key required" };
-  const hasGateway = Boolean(env.CLOUDFLARE_ACCOUNT_ID && env.CF_AIG_TOKEN);
-  if (!hasGateway) {
+  if (!aiGatewayConfigured(env)) {
     return { ok: true, output: { film_key: filmKey, applied: ["music-gen:skipped-no-gateway"] } };
   }
-  return {
-    ok: false,
-    error: "music-gen: Workers AI gateway path not yet ported to homelab sidecar (bind cloud MODULE_MUSIC_GEN or add gateway workflow)",
-  };
+
+  const config = normalizeConfig(req.config ?? {});
+  const scoredInput = { ...req.input, film_key: filmKey };
+  try {
+    buildMusicParams(promptFromScoreInput(scoredInput, config), config);
+  } catch (e) {
+    return { ok: false, error: "score: " + (e as Error).message };
+  }
+
+  const jobId =
+    typeof req.context?.job_id === "string" && req.context.job_id.trim()
+      ? req.context.job_id.trim()
+      : crypto.randomUUID();
+  const applied = appliedTags(config.format ?? "mp3", config);
+
+  try {
+    await writeMusicState(env, jobId, {
+      status: "running",
+      started_at: Math.floor(Date.now() / 1000),
+      film_key: filmKey,
+      applied,
+    });
+  } catch (e) {
+    return { ok: false, error: "score: could not persist run state: " + (e as Error).message };
+  }
+
+  startMusicGeneration(env, jobId, scoredInput, config);
+  return { ok: true, pending: true, poll: encodePoll({ job_id: jobId }) };
+}
+
+export async function pollMusicGen(
+  env: ScoreModuleEnv,
+  body: PollRequest,
+): Promise<PollResponse<ScoreOutput>> {
+  const token = decodePoll(body.poll);
+  if (!token) return { ok: false, error: "score: bad poll token" };
+  const state = await readMusicState(env, token.job_id);
+  if (!state) return { ok: false, error: "score: run state not found (expired or bad token)" };
+  if (state.status === "done") return { ok: true, output: readOutput(state) };
+  if (state.status === "failed") return { ok: false, error: state.error || "generation failed" };
+  return { ok: true, pending: true };
 }
 
 export async function invokeNarrationGen(
@@ -215,6 +320,6 @@ export async function pollScoreModule(
   moduleName: ScoreModuleName,
   body: PollRequest,
 ): Promise<PollResponse<ScoreOutput>> {
-  if (moduleName === "music-gen") return { ok: false, error: "music-gen does not support /poll" };
+  if (moduleName === "music-gen") return pollMusicGen(env, body);
   return pollNarrationGen(env, body);
 }
