@@ -141,7 +141,16 @@ docker compose up -d --force-recreate minio minio-init studio
 ```
 
 When studio runs in compose, secrets live in the `studio-data` volume (`/app/vivijure-local/data/studio.db`).
-Use `sync:tunnel-secrets:compose` (not host `sync:tunnel-secrets`) so the running studio picks up new S3 creds.
+Use `sync:secrets:compose` (alias: `sync:tunnel-secrets:compose`) so the running studio and module
+sidecars pick up `.env` changes (S3 tunnel, `LOCAL_BACKEND_*`, RunPod endpoint IDs, demo-off flags).
+
+**local-gpu tunnel (homelab):** set `LOCAL_BACKEND_URL` to the TryCloudflare (or other) door URL and
+`LOCAL_BACKEND_TOKEN` to the backend bearer token, then:
+
+```bash
+npm run sync:secrets:compose
+COMPOSE_PROFILES=tunnel docker compose up -d --force-recreate studio module-local-gpu
+```
 
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
 the root user password changes.

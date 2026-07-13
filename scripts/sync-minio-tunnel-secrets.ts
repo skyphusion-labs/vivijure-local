@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
-// Upsert MinIO tunnel + S3 credential settings from .env into platform_secrets (DB wins over compose env at runtime).
-// Run after enabling cloudflared MinIO ingress or `npm run rotate:minio-creds`; then restart studio.
+// Upsert operator settings from .env into platform_secrets (DB wins over compose env at runtime).
+// Run after .env changes (tunnel URLs, RunPod endpoints, local-gpu token, MinIO creds); then restart
+// studio + module sidecars. Homelab: npm run sync:secrets:compose
 
 import "dotenv/config";
 import { mkdirSync } from "node:fs";
@@ -26,6 +27,8 @@ const TUNNEL_KEYS = [
   "AUTH_MODE",
   "RUNPOD_API_KEY",
   "RUNPOD_ENDPOINT_ID",
+  "BACKEND_RUNPOD_ENDPOINT_ID",
+  "KEYFRAME_RUNPOD_ENDPOINT_ID",
   "VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID",
   "MUSETALK_RUNPOD_ENDPOINT_ID",
   "AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID",
