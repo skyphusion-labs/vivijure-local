@@ -1,15 +1,13 @@
-# Studio control panel + API. Default automatic HTTPS (TLS-ALPN / HTTP-01).
+# Default sites (Cloudflare DNS-01 for MinIO wildcard).
+# `npm run install:edge` writes sites.runtime.caddyfile for other providers;
+# compose mounts that file over this one when present.
 {$CADDY_APP_HOST} {
 	reverse_proxy studio:8790
 }
 
-# MinIO S3 endpoint. The base host AND every bucket subdomain (<bucket>.<minio-host>, boto3
-# virtual-hosted style) share ONE WILDCARD cert, issued via DNS-01 / Cloudflare. lego reads the
-# zone-scoped token from CF_DNS_TOKEN (Zone > DNS > Edit); presence-checked, never tracked.
-# MinIO routes the bucket from the forwarded Host header (set MINIO_DOMAIN=<minio-host>).
 {$CADDY_MINIO_HOST}, *.{$CADDY_MINIO_HOST} {
 	tls {
-		dns cloudflare {$CF_DNS_TOKEN}
+		dns cloudflare {env.CF_DNS_TOKEN}
 	}
 	reverse_proxy minio:9000
 }

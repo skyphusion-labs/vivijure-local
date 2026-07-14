@@ -1,0 +1,11 @@
+# Default sites (Cloudflare DNS-01). Overwritten by: npm run install:edge
+{$CADDY_APP_HOST} {
+	reverse_proxy studio:8790
+}
+
+{$CADDY_MINIO_HOST}, *.{$CADDY_MINIO_HOST} {
+	tls {
+		dns cloudflare {env.CF_DNS_TOKEN}
+	}
+	reverse_proxy minio:9000
+}

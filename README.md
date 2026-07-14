@@ -72,7 +72,7 @@ flowchart LR
 | [docs/quickstart.md](docs/quickstart.md) | Short homelab path (compose up, token, smoke) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Full operator reference (env, GPU, troubleshooting) |
 | [docs/SECURITY.md](docs/SECURITY.md) | Token auth, single-operator model, exposure |
-| [docs/reverse-proxy-tls.md](docs/reverse-proxy-tls.md) | Public HTTPS via your own reverse proxy + Let's Encrypt (both certs; MinIO wildcard) |
+| [docs/EDGE.md](docs/EDGE.md) | Public HTTPS with Caddy + Let's Encrypt (studio + MinIO wildcard) |
 | [docs/constellation.md](docs/constellation.md) | How this repo fits the Vivijure map |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Platform adapters and module transport |
 | [docs/PARITY.md](docs/PARITY.md) | API route checklist vs the studio host |

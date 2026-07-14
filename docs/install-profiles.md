@@ -64,8 +64,8 @@ modules are optional; CI does not require them.
 filesystem. `GET /health` reports `storage: "s3"` or `"filesystem"`.
 
 When the studio runs in Docker but presigned URLs must be fetched from off-box GPUs or RunPod,
-expose MinIO via cloudflared and set `S3_PRESIGN_ENDPOINT` to the tunnel URL. See
-[MINIO-TUNNEL.md](MINIO-TUNNEL.md).
+expose MinIO with the Caddy edge and set `S3_PRESIGN_ENDPOINT` to the public HTTPS URL. See
+[EDGE.md](EDGE.md).
 
 ## Verify
 
