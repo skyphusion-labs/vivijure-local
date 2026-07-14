@@ -8,11 +8,12 @@ The **Studio** is the center. It is the control plane: it holds your projects, y
 your cast, and it tells everything else what to do. You talk to the Studio; the Studio talks to
 everything else.
 
-**This repo (`vivijure-local`)** is an alternate **host** for that same control plane. The
-Cloudflare-hosted studio is [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) on
-Cloudflare Workers. `vivijure-local` runs the same API and UI on Node, SQLite, and S3-compatible
-storage (MinIO by default), verified end to end. It is a single-operator host, still evolving toward
-a shared `vivijure-core` (its layout and adapters may still change).
+**This repo (`vivijure-local`)** is an alternate **host** for that same control plane: run it on
+a home computer or any cloud server. The Cloudflare-hosted studio is
+[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf). Both hosts share
+[`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). `vivijure-local` runs the same
+API and UI on Node, SQLite, and S3-compatible storage (MinIO by default), verified end to end.
+Agents drive either host with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
 
 ```mermaid
 flowchart TD
