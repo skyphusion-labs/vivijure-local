@@ -1,18 +1,19 @@
 # Vivijure Local
 
-Run the Vivijure film studio on your own box -- Node, SQLite, and S3-compatible storage, **no
-Cloudflare account**. Same modular film-studio API and UI as the Cloudflare host, a different
-runtime. Verified end to end on the homelab stack (bundle -> render -> finished artifact).
+**Run the Vivijure film studio control panel on a home computer or any cloud server** -- Node,
+SQLite, and S3-compatible storage, **no Cloudflare account**. Same modular film-studio API and UI
+as the Cloudflare host ([`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf)), a
+different runtime. Verified end to end on the homelab stack (bundle -> render -> finished artifact).
 
-This is a **single-operator homelab host**, still evolving toward the shared
-[`vivijure-core`](docs/ROADMAP.md) (its platform adapters and layout may still change as that
-lands). Prefer to run on Cloudflare Workers instead? Use
-[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
+Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). Prefer
+Cloudflare Workers instead? Use [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
+Drive either host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
+Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
-Provider-neutral host for [Vivijure Studio](https://github.com/skyphusion-labs/vivijure-cf): same
-reference API ([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)),
-same `public/` UI, different runtime. GPU render backends (`vivijure-backend`, `vivijure-local-12gb`,
-`vivijure-local-16gb`) are unchanged; this repo swaps only the **control plane host**.
+Provider-neutral host for [Vivijure Studio](https://vivijure.com): same reference API
+([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)), same
+`public/` UI, different runtime. GPU render backends (`vivijure-backend`, `vivijure-local-12gb`,
+`vivijure-local-16gb`) are unchanged; this repo swaps only the **control panel host**.
 
 ## Who this is for
 
