@@ -119,8 +119,8 @@ the studio container.
 | `S3_ENDPOINT` | `http://minio:9000` | SDK endpoint (in-network) |
 | `S3_PRESIGN_ENDPOINT` | `http://minio:9000` (override in `.env`) | Host embedded in presigned URLs |
 | `S3_FETCH_ALLOW_HOSTS` | `minio` | CPU container SSRF allowlist for presigned fetches |
-| `S3_ALLOW_HTTP_FETCH` | `true` | Set `false` when presign uses HTTPS (cloudflared) |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials; rotate before tunnel expose (see below) |
+| `S3_ALLOW_HTTP_FETCH` | `true` | Set `false` when presign uses HTTPS (Caddy edge) |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | `minioadmin` | MinIO credentials; rotate before public expose (see below) |
 | `S3_BUCKET` | `vivijure` | Render + bundle bucket (same name as prod R2 `vivijure`) |
 
 `minio-init` seeds prod-parity top-level prefixes on first boot: `renders/`, `bundles/`, `audio/`, `uploads/` (plus `README.txt` key map). Clip jobs for own-gpu/local-gpu stage keyframes at `renders/<project>/keyframes/<shot_id>.png`.
@@ -130,29 +130,29 @@ the studio container.
 Swap to Cloudflare R2 or AWS S3 by changing `S3_*` only (see `.env.example`).
 
 CPU containers receive `ALLOW_HTTP_FETCH` and `ALLOWED_FETCH_HOSTS` from compose so they can fetch
-presigned MinIO URLs. When MinIO is exposed via **cloudflared** for RunPod or remote GPU backends,
-set `S3_PRESIGN_ENDPOINT` to the tunnel HTTPS URL and extend `S3_FETCH_ALLOW_HOSTS` to include that
-hostname. Full guide: [MINIO-TUNNEL.md](MINIO-TUNNEL.md).
+presigned MinIO URLs. When MinIO is public for RunPod or remote GPU backends, use the Caddy edge
+(`COMPOSE_PROFILES=edge`), set `S3_PRESIGN_ENDPOINT` to the public MinIO HTTPS URL, and extend
+`S3_FETCH_ALLOW_HOSTS` to include that hostname. Full guide: [EDGE.md](EDGE.md).
 
-**Rotate MinIO root credentials** before exposing the tunnel (default `minioadmin` is fine for
+**Rotate MinIO root credentials** before public expose (default `minioadmin` is fine for
 localhost-only dev):
 
 ```bash
-npm run rotate:minio-creds          # writes S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY to .env
-npm run sync:tunnel-secrets:compose # upsert .env into platform_secrets (studio Docker volume DB)
+npm run rotate:minio-creds     # writes S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY to .env
+npm run sync:secrets:compose   # upsert .env into platform_secrets (studio Docker volume DB)
 docker compose up -d --force-recreate minio minio-init studio
 ```
 
 When studio runs in compose, secrets live in the `studio-data` volume (`/app/vivijure-local/data/studio.db`).
-Use `sync:secrets:compose` (alias: `sync:tunnel-secrets:compose`) so the running studio and module
-sidecars pick up `.env` changes (S3 tunnel, `LOCAL_BACKEND_*`, RunPod endpoint IDs, demo-off flags).
+Use `sync:secrets:compose` so the running studio and module sidecars pick up `.env` changes
+(`S3_*`, `LOCAL_BACKEND_*`, RunPod endpoint IDs, demo-off flags).
 
-**local-gpu tunnel (homelab):** set `LOCAL_BACKEND_URL` to the TryCloudflare (or other) door URL and
+**local-gpu (homelab):** set `LOCAL_BACKEND_URL` to the reachable GPU backend URL and
 `LOCAL_BACKEND_TOKEN` to the backend bearer token, then:
 
 ```bash
 npm run sync:secrets:compose
-COMPOSE_PROFILES=tunnel docker compose up -d --force-recreate studio module-local-gpu
+docker compose up -d --force-recreate studio module-local-gpu
 ```
 
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only

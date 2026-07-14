@@ -11,3 +11,4 @@ data/
 containers/tunnel.env
 dev/module-fleet.pids
 dev/module-fleet.env
+.smoke/

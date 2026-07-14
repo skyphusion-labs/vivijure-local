@@ -102,6 +102,8 @@ npm run conformance:compose
 
 ## Growing later
 
+- **Public HTTPS** (studio + MinIO for RunPod / remote GPUs): [EDGE.md](EDGE.md)
+  (`npm run install:edge`, then `COMPOSE_PROFILES=edge npm run compose:up`).
 - **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).
 - **Structured logs** (`docker compose logs studio`, `ev` JSON lines): [observability.md](observability.md).
 - **Real GPU motion:** point `MODULE_LOCAL_GPU_URL` at `vivijure-local-12gb` / `-16gb` on your host,

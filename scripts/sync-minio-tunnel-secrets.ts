@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 // Upsert operator settings from .env into platform_secrets (DB wins over compose env at runtime).
-// Run after .env changes (tunnel URLs, RunPod endpoints, local-gpu token, MinIO creds); then restart
+// Run after .env changes (S3 public URLs, RunPod endpoints, local-gpu token, MinIO creds); then restart
 // studio + module sidecars. Homelab: npm run sync:secrets:compose
 
 import "dotenv/config";

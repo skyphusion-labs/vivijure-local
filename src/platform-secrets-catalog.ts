@@ -93,7 +93,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "S3_PRESIGN_ENDPOINT",
     label: "Presign endpoint (optional)",
-    blurb: "Reachable host for presigned URLs when GPUs/RunPod fetch off-box (cloudflared MinIO HTTPS URL).",
+    blurb: "Reachable host for presigned URLs when GPUs/RunPod fetch off-box (public MinIO HTTPS URL).",
     category: "storage",
     sensitive: false,
     applies_on: "restart",
@@ -101,7 +101,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "S3_FETCH_ALLOW_HOSTS",
     label: "CPU fetch allowlist hosts",
-    blurb: "Comma-separated hosts for presigned URL SSRF guard on CPU containers (include tunnel hostname).",
+    blurb: "Comma-separated hosts for presigned URL SSRF guard on CPU containers (include public MinIO hostname).",
     category: "storage",
     sensitive: false,
     applies_on: "restart",
@@ -109,7 +109,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "S3_ALLOW_HTTP_FETCH",
     label: "Allow HTTP presigned fetches",
-    blurb: "Set false when S3_PRESIGN_ENDPOINT uses HTTPS (cloudflared MinIO).",
+    blurb: "Set false when S3_PRESIGN_ENDPOINT uses HTTPS (Caddy edge MinIO).",
     category: "storage",
     sensitive: false,
     applies_on: "restart",
@@ -213,7 +213,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "LOCAL_BACKEND_TOKEN",
     label: "Local GPU backend token",
-    blurb: "Optional bearer token for LOCAL_BACKEND_URL (defense in depth on tunnel origins).",
+    blurb: "Optional bearer token for LOCAL_BACKEND_URL (defense in depth on public GPU backends).",
     category: "providers",
     sensitive: true,
     applies_on: "immediate",
