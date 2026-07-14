@@ -12,11 +12,26 @@ function defaultDatabasePath(): string {
   return process.env.DATABASE_PATH?.trim() || join(repoRoot, "data", "studio.db");
 }
 
+function isSqliteReadonlyError(e: unknown): boolean {
+  const msg = String((e as Error)?.message ?? e);
+  const errstr = String((e as { errstr?: string }).errstr ?? "");
+  return /readonly database/i.test(msg) || /readonly database/i.test(errstr);
+}
+
 /** Load merged env (process + platform_secrets). Falls back to process.env when DB is absent. */
 export async function loadModuleRuntimeEnv(): Promise<RuntimeEnv> {
   const dbPath = defaultDatabasePath();
   try {
-    migrateDatabase(dbPath, join(repoRoot, "migrations"));
+    // Studio owns schema writes. Module sidecars mount studio-data :ro in compose, so migrate
+    // must be best-effort: skip cleanly on SQLITE_READONLY and open the already-migrated DB.
+    try {
+      migrateDatabase(dbPath, join(repoRoot, "migrations"));
+    } catch (e) {
+      if (!isSqliteReadonlyError(e)) throw e;
+      console.warn(
+        `loadModuleRuntimeEnv: DB read-only at ${dbPath}; skipping migrate (studio owns schema)`,
+      );
+    }
     const db = openDatabase(dbPath);
     return RuntimeEnv.load(process.env, db);
   } catch (e) {
