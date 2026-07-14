@@ -12,3 +12,7 @@ containers/tunnel.env
 dev/module-fleet.pids
 dev/module-fleet.env
 .smoke/
+
+# Edge TLS material (files/manual cert path writes real keys here; keep the dir, not the keys)
+reverse-proxy/certs/*.pem
+reverse-proxy/certs/*.key
