@@ -3,7 +3,7 @@
 # Uses goacme/lego in Docker. Prints TXT name+value; you create the record, then continue.
 #
 # Requires: docker, CADDY_APP_HOST, CADDY_MINIO_HOST, CADDY_ACME_EMAIL (or ACME_EMAIL)
-# Optional: EDGE_ACME_SERVER=staging|production (default staging for safety)
+# Optional: EDGE_ACME_SERVER=staging|production (default production; use staging for a dry run)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -47,6 +47,7 @@ if [[ "$SERVER_MODE" == "staging" ]]; then
   echo "Using Let's Encrypt STAGING (browsers will warn; fine for practice)."
 else
   echo "Using Let's Encrypt PRODUCTION (browser-trusted)."
+  echo "Tip: Let's Encrypt limits ~5 identical certs per week; dry-run with EDGE_ACME_SERVER=staging first."
 fi
 
 echo ""
