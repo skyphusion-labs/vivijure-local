@@ -27,6 +27,8 @@ networks:
 volumes:
   minio-data:
   studio-data:
+  caddy-data:
+  caddy-config:
 
 x-cpu-health: &cpu-health
   interval: 30s
@@ -561,6 +563,41 @@ services:
         condition: service_healthy
       module-notify-email:
         condition: service_healthy
+
+  caddy:
+    # Reverse proxy + automatic HTTPS (Let's Encrypt) for a self-hosted PUBLIC deployment.
+    # Opt-in: COMPOSE_PROFILES=reverse-proxy. Terminates TLS and routes by host to the studio
+    # and MinIO. The MinIO WILDCARD cert needs the DNS-01 challenge (boto3 virtual-hosted
+    # buckets), so this image is Caddy built with the caddy-dns/cloudflare module. Full guide:
+    # docs/reverse-proxy-tls.md. Set BOTH CADDY_APP_HOST and CADDY_MINIO_HOST when enabling it.
+    profiles: [reverse-proxy]
+    build: ./reverse-proxy
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-caddy:${VJ_IMAGE_TAG:-latest}
+    pull_policy: build
+    restart: unless-stopped
+    networks: [studio]
+    # Host bind: 127.0.0.1 by default (put your own outer proxy / LB in front). Set CADDY_BIND_IP
+    # to a LAN/VLAN address to serve directly. NEVER 0.0.0.0 on an untrusted network.
+    ports:
+      - "${CADDY_BIND_IP:-127.0.0.1}:443:443"
+      - "${CADDY_BIND_IP:-127.0.0.1}:80:80"
+    environment:
+      CADDY_APP_HOST: ${CADDY_APP_HOST:-localhost}
+      CADDY_MINIO_HOST: ${CADDY_MINIO_HOST:-}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-}
+      # Zone-scoped Cloudflare DNS token (Zone > DNS > Edit) for the MinIO wildcard DNS-01
+      # challenge. Presence-checked; keep it out of git (a Docker secret is the harder option).
+      CF_DNS_TOKEN: ${CF_DNS_TOKEN:-}
+      # Only used by the behind-an-L4-LB deployment (fleet): trusted PROXY-protocol source CIDR.
+      CADDY_PROXY_ALLOW: ${CADDY_PROXY_ALLOW:-}
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      studio:
+        condition: service_started
+      minio:
+        condition: service_started
 
   cloudflared:
     profiles: [tunnel]
