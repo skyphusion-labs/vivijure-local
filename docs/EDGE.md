@@ -95,6 +95,17 @@ Omit it to listen on all interfaces.
 Cloudflare tip: keep the studio/MinIO A records **DNS only** (grey cloud). An orange proxy
 can break GPU and script clients.
 
+**Cloudflare token ownership:** prefer an **account-owned** token (dashboard: Manage Account >
+Account API Tokens; value often `cfat_`-prefixed) with Zone DNS:Edit (+ Zone:Read) on your zone.
+That is what Skyphusion fleet services use. Do not treat `GET /user/tokens/verify` as a health
+check for account tokens; it fails by design. Use `/accounts/{id}/tokens/verify` or a zone DNS
+API call instead.
+
+**Caddy module version:** `caddy-dns/cloudflare` before `v0.2.4` rejects modern `cfat_`/`cfut_`
+tokens with a local "API token appears invalid" regex (no Cloudflare round trip). This image pins
+`@v0.2.4` or newer in `reverse-proxy/Dockerfile`. If validate fails on a live `cfat_` token, pull
+a rebuilt Caddy image before minting a user-scoped token.
+
 ---
 
 ## If your DNS host is not on that list
