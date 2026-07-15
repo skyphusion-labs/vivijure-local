@@ -1,35 +1,66 @@
 version: 2
+
+# skyphusion-labs Dependabot standard — see fleet-chezmoi/docs/runbooks/dependabot-standard.md
+# PRs only (never auto-merge). Group minor/patch; majors stay separate. Peer families bump together.
 updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+    commit-message:
+      prefix: deps
+    groups:
+      cloudflare-toolchain:
+        patterns:
+          - "wrangler"
+          - "@cloudflare/workers-types"
+      vitest-toolchain:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      hono-runtime:
+        patterns:
+          - "hono"
+          - "@hono/node-server"
+      vivijure-contract:
+        patterns:
+          - "@skyphusion-labs/vivijure-core"
+          - "@skyphusion-labs/vivijure-mcp"
+      npm-minor-patch:
+        patterns: ["*"]
+        exclude-patterns:
+          - "wrangler"
+          - "@cloudflare/workers-types"
+          - "vitest"
+          - "@vitest/*"
+          - "hono"
+          - "@hono/node-server"
+          - "@skyphusion-labs/vivijure-core"
+          - "@skyphusion-labs/vivijure-mcp"
+        update-types: ["minor", "patch"]
   - package-ecosystem: docker
-    directory: /
+    directories:
+      - "/"
+      - "/containers/audio-beat-sync"
+      - "/containers/audio-master"
+      - "/containers/audio-mix"
+      - "/containers/image-prep"
+      - "/containers/video-finish"
+      - "/reverse-proxy"
     schedule:
       interval: weekly
-  - package-ecosystem: docker
-    directory: /containers/video-finish
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /containers/image-prep
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /containers/audio-beat-sync
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /containers/audio-mix
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /containers/audio-master
-    schedule:
-      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      docker-images:
+        patterns: ["*"]
