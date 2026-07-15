@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -46,7 +46,8 @@ RUN pip install -r requirements.txt
 #     Cloudflare, not just locally.
 # rembg is also imported lazily (not at module load, not warmed at startup) in
 # app.py, so the port binds immediately regardless of cache state.
-RUN find /usr/local/lib/python3.11/site-packages/pymatting -name '*.py' -exec touch -d '@1700000000' {} + \
+RUN SITE=$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))') \
+    && find "$SITE/pymatting" -name '*.py' -exec touch -d '@1700000000' {} + \
     && python -c "from rembg import new_session; new_session('u2net'); print('rembg warm OK')" \
     && test -d /app/numba-cache && echo "numba cache baked: $(find /app/numba-cache -name '*.nbi' | wc -l) kernels"
 
