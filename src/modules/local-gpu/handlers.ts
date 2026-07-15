@@ -64,10 +64,11 @@ export async function invokeLocalGpu(
   const { baseUrl, token } = backendCfg(env);
   if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
+    const grid = await doorDurationGrid(env);
     const r = await fetch(`${baseUrl}/run`, {
       method: "POST",
       headers: { ...authHeaders(token), "content-type": "application/json" },
-      body: JSON.stringify(buildI2vBody(input, req.config ?? {}, req.context.project)),
+      body: JSON.stringify(buildI2vBody(input, req.config ?? {}, req.context.project, grid)),
     });
     if (!r.ok) return { ok: false, error: `local-gpu /run -> ${r.status}` };
     const jobId = ((await r.json()) as { id?: string }).id;

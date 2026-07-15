@@ -21,11 +21,17 @@ export function buildI2vBody(
   input: MotionBackendInput,
   cfg: Record<string, unknown>,
   project: string,
+  durationGrid: DurationGridDecl | null = null,
 ): { input: Record<string, unknown> } {
-  const fps = typeof cfg.fps === "number" ? cfg.fps : DEFAULT_FPS;
+  const quality = String(cfg.quality ?? "standard");
+  const fixedTier = durationGrid?.tiers[quality];
+  // Fixed-grid doors own generation cadence. CogVideoX-5B-I2V can report COMPLETED for off-grid
+  // frame counts while decoding only latent tile noise, so use its declared tier count verbatim.
+  // Flexible doors omit duration_grid and retain the existing seconds * fps behavior.
+  const fps = fixedTier ? durationGrid.fps : (typeof cfg.fps === "number" ? cfg.fps : DEFAULT_FPS);
   const config: Record<string, unknown> = {
-    quality: String(cfg.quality ?? "standard"),
-    num_frames: framesFor(input.seconds ?? 5, fps),
+    quality,
+    num_frames: fixedTier ? fixedTier.max_frames : framesFor(input.seconds ?? 5, fps),
     fps,
   };
   if (typeof cfg.seed === "number" && cfg.seed >= 0) config.seed = cfg.seed;
