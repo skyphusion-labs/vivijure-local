@@ -138,7 +138,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 - [x] `@skyphusion-labs/vivijure-core` `^0.9.2` (mux hasAudio guard; orchestration parity)
 
-## Ops hardening (compose / flatliners)
+## Ops hardening (compose / propagandhi; flatliners retired)
 
 - [x] MinIO root creds from `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` (not hardcoded `minioadmin`)
 - [x] `npm run rotate:minio-creds` helper + docs
