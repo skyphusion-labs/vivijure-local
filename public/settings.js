@@ -236,6 +236,18 @@
     return (l && String(l).trim()) || mod.name;
   }
 
+  // Connection & API keys panel: host-conditional by DOM contract, not by a second copy of this file.
+  //
+  // It renders only where the host's settings.html provides the mount points (#settings-secrets,
+  // #settings-secrets-save) and backs them with /api/settings/secrets. The self-host Node door
+  // (vivijure-local) does both; the Cloudflare door (vivijure-cf) uses Workers secrets and ships
+  // neither, so the guard below returns before any fetch and this function is inert there.
+  //
+  // Keep this file byte-identical across vivijure-cf and vivijure-local: it is a verbatim-shared
+  // surface, enforced by scripts/upstream-public-parity.sh in vivijure-local. The host difference
+  // lives in the host's own HTML precisely so every line here stays checkable; carrying the delta in
+  // a divergent copy is what let a shared-UI change ship stale once already (vivijure-local#90).
+  // Ref: skyphusion-labs/vivijure-cf#48.
   function bootSecrets() {
     var root = document.getElementById("settings-secrets");
     var statusEl = document.getElementById("settings-secrets-status");
