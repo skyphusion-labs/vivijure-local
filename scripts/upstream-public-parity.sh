@@ -52,16 +52,22 @@ fi
 # Files that are local-only end to end: the platform-secrets Settings UI, which vivijure-cf
 # does not have (it uses Workers secrets). Everything else in public/ is shared and is checked
 # verbatim -- including styles.css, whose local rules were split out into settings-secrets.css
-# precisely so the shared stylesheet has nothing local left to protect (#92).
+# precisely so the shared stylesheet has nothing local left to protect (#92), and settings.js,
+# which is now byte-identical upstream: its connections panel is guarded on the DOM mount points
+# that only this host's settings.html provides, so the one file is inert on vivijure-cf and its
+# 288 shared lines are checked here rather than exempted (skyphusion-labs/vivijure-cf#48 step 1).
 #
 # Only add a file here if it is local-only END TO END. A file that mixes shared and local content
 # must be split instead: skipping it exempts the shared part and the gate goes quietly blind (#90).
-# settings.html / settings.js still need a hand-merge when upstream touches their shared shell.
+# settings.html is the last such hand-merge: it carries the local lede, the connections <section>,
+# and the settings-secrets.css link, so its shared shell is the only part of public/ still unchecked.
 LOCAL_PUBLIC_SKIP=(
   public/settings.html
-  public/settings.js
   public/settings-secrets.css
 )
+
+# Named in every verdict line so the gate never reports more confidence than it earned (#92).
+LOCAL_PUBLIC_SKIP_WHY="local-only platform-secrets Settings UI; vivijure-cf uses Workers secrets"
 
 fail=0
 for rel in "${TRACKED[@]}"; do
@@ -110,7 +116,7 @@ for rel in "${TRACKED[@]}"; do
       done
       fail=1
     else
-      echo "upstream-public-parity: OK public (excluding ${#LOCAL_PUBLIC_SKIP[@]} local-only files: ${LOCAL_PUBLIC_SKIP[*]#public/})"
+      echo "upstream-public-parity: OK public (excluding ${#LOCAL_PUBLIC_SKIP[@]} local-only files: ${LOCAL_PUBLIC_SKIP[*]#public/} -- ${LOCAL_PUBLIC_SKIP_WHY})"
     fi
     continue
   fi
@@ -151,7 +157,7 @@ if [[ $fail -ne 0 ]]; then
 fi
 
 if [[ $STRICT -eq 1 ]]; then
-  echo "upstream-public-parity: PASS (public/ + verbatim surfaces match vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/})"
+  echo "upstream-public-parity: PASS (public/ + verbatim surfaces match vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/} -- ${LOCAL_PUBLIC_SKIP_WHY})"
 else
-  echo "upstream-public-parity: PASS (public/ matches vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/})"
+  echo "upstream-public-parity: PASS (public/ matches vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/} -- ${LOCAL_PUBLIC_SKIP_WHY})"
 fi
