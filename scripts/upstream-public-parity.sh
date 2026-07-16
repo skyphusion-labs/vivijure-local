@@ -5,9 +5,10 @@
 # Default (CI): public/ only -- the studio UI projection must not go stale while CF-native v1 ships.
 # Optional --verbatim: also migrations/ and ../vivijure-core/src/modules/types.ts.
 #
-#   VIVIJURE_SRC=../vivijure-cf npm run upstream:parity
-#   VIVIJURE_SRC=../vivijure-cf npm run upstream:parity:verbatim
-#   bash scripts/upstream-public-parity.sh /path/to/vivijure [--verbatim]
+#   npm run upstream:parity                                  # defaults to ../vivijure-cf
+#   VIVIJURE_SRC=/path/to/vivijure-cf npm run upstream:parity
+#   VIVIJURE_SRC=/path/to/vivijure-cf npm run upstream:parity:verbatim
+#   bash scripts/upstream-public-parity.sh /path/to/vivijure-cf [--verbatim]
 
 set -euo pipefail
 
@@ -17,7 +18,7 @@ for arg in "$@"; do
   case "$arg" in
     --verbatim) STRICT=1 ;;
     -h|--help)
-      echo "usage: upstream-public-parity.sh <vivijure-clone> [--verbatim]" >&2
+      echo "usage: upstream-public-parity.sh [vivijure-cf-clone] [--verbatim]  (default: ../vivijure-cf, override with VIVIJURE_SRC)" >&2
       exit 0
       ;;
     *)
@@ -29,11 +30,17 @@ for arg in "$@"; do
   esac
 done
 
-UP="${UP:-${VIVIJURE_SRC:-}}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-if [[ -z "$UP" || ! -d "$UP/public" ]]; then
-  echo "upstream-public-parity: set VIVIJURE_SRC or pass path to vivijure clone" >&2
+# Precedence: explicit path argument > VIVIJURE_SRC > the sibling vivijure-cf clone. The default is
+# resolved from the repo root, not the caller's cwd, so it holds wherever the script is invoked from.
+# Previously the npm scripts hardcoded the path positionally, which silently beat VIVIJURE_SRC and
+# made the documented `VIVIJURE_SRC=... npm run upstream:parity` a no-op (#94).
+UP="${UP:-${VIVIJURE_SRC:-$ROOT/../vivijure-cf}}"
+
+if [[ ! -d "$UP/public" ]]; then
+  echo "upstream-public-parity: no vivijure-cf clone with public/ at: $UP" >&2
+  echo "upstream-public-parity: clone skyphusion-labs/vivijure-cf beside this repo, or set VIVIJURE_SRC=/path/to/vivijure-cf, or pass the path as an argument" >&2
   exit 2
 fi
 
