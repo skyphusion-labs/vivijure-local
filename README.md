@@ -24,6 +24,8 @@ network you control (see [docs/SECURITY.md](docs/SECURITY.md)).
 
 **Run on Cloudflare instead:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) · **This repo (self-host):** [docs/quickstart.md](docs/quickstart.md)
 
+**Vivijure Studio:** https://vivijure.com · **Live demo:** https://demo.vivijure.com · **Skyphusion Labs:** https://skyphusion.org
+
 ## Quick start
 
 ```bash
