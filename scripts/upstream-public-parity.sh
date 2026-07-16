@@ -42,12 +42,18 @@ if [[ $STRICT -eq 1 ]]; then
   TRACKED+=(migrations)
 fi
 
-# vivijure-local overlays on upstream public/ (platform secrets Settings UI).
-# Sync the rest of public/ verbatim; merge these by hand when upstream touches them.
+# Files that are local-only end to end: the platform-secrets Settings UI, which vivijure-cf
+# does not have (it uses Workers secrets). Everything else in public/ is shared and is checked
+# verbatim -- including styles.css, whose local rules were split out into settings-secrets.css
+# precisely so the shared stylesheet has nothing local left to protect (#92).
+#
+# Only add a file here if it is local-only END TO END. A file that mixes shared and local content
+# must be split instead: skipping it exempts the shared part and the gate goes quietly blind (#90).
+# settings.html / settings.js still need a hand-merge when upstream touches their shared shell.
 LOCAL_PUBLIC_SKIP=(
   public/settings.html
   public/settings.js
-  public/styles.css
+  public/settings-secrets.css
 )
 
 fail=0
@@ -85,15 +91,19 @@ for rel in "${TRACKED[@]}"; do
       fi
     done < <(cd "$ROOT/public" && find . -type f | sed 's|^\./||' | sort)
     if [[ ${#drift_files[@]} -gt 0 ]]; then
-      echo "upstream-public-parity: DRIFT public (vivijure main vs this repo)" >&2
+      echo "upstream-public-parity: DRIFT public (vivijure-cf main vs this repo)" >&2
       for base in "${drift_files[@]}"; do
         echo "Files $UP/public/$base and $ROOT/public/$base differ" >&2
       done
       echo "--- unified diff (first 120 lines) ---" >&2
-      diff -ru "$UP/public" "$ROOT/public" 2>&1 | grep -vE 'settings\.(html|js)|styles\.css' | head -120 >&2 || true
+      for base in "${drift_files[@]}"; do
+        if [[ -f "$UP/public/$base" ]]; then
+          diff -u "$UP/public/$base" "$ROOT/public/$base" 2>&1 | head -120 >&2 || true
+        fi
+      done
       fail=1
     else
-      echo "upstream-public-parity: OK public (excluding ${#LOCAL_PUBLIC_SKIP[@]} local overlays)"
+      echo "upstream-public-parity: OK public (excluding ${#LOCAL_PUBLIC_SKIP[@]} local-only files: ${LOCAL_PUBLIC_SKIP[*]#public/})"
     fi
     continue
   fi
@@ -134,7 +144,7 @@ if [[ $fail -ne 0 ]]; then
 fi
 
 if [[ $STRICT -eq 1 ]]; then
-  echo "upstream-public-parity: PASS (public + verbatim surfaces match vivijure main)"
+  echo "upstream-public-parity: PASS (public/ + verbatim surfaces match vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/})"
 else
-  echo "upstream-public-parity: PASS (public/ matches vivijure main)"
+  echo "upstream-public-parity: PASS (public/ matches vivijure-cf main; not compared: ${LOCAL_PUBLIC_SKIP[*]#public/})"
 fi

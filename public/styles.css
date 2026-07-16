@@ -1074,16 +1074,6 @@ body.sw-open .sw-dock { transform: none; }
 .settings-status-ok { color: var(--accent); }
 .settings-status-error { color: var(--accent-2); }
 
-.settings-secrets { display: grid; gap: 20px; }
-.settings-secret-category { display: grid; gap: 12px; }
-.settings-secret-category h3 { margin: 0; font-size: 14px; color: var(--ink); }
-.settings-secret-category p { margin: 0; color: var(--muted); font-size: 13px; }
-.settings-secret-source { font-size: 11px; color: var(--off); }
-.settings-field input[type="password"] {
-  width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--ink); font: inherit;
-}
-
 @media (max-width: 720px) {
   .settings-fields { grid-template-columns: 1fr; }
 }
