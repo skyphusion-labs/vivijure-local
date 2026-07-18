@@ -28,6 +28,7 @@ subtitle 9131
 dialogue-gen 9140
 music-gen 9141
 cast-image 9142
+image-generate 9143
 EOF
 
 : >"$PIDS"
