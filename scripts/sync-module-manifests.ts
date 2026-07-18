@@ -28,6 +28,10 @@ const MODULES = [
   "subtitle",
   "dialogue-gen",
   "plan-enhance",
+  // cf#129 phase 2. Registered here so the documented local fleet can stand it up; the phase-2
+  // module shipped without its dev-tooling entry, which meant the gate had to hand-author a
+  // manifest to run at all.
+  "image-generate",
   "speech-upscale",
   "notify-email",
   "music-gen",

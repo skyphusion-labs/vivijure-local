@@ -14,6 +14,15 @@ if [[ ! -d "$MANIFESTS" ]] || [[ -z "$(ls -A "$MANIFESTS"/*.json 2>/dev/null)" ]
 fi
 
 # name port (one module per line)
+# CATALOG MODE. Every entry here is started by scripts/module-sidecar.ts, which serves
+# GET /module.json and returns an honest error from /invoke, /poll and /cancel. That is the point of
+# this fleet: it stands the CATALOG up (registry discovery, projection, pickers, hook panel) without
+# needing GPU bindings or provider credentials.
+#
+# It does NOT make a module invocable. A module that must actually RUN has its own server script
+# (chain-module-server.ts, cloud-keyframe-module-server.ts, local-gpu-module-server.ts, ...) and is
+# started separately with real env. Do not read a populated picker here as proof that generation
+# works -- that distinction cost the cf#129 gate a leg.
 read -r -d '' MODULE_PORTS <<'EOF' || true
 keyframe 9101
 local-gpu 9102
@@ -28,6 +37,8 @@ subtitle 9131
 dialogue-gen 9140
 music-gen 9141
 cast-image 9142
+image-generate 9143
+plan-enhance 9144
 EOF
 
 : >"$PIDS"
