@@ -10,8 +10,10 @@ import type {
 } from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
 import type { ChainModuleEnv } from "./chain-env.js";
+import type { ImageGenerateInput } from "./image-generate-core.js";
 import {
   invokeCastImage,
+  invokeImageGenerate,
   invokeDialogueGen,
   invokeNotifyEmail,
   invokePlanEnhance,
@@ -59,6 +61,11 @@ export function createChainModuleApp(
       if (req.hook !== "cast.image") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
       return c.json(await invokeCastImage(store, req as InvokeRequest<CastImageInput>));
     }
+    if (moduleName === "image-generate") {
+      if (req.hook !== "image.generate") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
+      return c.json(await invokeImageGenerate(env, req as InvokeRequest<ImageGenerateInput>));
+    }
+
     if (moduleName === "dialogue-gen") {
       if (req.hook !== "dialogue") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
       return c.json(await invokeDialogueGen(store, req as InvokeRequest<DialogueInput>));
