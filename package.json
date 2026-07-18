@@ -1,6 +1,6 @@
 {
   "name": "vivijure-local",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Vivijure Local: run the AGPL AI film studio control panel on a home PC or any cloud server (Node, SQLite, S3/MinIO). Same API as vivijure-cf; no Cloudflare required.",
   "license": "AGPL-3.0-only",
   "homepage": "https://github.com/skyphusion-labs/vivijure-local",
