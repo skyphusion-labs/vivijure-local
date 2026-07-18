@@ -1,7 +1,22 @@
 # Changelog
 
 
-## Unreleased
+## v1.1.0 -- 2026-07-18
+
+MINOR: the chat/image surface becomes module territory (vivijure-cf#129; full record on that
+issue's completion contract). Carries one BREAKING response-shape change, below.
+
+### Added
+- **A first-party local `image.generate` module** (`src/modules/chain/image-generate-core.ts`,
+  chain-module family, compose port 9145): real image generation through the same AI-gateway path
+  the other chain modules use, declaring the same 11 models as the cf module (asserted identical by
+  test). This restores chat image generation on local, which the projection change alone had left
+  honestly unavailable, and needs no new secrets beyond the existing AI-gateway env.
+- **Dev module fleet registration completed:** `image-generate` and `plan-enhance` are both
+  standing-uppable from the documented fleet (manifest sync + ports), committed manifests
+  regenerated from source, and the deliberately enum-less `dev/manifests/bare-planner.json` fixture
+  keeps the degenerate projection shape exercisable. The gate suite (`tests/e2e/gate-parity.spec.ts`,
+  runs only with `GATE_HOST=1`) encodes the live parity gate reproducibly.
 
 ### Changed
 - **The model catalog is now fully projected from installed modules.** `GET /api/models` builds both
