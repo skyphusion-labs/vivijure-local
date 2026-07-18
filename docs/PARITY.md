@@ -51,7 +51,9 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 ## Chat
 
 - [x] `POST /api/chat` (text via plan.enhance; image models via Workers AI / gateway)
-- [x] `GET /api/models` (image-gen catalog for cast portrait UI)
+- [x] `GET /api/models` (the canonical full catalog: planning + image rows, PROJECTED from installed
+  modules; filter on `row.type`). Rows are `{ id, label, group, type, capabilities }` -- note
+  `provider` was removed in cf#129 phase 2, since the declaring module owns provider routing now.
 
 ## Render (storyboard aliases)
 
