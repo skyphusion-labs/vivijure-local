@@ -14,6 +14,10 @@ import { test, expect } from "./fixtures";
 //      enum shape is how two assertions in this very file were wrong while passing:
 //        enum module      -> id = model id,    label = "<provides-label> · <model id>"
 //        enum-less module -> id = MODULE NAME, label = "<provides-label>" (no separator)
+//      NO REAL local module produces the enum-less shape, so a synthetic fixture exists for it:
+//        dev/manifests/bare-planner.json
+//        npx tsx scripts/module-sidecar.ts 9152 dev/manifests/bare-planner.json
+//      Read that file header before touching it: giving it a model enum would defeat its purpose.
 //   3. a FRESH data dir per auth mode: this host persists AUTH_MODE into data/studio.db and it
 //      OVERRIDES process env, so a mode flip without a fresh dir verifies the previous mode.
 //
