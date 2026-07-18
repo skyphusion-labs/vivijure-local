@@ -395,6 +395,21 @@ services:
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
 
+  # image.generate (cf#129): local's own declaring module for the chat image path. LOAD-BEARING for
+  # the image catalog, not an extra -- the studio hardcodes no image model names, so GET /api/models
+  # projects its image rows from this module. Unbound, the image picker is honestly empty.
+  # Port 9145: 9140-9144 are the other chain modules, 9150+ the video ones.
+  # NO S3/bucket env, deliberately: this module returns image BYTES and never writes storage. That is
+  # what makes the cf#140 write/serve split structurally unreachable (the core owns persistence).
+  module-image-generate:
+    <<: *module-sidecar
+    command: ["npx", "tsx", "scripts/chain-module-server.ts", "9145", "image-generate"]
+    healthcheck:
+      <<: *module-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9145/module.json"]
+    environment:
+      <<: *ai-gateway-env
+
   module-dialogue-gen:
     <<: *module-sidecar
     volumes:
@@ -495,6 +510,7 @@ services:
       MODULE_PLANENHANCE_URL: http://module-plan-enhance:9140
       MODULE_CAST_IMAGE_URL: http://module-cast-image:9141
       MODULE_DIALOGUE_URL: http://module-dialogue-gen:9142
+      MODULE_IMAGE_GENERATE_URL: http://module-image-generate:9145
       MODULE_SPEECH_UPSCALE_URL: http://module-speech-upscale:9143
       MODULE_NOTIFY_EMAIL_URL: http://module-notify-email:9144
     extra_hosts:
@@ -557,6 +573,8 @@ services:
       module-plan-enhance:
         condition: service_healthy
       module-cast-image:
+        condition: service_healthy
+      module-image-generate:
         condition: service_healthy
       module-dialogue-gen:
         condition: service_healthy

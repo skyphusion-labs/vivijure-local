@@ -32,6 +32,8 @@ import {
   type CastImageState,
 } from "./cast-image-core.js";
 import { generateCastImage } from "./cast-image-gen.js";
+export { invokeImageGenerate, MODELS as IMAGE_GENERATE_MODELS } from "./image-generate-core.js";
+export type { ImageGenerateInput, ImageGenerateOutput } from "./image-generate-core.js";
 import {
   AUDIO_MIME,
   appliedTags as dialogueAppliedTags,
@@ -78,6 +80,7 @@ import {
 export type ChainModuleName =
   | "plan-enhance"
   | "cast-image"
+  | "image-generate"
   | "dialogue-gen"
   | "speech-upscale"
   | "notify-email";
@@ -85,6 +88,9 @@ export type ChainModuleName =
 const CHAIN_MODULES: ReadonlySet<string> = new Set([
   "plan-enhance",
   "cast-image",
+  // cf#129: local's own image.generate module. Without it the studio dispatches image generation to
+  // a module that does not exist on this host, which is the phase-2 regression this closes.
+  "image-generate",
   "dialogue-gen",
   "speech-upscale",
   "notify-email",
