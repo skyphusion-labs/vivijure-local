@@ -5,8 +5,9 @@ import { discoverModules } from "@skyphusion-labs/vivijure-core";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { readBody } from "../http.js";
 import { chatComplete, type ChatCompleteArgs } from "../planner.js";
-import { chatImage, type ChatImageArgs } from "../chat-image.js";
-import { findImageModel, IMAGE_MODELS } from "../image-models.js";
+import type { ChatImageArgs } from "../chat-image-module.js";
+import { imageModelsFromModules, resolveCatalogTarget } from "../module-catalog.js";
+import { chatImageViaModule } from "../chat-image-module.js";
 import { planningModelsFromModules } from "../planning-models.js";
 import { authEnvFromPlatform } from "../http.js";
 import { isDemoMode } from "../auth-gate.js";
@@ -35,7 +36,10 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
     }
     const modEnv = moduleEnvFromPlatform(platform);
     const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
-    return c.json({ models: [...planningModelsFromModules(modules), ...IMAGE_MODELS] });
+    // BOTH halves are projections now (cf#129 phase 2): the studio hardcodes no model names at all.
+    return c.json({
+      models: [...planningModelsFromModules(modules), ...imageModelsFromModules(modules)],
+    });
   });
 
   app.post("/api/chat", async (c) => {
@@ -43,9 +47,15 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
       const body = await readBody<ChatCompleteArgs & ChatImageArgs>(c.req.raw);
       if (!body.model || !body.user_input) throw badRequest("model and user_input required");
 
-      const imageModel = findImageModel(body.model);
-      if (imageModel?.type === "image") {
-        const r = await chatImage(platform.chatBucket, host.runtime.asProcessEnv(), body);
+      // Image or text? Ask the INSTALLED modules, not a hardcoded catalog: an id declared by an
+      // image.generate module is an image request, everything else falls through to the text path.
+      const modEnv = moduleEnvFromPlatform(platform);
+      const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+      const imageTarget = resolveCatalogTarget(modules, "image.generate", body.model);
+      if (imageTarget) {
+        // platform.renders is the store /api/artifact SERVES. Passing the served store (not
+        // platform.chatBucket) is the cf#140 fix: write and serve can no longer be different stores.
+        const r = await chatImageViaModule(modEnv, modules, platform.renders, body);
         if (!r.ok) return c.json({ error: r.error, model: r.model }, 502);
         return c.json({
           model: r.model,
@@ -58,8 +68,6 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
       }
 
       const a = body as ChatCompleteArgs;
-      const modEnv = moduleEnvFromPlatform(platform);
-      const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
       const r = await chatComplete({ modEnv, modules }, a);
       if (!r.ok) return c.json({ error: r.error, model: r.model }, 422);
       return c.json({ output: r.output, model: r.model, logId: r.logId });

@@ -7,8 +7,8 @@
 // (ModelEntry / Provider), and an unbounded grep across src/ tests/ scripts/ public/ modules/ found
 // ZERO readers of the array itself. Under the bare-skeleton doctrine the studio hardcodes no model
 // names -- the planning catalog is projected from installed plan.enhance modules
-// (src/planning-models.ts), and the image rows live in src/image-models.ts until cf#129 phase 2
-// projects those too.
+// (src/planning-models.ts), and cf#129 phase 2 projects the image rows the same way
+// (src/module-catalog.ts). src/image-models.ts is gone: this host holds no model names of any kind.
 //
 // Kept key-identical to vivijure-cf/src/models.ts: public/ is a verbatim-shared surface between the
 // two hosts, so a divergence in the row type is drift the shared panel cannot absorb.
