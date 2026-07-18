@@ -1,4 +1,4 @@
-// M10 routes: POST /api/chat (text + image), GET /api/models (image catalog).
+// M10 routes: POST /api/chat (text + image), GET /api/models (the CANONICAL full catalog).
 
 import type { Hono } from "hono";
 import { discoverModules } from "@skyphusion-labs/vivijure-core";
@@ -7,13 +7,36 @@ import { readBody } from "../http.js";
 import { chatComplete, type ChatCompleteArgs } from "../planner.js";
 import { chatImage, type ChatImageArgs } from "../chat-image.js";
 import { findImageModel, IMAGE_MODELS } from "../image-models.js";
+import { planningModelsFromModules } from "../planning-models.js";
+import { authEnvFromPlatform } from "../http.js";
+import { isDemoMode } from "../auth-gate.js";
 import type { SettingsHost } from "./m8-settings.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 
 export function registerM10Routes(app: Hono, host: SettingsHost): void {
   const platform = host.platform;
 
-  app.get("/api/models", (c) => c.json({ models: IMAGE_MODELS }));
+  // GET /api/models -- the CANONICAL full catalog, identical in shape and envelope to the cf host
+  // (cf#129). Serves the PROJECTED planning rows (from installed plan.enhance modules) plus the
+  // image rows, so a client can read one endpoint and filter on row.type.
+  //
+  // This route previously served the image rows ALONE, which made the two hosts disagree about what
+  // /api/models means: cf answered with the full catalog and local with an image-only subset.
+  //
+  // /api/storyboard/models (m7.ts) stays as the FILTERED VIEW of the same projection and remains the
+  // planner picker's endpoint. It is not a second catalog; the agreement test pins the two together.
+  //
+  // Envelope {models:[...]} is deliberately stable: cf#129 phase 2 swaps the image rows from the
+  // hardcoded list to a module projection, and that must be invisible to every consumer. An empty
+  // planning list is a legitimate, honest answer -- never a 404, never a hardcoded backfill.
+  app.get("/api/models", async (c) => {
+    if (isDemoMode(authEnvFromPlatform(platform))) {
+      return c.json({ models: [] });
+    }
+    const modEnv = moduleEnvFromPlatform(platform);
+    const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+    return c.json({ models: [...planningModelsFromModules(modules), ...IMAGE_MODELS] });
+  });
 
   app.post("/api/chat", async (c) => {
     try {
