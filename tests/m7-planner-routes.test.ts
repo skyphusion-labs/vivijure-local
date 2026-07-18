@@ -85,13 +85,24 @@ afterEach(() => {
 });
 
 describe("GET /api/storyboard/models", () => {
-  it("lists models from the installed plan.enhance module", async () => {
+  // Asserted against the module's DECLARED models, not the module name.
+  //
+  // This test previously expected an id of "plan-enhance" -- the no-enum projection case, where a
+  // module that declares no model enum appears as one row under its own name. That was only true
+  // because dev/manifests/plan-enhance.json was STALE: it predated cf#62 (#131), which gave the real
+  // module a config_schema.model enum. So the local dev fleet was serving a planner catalog that did
+  // not match the shipped module, and this test encoded that staleness rather than catching it.
+  // Refreshing the manifest from source (scripts/sync-module-manifests.ts) fixed the fixture and
+  // surfaced this. The enum case is the one the real module has.
+  it("lists the models DECLARED by the installed plan.enhance module", async () => {
     const app = createApp(testSettingsHost(testPlatform()));
     const res = await authJson(app, "/api/storyboard/models");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { models: Array<{ id: string }> };
     expect(body.models.length).toBeGreaterThan(0);
-    expect(body.models.some((m) => m.id === "plan-enhance")).toBe(true);
+    // ids are the declared model ids; the module NAME is not among them when an enum is declared
+    expect(body.models.some((m) => m.id === "anthropic/claude-opus-4-8")).toBe(true);
+    expect(body.models.some((m) => m.id === "plan-enhance")).toBe(false);
   });
 });
 
