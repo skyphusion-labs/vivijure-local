@@ -53,7 +53,9 @@ function castMediaEnv(platform: Platform): CastMediaEnv {
   return {
     DB: platform.db,
     R2_RENDERS: platform.renders as ArtifactStore,
-    R2: platform.chatBucket as ArtifactStore,
+    // Chat artifacts live in the SERVED store as of cf#129 phase 2 (vivijure-cf#140), so the
+    // from_chat_artifact copy source is platform.renders, not a separate chat bucket.
+    R2: platform.renders as ArtifactStore,
   };
 }
 
