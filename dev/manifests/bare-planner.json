@@ -1,0 +1,22 @@
+{
+  "_fixture": "SYNTHETIC FIXTURE. Not a real module. Deliberately declares NO config_schema.model.",
+  "_why": "The catalog projection has TWO legitimate row shapes. A module WITH a model enum yields one row per enum value: id is the model id, label is the provides-label joined to the model id. A module WITHOUT one yields a SINGLE row whose id IS THE MODULE NAME and whose label carries no separator at all. No real local module produces the second shape, so it went untested until the cf#129 parity gate, where it immediately caught two assertions that were wrong and had been passing.",
+  "_do_not_fix": "Adding a config_schema.model enum to this file DEFEATS ITS ENTIRE PURPOSE. If you want an enum-declaring planner fixture, use plan-enhance.json. This one exists to BE the degenerate case.",
+  "_used_by": "tests/e2e/gate-parity.spec.ts (runs only with GATE_HOST=1). Serve it with: npx tsx scripts/module-sidecar.ts 9152 dev/manifests/bare-planner.json",
+  "name": "bare-planner",
+  "version": "0.2.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "plan.enhance"
+  ],
+  "provides": [
+    {
+      "id": "bare",
+      "label": "Bare Planner"
+    }
+  ],
+  "ui": {
+    "section": "plan",
+    "order": 10
+  }
+}
