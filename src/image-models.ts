@@ -56,6 +56,17 @@ export const IMAGE_MODELS: ModelEntry[] = [
     type: "image",
     capabilities: [],
   },
+  // Parity by addition, not subtraction (local#106): cf shipped this row and local did not, on a
+  // parity-absolute surface. It rides the generic @cf text-to-image path with no special-casing on
+  // either host, and the vendor catalog lists it active. cf#129 phase 2 removes the whole hand-kept
+  // list in favour of a module projection, which is what stops this drift recurring.
+  {
+    id: "@cf/leonardo/lucid-origin",
+    label: "Lucid Origin (Leonardo)",
+    group: "Image Gen",
+    type: "image",
+    capabilities: [],
+  },
   {
     id: "@cf/leonardo/phoenix-1.0",
     label: "Phoenix 1.0 (Leonardo)",
