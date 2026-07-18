@@ -7,8 +7,67 @@
 
 // ---------- Model picker hydration ----------
 
+// cf#62: select a planning model robustly regardless of whether the projected
+// <option>s exist yet. Mirrors plannerRenderConfig.selectTier: set .value (effective
+// if the options are built) AND stash the desired value so loadModels honors it once
+// they are. Every restore path (session stash, project prefs) goes through here
+// instead of assigning .value directly.
+//
+// Why this exists: the catalog is PROJECTED from the installed plan.enhance modules,
+// so it arrives asynchronously and its contents can change between sessions. A bare
+// `select.value = savedId` loses in two ways -- it is dropped entirely when it runs
+// before the options are built (a race against loadModels), and it silently blanks
+// the picker when the saved id is no longer in the catalog (a module uninstalled, an
+// enum edited, a third-party module swapped).
+function selectPlanningModel(value) {
+  const sel = $("#planner-model");
+  if (!sel || !value) return;
+  const want = String(value);
+  const ids = realOptionIds(sel);
+  // The catalog is ALREADY loaded (the common case: switching projects mid-session).
+  // Resolve NOW rather than stashing: a stash would leave the picker blank and silent
+  // until the next loadModels(), which in normal use may never come.
+  if (ids.length) {
+    applyModelChoice(sel, want, ids);
+    return;
+  }
+  // The catalog has not arrived yet (session restore during init). Stash it; loadModels
+  // resolves it against the real ids the moment they exist.
+  sel.dataset.pendingValue = want;
+  sel.value = want;
+}
+
+// The selectable model ids currently in the picker: real projected models only, never the
+// "loading..." / "no planning models available" placeholders (those carry an empty value).
+function realOptionIds(sel) {
+  return Array.from(sel.options).map((o) => String(o.value)).filter(Boolean);
+}
+
+// Apply a desired model id against a known-good id list. A id the catalog no longer serves
+// drops VISIBLY -- the picker lands on a real model and says what was lost -- instead of
+// leaving the user with a blank picker and a preference they believe is still in effect.
+function applyModelChoice(sel, want, ids) {
+  delete sel.dataset.pendingValue;
+  if (ids.includes(want)) {
+    sel.value = want;
+    return;
+  }
+  sel.value = ids[0];
+  setStatus(
+    "saved planning model \"" + want + "\" is no longer available; using \"" + sel.value + "\" instead",
+    "error",
+  );
+}
+
 async function loadModels() {
   const select = $("#planner-model");
+  // Desired value, in priority order: a restore that ran before the options existed
+  // (data-pending-value), then the current selection (preserved across re-loads).
+  // BOTH are captured BEFORE the loading placeholder replaces the options -- reading
+  // `prev` after that wipe would only ever see the placeholder, silently losing the
+  // user's current pick on every refresh.
+  const pending = select.dataset.pendingValue || "";
+  const prev = select.value;
   select.disabled = true;
   select.innerHTML = '<option>loading models...</option>';
   try {
@@ -18,8 +77,12 @@ async function loadModels() {
     select.innerHTML = "";
     if (!Array.isArray(data.models) || data.models.length === 0) {
       const opt = document.createElement("option");
+      opt.value = "";
+      opt.disabled = true;
       opt.textContent = "no planning models available";
       select.appendChild(opt);
+      // Keep the restore pending: installing a plan.enhance module and reloading
+      // should still land on the user's saved choice.
       return;
     }
     for (const model of data.models) {
@@ -29,6 +92,11 @@ async function loadModels() {
       select.appendChild(opt);
     }
     select.disabled = false;
+    // ONE resolver shared with selectPlanningModel, so an early restore and a mid-session
+    // restore cannot drift apart in what they do with a stale id.
+    const ids = data.models.map((m) => String(m.id));
+    if (pending) applyModelChoice(select, pending, ids);
+    else if (ids.includes(prev)) select.value = prev;
   } catch (err) {
     select.innerHTML = "";
     const opt = document.createElement("option");
