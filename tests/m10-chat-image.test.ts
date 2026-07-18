@@ -50,7 +50,12 @@ describe("POST /api/chat image", () => {
     vi.restoreAllMocks();
   });
 
-  it("GET /api/models returns image catalog", async () => {
+  // /api/models is the FULL catalog as of cf#129 (projected planning rows + image rows), not the
+  // image-only list it once was. This fixture installs NO modules, so the projection is empty and
+  // every row here is legitimately an image row -- but the assertion is scoped to that fact rather
+  // than claiming the route is image-only, which it no longer is. The full contract, including the
+  // module-installed case, lives in tests/api-models-route.test.ts.
+  it("GET /api/models returns the image rows when no plan.enhance module is installed", async () => {
     const res = await app.request("/api/models", { headers: auth() });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { models: Array<{ type: string }> };
