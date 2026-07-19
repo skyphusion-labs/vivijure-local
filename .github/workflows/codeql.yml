@@ -1,0 +1,58 @@
+name: CodeQL
+
+# Supplies the `CodeQL` status check context required by the org `aviation-grade-main-org` ruleset,
+# and the code-scanning alerts that ruleset gates on (high_or_higher / errors).
+#
+# This repo previously relied on code-scanning DEFAULT SETUP for that context. Default setup is
+# dashboard-controlled, so its language list can be changed out of band with no diff and no review:
+# on 2026-07-19 it was narrowed from (javascript-typescript + python + actions) to (actions) alone,
+# after which no PR-triggered CodeQL run fired at all -- leaving every open PR permanently BLOCKED
+# on a required check that nothing could produce. Committing the workflow makes the scan a reviewable
+# artifact and matches vivijure-cf / vivijure-control-plane, which already do it this way.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-vivijure-local-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The three languages this repo actually carries, declared rather than auto-detected so
+        # that what gets scanned is a decision on the page:
+        #   javascript-typescript -- src/, tests/, public/, playwright.config.ts
+        #   python                -- containers/ (the five CPU module images, incl. url_guard.py)
+        #   actions               -- the workflows themselves, which carry GHCR publish credentials
+        language: ["javascript-typescript", "python", "actions"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # `languages`, PLURAL. `language` is silently IGNORED (logged only as an "Unexpected input"
+      # warning) and the action falls back to auto-detection, so a typo here leaves the workflow
+      # green while scanning something other than what it appears to declare.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
