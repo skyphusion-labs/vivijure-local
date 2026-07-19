@@ -36,7 +36,39 @@ env:
   REGISTRY: ghcr.io/skyphusion-labs
 
 jobs:
+  # SECURITY GATE (fc#859): a v* tag can point at ANY commit, including one that never merged.
+  # The org tag ruleset enforces deletion + non_fast_forward only, so `git tag v9.9.9 <unmerged>
+  # && git push origin v9.9.9` would PUBLISH GHCR :latest + :X.Y.Z images from unreviewed code
+  # (all three build jobs push on a tag), routing around branch protection. The three publish
+  # jobs now `needs: assert-on-main`.
+  #
+  # The assertion runs only on a tag ref (step-level `if`), because a tag is this repo's ONLY
+  # publish path -- there is no workflow_dispatch, and branch/PR runs are build-only (:ci, push
+  # false). The JOB itself is NOT job-level gated: it always runs and SUCCEEDS on non-tag (the
+  # single step is skipped), so the downstream `needs` is satisfied and build-only PR/merge CI
+  # is never blocked. A job-level `if` here would SKIP this job on non-tag and, through `needs`,
+  # skip the builds too.
+  assert-on-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Assert published commit is on main (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          head="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$head" origin/main; then
+            echo "::error::commit ${head} is not on origin/main; refusing to publish an unreviewed image"
+            exit 1
+          fi
+          echo "commit ${head} is on origin/main; ancestry guard passed."
+
   studio-image:
+    needs: assert-on-main
     name: studio
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -87,6 +119,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   caddy-image:
+    needs: assert-on-main
     name: caddy
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -137,6 +170,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   cpu-images:
+    needs: assert-on-main
     name: cpu-${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
