@@ -2,8 +2,10 @@ name: docker-build
 
 # Build compose images on GitHub-hosted runners. PRs and merges to main =
 # build-only smoke (:ci tag, no push). A pushed version tag (v*) publishes GHCR
-# :latest + :<tag> for homelab compose pull. A merge to main never publishes;
-# release deliberately with git tag -a vX.Y.Z && git push origin vX.Y.Z.
+# :latest + :X.Y.Z (v prefix stripped; matches RunPod sibling image tags) for
+# homelab compose pull. A merge to main never publishes; release deliberately
+# with git tag -a vX.Y.Z && git push origin vX.Y.Z. :latest is the compose
+# default (VJ_IMAGE_TAG) and only moves when a release tag is cut.
 #
 # Studio image installs @skyphusion-labs/vivijure-core and vivijure-mcp from npm.
 
@@ -58,10 +60,14 @@ jobs:
         run: |
           image="${REGISTRY}/vivijure-local-studio"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Published image tag is clean SemVer (no v). Git tag stays vX.Y.Z;
+            # GHCR tag is X.Y.Z so VJ_IMAGE_TAG=1.2.0 matches sibling RunPod pins
+            # (vivijure#789 / vivijure-local#125).
+            version="${GITHUB_REF_NAME#v}"
             {
               echo "tags<<EOF"
               echo "${image}:latest"
-              echo "${image}:${GITHUB_REF_NAME}"
+              echo "${image}:${version}"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
             echo "push=true" >> "$GITHUB_OUTPUT"
@@ -104,10 +110,14 @@ jobs:
         run: |
           image="${REGISTRY}/vivijure-local-caddy"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Published image tag is clean SemVer (no v). Git tag stays vX.Y.Z;
+            # GHCR tag is X.Y.Z so VJ_IMAGE_TAG=1.2.0 matches sibling RunPod pins
+            # (vivijure#789 / vivijure-local#125).
+            version="${GITHUB_REF_NAME#v}"
             {
               echo "tags<<EOF"
               echo "${image}:latest"
-              echo "${image}:${GITHUB_REF_NAME}"
+              echo "${image}:${version}"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
             echo "push=true" >> "$GITHUB_OUTPUT"
@@ -161,10 +171,14 @@ jobs:
         run: |
           image="${REGISTRY}/vivijure-local-${CPU_IMAGE}"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Published image tag is clean SemVer (no v). Git tag stays vX.Y.Z;
+            # GHCR tag is X.Y.Z so VJ_IMAGE_TAG=1.2.0 matches sibling RunPod pins
+            # (vivijure#789 / vivijure-local#125).
+            version="${GITHUB_REF_NAME#v}"
             {
               echo "tags<<EOF"
               echo "${image}:latest"
-              echo "${image}:${GITHUB_REF_NAME}"
+              echo "${image}:${version}"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
             echo "push=true" >> "$GITHUB_OUTPUT"
