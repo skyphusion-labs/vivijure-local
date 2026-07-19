@@ -65,3 +65,5 @@ jobs:
       - name: Module conformance
         working-directory: vivijure-local
         run: npm run conformance
+
+# codeql-probe
