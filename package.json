@@ -62,11 +62,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1088.0",
-    "@hono/node-server": "^2.0.9",
+    "@hono/node-server": "^2.0.10",
     "@skyphusion-labs/vivijure-core": "^1.1.0",
     "@skyphusion-labs/vivijure-mcp": "^0.1.0",
     "dotenv": "^17.4.2",
-    "hono": "^4.12.30"
+    "hono": "^4.12.31"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
