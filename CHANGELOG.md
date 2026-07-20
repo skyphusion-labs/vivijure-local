@@ -1,6 +1,16 @@
 # Changelog
 
 
+## v1.1.1 -- 2026-07-20
+
+PATCH: Wan cast LoRA train + harvest writeback parity with vivijure-cf v1.7.1 (cf#29). Bumps
+`@skyphusion-labs/vivijure-core` to ^1.2.1 so `/api/cast/:id/lora-status` polls the dedicated Wan train
+endpoint (`RUNPOD_WAN_TRAIN_ENDPOINT_ID`) before the render endpoint, harvesting dual expert keys on
+COMPLETED. Adds `POST /api/cast/:id/train-wan-lora`, migration `0013` Wan key columns, Wan LoRA render
+projection (storyboard render, scatter, film), and Settings secret `RUNPOD_WAN_TRAIN_ENDPOINT_ID`.
+
+Dual-panel release rule: do not ship vivijure-cf v1.7.1 without this local PR merge-ready.
+
 ## v1.1.0 -- 2026-07-18
 
 MINOR: the chat/image surface becomes module territory (vivijure-cf#129; full record on that

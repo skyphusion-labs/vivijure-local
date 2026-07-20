@@ -32,6 +32,7 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 - [x] `POST /api/cast/:id/generate-refs`
 - [x] `GET /api/cast/:id/refs-job/:jobId`
 - [x] `POST /api/cast/:id/train-lora`
+- [x] `POST /api/cast/:id/train-wan-lora`
 - [x] `GET /api/cast/:id/lora-status`
 - [x] `GET /api/cast/export/:id`
 - [x] `POST /api/cast/export/:id`
@@ -138,7 +139,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^0.9.2` (mux hasAudio guard; orchestration parity)
+- [x] `@skyphusion-labs/vivijure-core` `^1.2.1` (Wan LoRA poll/harvest writeback; cf#29 parity with vivijure-cf v1.7.1)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 

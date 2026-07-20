@@ -130,4 +130,19 @@ describe("host parity routes", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it("POST /api/cast/:id/train-wan-lora fails closed without RUNPOD_WAN_TRAIN_ENDPOINT_ID", async () => {
+    const create = await app.request("/api/cast", {
+      method: "POST",
+      headers: { ...auth(), "content-type": "application/json" },
+      body: JSON.stringify({ name: "Wren" }),
+    });
+    const { cast } = (await create.json()) as { cast: { id: string } };
+    const res = await app.request(`/api/cast/${cast.id}/train-wan-lora`, {
+      method: "POST",
+      headers: auth(),
+    });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
 });

@@ -32,6 +32,7 @@ const TUNNEL_KEYS = [
   "VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID",
   "MUSETALK_RUNPOD_ENDPOINT_ID",
   "AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID",
+  "RUNPOD_WAN_TRAIN_ENDPOINT_ID",
 ] as const;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
