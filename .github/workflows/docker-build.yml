@@ -70,7 +70,7 @@ jobs:
   studio-image:
     needs: assert-on-main
     name: studio
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -121,7 +121,7 @@ jobs:
   caddy-image:
     needs: assert-on-main
     name: caddy
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -172,7 +172,7 @@ jobs:
   cpu-images:
     needs: assert-on-main
     name: cpu-${{ matrix.image }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
