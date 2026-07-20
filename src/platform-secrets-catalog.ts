@@ -203,6 +203,14 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "RUNPOD_WAN_TRAIN_ENDPOINT_ID",
+    label: "RunPod endpoint ID (Wan cast LoRA train)",
+    blurb: "Dedicated Wan 2.2 A14B LoRA-training endpoint for POST /api/cast/:id/train-wan-lora (cf#29). Fail-closed when unset.",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
     key: "LOCAL_BACKEND_URL",
     label: "Local GPU backend URL",
     blurb: "Base URL for the homelab vivijure-local-backend (local-gpu module proxies here).",

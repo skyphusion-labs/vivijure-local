@@ -46,6 +46,10 @@ import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { json, readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
 import { readKeyframeDone } from "../render-progress.js";
+import {
+  projectWanLorasIntoModuleConfig,
+  shouldProjectWanLoras,
+} from "../wan-lora-projection.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -239,6 +243,19 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       }
 
       const project = a.project ?? deriveProjectFromBundleKey(a.bundle_key);
+      if (shouldProjectWanLoras(a.motion_backend, resolvedLoras?.wanPretrained ?? {})) {
+        const filmMotionConfig: Record<string, unknown> =
+          a.motion_config && typeof a.motion_config === "object" && !Array.isArray(a.motion_config)
+            ? (a.motion_config as Record<string, unknown>)
+            : {};
+        await projectWanLorasIntoModuleConfig(
+          oenv,
+          a.motion_backend,
+          resolvedLoras!.wanPretrained,
+          filmMotionConfig,
+        );
+        a.motion_config = filmMotionConfig;
+      }
       const job = await startFilmJob(
         oenv,
         {

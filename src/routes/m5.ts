@@ -53,6 +53,12 @@ import {
 } from "@skyphusion-labs/vivijure-core/renders-db";
 import { getProjectIdByPublicId } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
+import {
+  ensureModuleOverrideConfig,
+  projectWanLorasIntoModuleConfig,
+  shouldProjectWanLoras,
+  WAN_LORA_BACKEND,
+} from "../wan-lora-projection.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -144,11 +150,12 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         if (cfgErr) throw badRequest(cfgErr);
       }
 
-      const { pretrained, castIds, skipped, skippedDetail } = await resolveCastLoras(oenv, body.castLoras);
+      const { pretrained, wanPretrained, castIds, skipped, skippedDetail } = await resolveCastLoras(oenv, body.castLoras);
       if (skipped.length) throw badRequest(untrainedCastMessage(skippedDetail));
 
       const mapped = mapRenderOverridesToModuleConfigs(body.renderOverrides, tier, modules);
       const motionBackend = body.keyframesOnly ? undefined : (body.motion_backend ?? mapped.motion_backend);
+      await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
       const job = await startFilmJob(
         oenv,
@@ -275,6 +282,12 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
 
       const scatterCast = await resolveCastLoras(oenv, b.castLoras ?? {});
       if (scatterCast.skipped.length) throw badRequest(untrainedCastMessage(scatterCast.skippedDetail));
+
+      if (shouldProjectWanLoras(scatterBackend, scatterCast.wanPretrained)) {
+        const injected = ensureModuleOverrideConfig(b.renderOverrides, WAN_LORA_BACKEND);
+        b.renderOverrides = injected.overrides;
+        await projectWanLorasIntoModuleConfig(oenv, scatterBackend, scatterCast.wanPretrained, injected.config);
+      }
 
       try {
         const job = await startScatterRender(oenv, {

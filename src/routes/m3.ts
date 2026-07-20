@@ -40,6 +40,7 @@ import { catalogForDeploy, isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-
 import {
   handleCastTrainLora,
   handleCastLoraStatus,
+  handleCastTrainWanLora,
 } from "@skyphusion-labs/vivijure-core/cast-lora-train";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import {
@@ -319,6 +320,12 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
   app.post("/api/cast/:id/train-lora", (c) =>
     handle(c, async () =>
       handleCastTrainLora(c.req.raw, oenv(), await resolveCastId(db(), c.req.param("id"))),
+    ),
+  );
+
+  app.post("/api/cast/:id/train-wan-lora", (c) =>
+    handle(c, async () =>
+      handleCastTrainWanLora(c.req.raw, oenv(), await resolveCastId(db(), c.req.param("id"))),
     ),
   );
 
