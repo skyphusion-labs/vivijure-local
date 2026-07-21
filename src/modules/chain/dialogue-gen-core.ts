@@ -20,6 +20,26 @@ export function resolveVoice(voiceId: string | undefined): VoiceId {
 export const DIALOGUE_MAX_CHARS = 300;
 export const AUDIO_MIME = "audio/wav";
 
+/** Workers AI params for one Aura-1 line. WAV/PCM out for a clean lip-sync drive track (mirrors CF). */
+export function buildTtsParams(text: string, voice: VoiceId): Record<string, unknown> {
+  return { text, speaker: voice, encoding: "linear16", container: "wav" };
+}
+
+export interface DialogueGatewayEnv {
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  GATEWAY_ID?: string;
+  CF_AIG_TOKEN?: string;
+}
+
+/** True when Deepgram Aura-1 can run via the AI Gateway (dual-panel parity with vivijure-cf). */
+export function dialogueGatewayConfigured(env: DialogueGatewayEnv): boolean {
+  return Boolean(
+    env.CLOUDFLARE_ACCOUNT_ID?.trim() &&
+      env.GATEWAY_ID?.trim() &&
+      env.CF_AIG_TOKEN?.trim(),
+  );
+}
+
 export interface PollToken {
   job_id: string;
 }
@@ -51,15 +71,14 @@ export type RunState =
   | { status: "done"; project: string; audio: DialogueShotAudio[]; applied: string[] }
   | { status: "failed"; error: string };
 
-/** #50: this local build writes a silent placeholder WAV (no aiRun / Deepgram call ever happens), so the
- *  `applied` tag must say so HONESTLY rather than claim the real `@cf/deepgram/aura-1` model -- otherwise a
- *  downstream finish-lipsync consumes silence believing it is real speech and the studio records a real TTS
- *  step that never ran. Real TTS is a separate feature (needs a provider binding); the honesty fix is the tag.
- *  DialogueOutput carries no `degraded` field in the ICD, so the truthful `applied` tag is the signal. */
+/** #50: when the gateway is unset this build writes a silent placeholder WAV, so the `applied` tag must say
+ *  so HONESTLY rather than claim the real `@cf/deepgram/aura-1` model. DialogueOutput carries no `degraded`
+ *  field in the ICD, so the truthful `applied` tag is the signal. */
 export const SILENT_FALLBACK_TAG = "dialogue:silent-fallback" as const;
 
-export function appliedTags(audio: DialogueShotAudio[]): string[] {
-  return [SILENT_FALLBACK_TAG, `lines:${audio.length}`];
+export function appliedTags(audio: DialogueShotAudio[], opts: { gatewayConfigured: boolean }): string[] {
+  const modelTag = opts.gatewayConfigured ? `dialogue:${MODEL}` : SILENT_FALLBACK_TAG;
+  return [modelTag, `lines:${audio.length}`];
 }
 
 export function readOutput(state: Extract<RunState, { status: "done" }>): DialogueOutput {

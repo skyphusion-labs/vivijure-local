@@ -68,7 +68,7 @@ export function createChainModuleApp(
 
     if (moduleName === "dialogue-gen") {
       if (req.hook !== "dialogue") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
-      return c.json(await invokeDialogueGen(store, req as InvokeRequest<DialogueInput>));
+      return c.json(await invokeDialogueGen(env, store, req as InvokeRequest<DialogueInput>));
     }
     if (moduleName === "speech-upscale") {
       if (req.hook !== "speech") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
@@ -93,7 +93,7 @@ export function createChainModuleApp(
     }
     const { env, store } = await getContext();
     if (moduleName === "cast-image") return c.json(await pollCastImage(env, store, body));
-    if (moduleName === "dialogue-gen") return c.json(await pollDialogueGen(store, body));
+    if (moduleName === "dialogue-gen") return c.json(await pollDialogueGen(env, store, body));
     return c.json(await pollSpeechUpscale(env, body));
   });
 
