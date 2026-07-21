@@ -5,7 +5,7 @@ Self-hosted Vivijure Studio (Node, SQLite, S3/MinIO). A release is:
 1. Version bump in `package.json` on `main`
 2. Git tag `vX.Y.Z` pushed to origin
 3. **GitHub Release** on that tag (`gh release create vX.Y.Z ...`)
-4. GHCR images published by `.github/workflows/docker-build.yml` on tag push
+4. GHCR images published by `.github/workflows/build-image.yml` on tag push
    (`ghcr.io/skyphusion-labs/vivijure-local-studio:X.Y.Z` + `:latest`)
 
 Merge to `main` alone does **not** publish images; cut a tag deliberately.
@@ -21,8 +21,8 @@ git push origin v1.1.5
 # 3. GitHub Release
 gh release create v1.1.5 --title "v1.1.5" --notes-file notes.md
 
-# 4. Confirm docker-build workflow green
-gh run list --workflow docker-build.yml --limit 3
+# 4. Confirm build-image workflow green
+gh run list --workflow build-image.yml --limit 3
 ```
 
 **Dual-panel rule:** ship paired with `vivijure-cf` in the same wave; pin the same

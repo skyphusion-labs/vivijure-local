@@ -3,7 +3,7 @@
 # Build from this repo root:
 #   docker build -t vivijure-local-studio:local .
 #
-# CI (docker-build.yml): context is the checked-out vivijure-local tree.
+# CI (build-image.yml): context is the checked-out vivijure-local tree.
 
 FROM node:26-bookworm-slim
 
