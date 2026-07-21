@@ -7,6 +7,9 @@ different runtime. Verified end to end on the homelab stack (bundle -> render ->
 
 Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). Prefer
 Cloudflare Workers instead? Use [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
+
+**Dual-panel parity:** self-host and hosted ship the same studio features in the same release; see
+fleet memory `vivijure-hosted-parity-absolute.md`.
 Drive either host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
 Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
