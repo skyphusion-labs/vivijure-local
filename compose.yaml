@@ -468,6 +468,7 @@ services:
         required: false
     environment:
       PORT: "8790"
+      RENDER_SWEEP_INTERVAL_MS: ${RENDER_SWEEP_INTERVAL_MS:-60000}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:8790}
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       AUTH_MODE: ${AUTH_MODE:-token}

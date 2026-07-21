@@ -8,7 +8,7 @@ import {
 } from "@skyphusion-labs/vivijure-core/dialogue-lines";
 import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
-import { summarizeFilm, type FilmScene } from "@skyphusion-labs/vivijure-core/film-model";
+import { summarizeFilm, type FilmJob, type FilmScene } from "@skyphusion-labs/vivijure-core/film-model";
 import type { FilmSummary } from "@skyphusion-labs/vivijure-core/film-model";
 import {
   filmJobToPollView,
@@ -84,6 +84,22 @@ async function insertRenderBestEffort(env: OrchestratorEnv, row: NewRenderRow): 
       err: e instanceof Error ? e.message : String(e),
     });
   }
+}
+
+/** Per-shot finish chain position for poll UX. While status stays `pending`, the shot may be mid-chain
+ *  (RIFE -> lip-sync -> upscale); surface idx so the panel does not look wedged at 0/N done. */
+function finishChainProgress(job: FilmJob): Record<string, unknown> | undefined {
+  if (job.phase !== "finish" || !job.finish_shots?.length) return undefined;
+  const active = job.finish_shots.find((fs) => fs.status === "pending");
+  if (!active || !active.chain.length) return undefined;
+  const step = Math.min(active.idx + 1, active.chain.length);
+  return {
+    shot_id: active.shot_id,
+    step,
+    steps: active.chain.length,
+    module: active.chain[active.idx] ?? active.chain[active.chain.length - 1],
+    polling: !!active.poll,
+  };
 }
 
 async function withFilmDownloadUrl(
@@ -310,7 +326,13 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
           ? await readKeyframeDone(oenv, r.job.project, r.job.keyframe_job_id)
           : undefined;
       await updateRenderFromView(oenv, filmJobToPollView(r.job, r.clipJob, kfDone), noopExecutionContext);
-      return json({ ok: true, ...(await withFilmDownloadUrl(oenv, summarizeFilm(r.job, r.clipJob))) });
+      const summary = summarizeFilm(r.job, r.clipJob);
+      const finish_chain = finishChainProgress(r.job);
+      return json({
+        ok: true,
+        ...(await withFilmDownloadUrl(oenv, summary)),
+        ...(finish_chain ? { finish_chain } : {}),
+      });
     } catch (e) {
       const res = httpErrorResponse(e);
       if (res) return res;

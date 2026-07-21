@@ -46,6 +46,7 @@
     "compose:logs": "docker compose logs -f studio",
     "smoke:exit": "tsx scripts/smoke-exit-criterion.ts",
     "smoke:exhaustive": "tsx scripts/smoke-exhaustive.ts",
+    "finish-stack:verify": "tsx scripts/finish-stack-verify.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "dev:mcp": "wrangler dev -c wrangler.mcp.toml",
