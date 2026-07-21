@@ -16,7 +16,6 @@ import {
   ensureModuleOverrideConfig,
   WAN_LORA_BACKEND,
   WAN_LORA_DEFAULT_SCALE,
-  WAN_LORA_PRESIGN_TTL_SECONDS,
   MAX_LORAS_PER_PASS,
 } from "../src/wan-lora-projection.js";
 import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
@@ -73,7 +72,6 @@ vi.mock("@skyphusion-labs/vivijure-core/cast-loras", async (orig) => {
 const cap = vi.hoisted(() => ({
   film: [] as Array<Record<string, unknown>>,
   scatter: [] as Array<Record<string, unknown>>,
-  wanTrainId: null as number | null,
 }));
 
 vi.mock("@skyphusion-labs/vivijure-core/film-orchestrator", async (orig) => {
@@ -186,7 +184,6 @@ const anyEnv = orch({}) as OrchestratorEnv;
 beforeEach(() => {
   cap.film = [];
   cap.scatter = [];
-  cap.wanTrainId = null;
   _resetModuleDiscoveryCache();
 });
 
