@@ -5,6 +5,11 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## v1.1.7 -- unreleased
+
+PATCH: bump `@skyphusion-labs/vivijure-core` to ^1.2.3 -- COMPLETED renders record
+`output_key` when `film.mp4` exists in store (local#99; requires core 1.2.3).
+
 ## v1.1.6 -- 2026-07-21
 
 PATCH: security hardening + CI GPU allowlist sync (#144, #145, #146).
