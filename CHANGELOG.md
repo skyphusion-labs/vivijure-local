@@ -1,6 +1,17 @@
 # Changelog
 
 
+**Dual-panel release gate:** every studio feature ships to vivijure-cf and vivijure-local in the
+same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
+`fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
+
+## v1.1.3 -- 2026-07-21
+
+PATCH: Wan LoRA UI + planner preflight + test parity with vivijure-cf v1.7.3 (cf#29 follow-up).
+Cast page trains Wan via `POST /train-wan-lora`; planner preflight checks `wan_lora_key_*` when
+motion backend is `alibaba-wan-lora`. Ports `wan-lora-projection.test.ts`, `cast-lora-reconciler.test.ts`,
+and `lora-preflight.test.ts`. Paired release; Laura test blocked until both hosts merge + ops CR apply.
+
 ## v1.1.2 -- 2026-07-20
 
 PATCH: fix `compose.yaml` YAML indent on `RUNPOD_WAN_TRAIN_ENDPOINT_ID` under `module-speech-upscale`
