@@ -16,3 +16,6 @@ dev/module-fleet.env
 # Edge TLS material (files/manual cert path writes real keys here; keep the dir, not the keys)
 reverse-proxy/certs/*.pem
 reverse-proxy/certs/*.key
+
+# wrangler local dev state (if used)
+.wrangler/
