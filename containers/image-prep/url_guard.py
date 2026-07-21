@@ -66,3 +66,37 @@ def validate_fetch_url(url):
         if host == allowed or host.endswith("." + allowed):
             return True, None
     return False, "host not in fetch allowlist: " + host
+
+
+def _safe_fetch_url(url):
+    """Return a fetch URL only after allowlist validation (SSRF guard)."""
+    ok, why = validate_fetch_url(url)
+    if not ok:
+        raise ValueError(why)
+    parts = urlparse(url)
+    host = parts.hostname.lower()
+    rebuilt = f"https://{host}{parts.path or '/'}"
+    if parts.query:
+        rebuilt += f"?{parts.query}"
+    return rebuilt
+
+
+def safe_log_value(val, max_len=200):
+    """Strip control chars from user-influenced log fields (log-injection guard)."""
+    if val is None:
+        return ""
+    s = str(val).replace("\r", "\\r").replace("\n", "\\n").replace("\x00", "")
+    if len(s) > max_len:
+        return s[:max_len] + "..."
+    return s
+
+
+# Sync factories on purpose: aiohttp's session.get/put return an async context
+# manager. `async def` here would return a coroutine, and `async with guarded_get(...)`
+# would then blow up with TypeError (never awaited) -- the 2026-07-15 assemble 500.
+def guarded_get(session, url, **kwargs):
+    return session.get(_safe_fetch_url(url), **kwargs)  # lgtm[py/full-ssrf]
+
+
+def guarded_put(session, url, **kwargs):
+    return session.put(_safe_fetch_url(url), **kwargs)  # lgtm[py/full-ssrf]

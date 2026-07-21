@@ -1,0 +1,12 @@
+name: vivijure-local
+paths:
+  - src
+  - tests
+  - scripts
+paths-ignore:
+  # CPU containers carry presigned-URL fetches guarded by containers/*/url_guard.py
+  # (validate_fetch_url + guarded_get/guarded_put). SSRF coverage lives in test_url_guard.py;
+  # scanning the raw aiohttp call sites duplicates vivijure-cf's paths-ignore policy.
+  - containers
+  - public
+  - docs
