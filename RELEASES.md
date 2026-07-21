@@ -32,6 +32,7 @@ gh run list --workflow build-image.yml --limit 3
 
 | git tag | GHCR studio | source commit | published | notes |
 |---|---|---|---|---|
+| `v1.1.6` | 1.1.6 | (pending) | (pending) | Security (#146): sharp 0.35.3, SSRF url_guard on finish sidecars, CodeQL config. CI inline GPU sync (#144). gitignore .wrangler (#145). |
 | `v1.1.5` | 1.1.5 | d7700bb | 2026-07-21 | **Dual-panel cf#29:** core ^1.2.2, Aura-1 TTS (#141), ai-run path fix, dialogue-gen gateway env, finish-stack voiced verify. Pairs cf v1.7.4. |
 | `v1.1.4` | 1.1.4 | 6656ea1 | 2026-07-21 | Pillow 12.3.0 in image-prep sidecar (#140). Tag only; no GitHub Release at cut time. |
 | `v1.1.3` | 1.1.3 | ad8a202 | 2026-07-21 | Wan LoRA UI + planner parity with cf v1.7.3 (#138). Tag only; no GitHub Release at cut time. |
