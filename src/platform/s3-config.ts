@@ -18,6 +18,20 @@ function envFlag(name: string, fallback: boolean): boolean {
   return v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes";
 }
 
+/** Parse endpoint hostname; malformed URLs yield null (not a trusted host). */
+function endpointHostname(endpoint: string): string | null {
+  try {
+    return new URL(endpoint).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** Exact host or subdomain match on a dot boundary (not substring). */
+function hostMatchesSuffix(host: string, suffix: string): boolean {
+  return host === suffix || host.endsWith("." + suffix);
+}
+
 /** Read S3 config from env. Supports legacy MINIO_* aliases. */
 export function s3ConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S3StoreConfig | null {
   const endpoint = env.S3_ENDPOINT || env.MINIO_ENDPOINT;
@@ -39,8 +53,11 @@ export function s3ConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S3StoreCo
     );
   }
   const chatBucket = bucket;
-  const region = env.S3_REGION || (endpoint.includes("r2.cloudflarestorage.com") ? "auto" : "us-east-1");
-  const forcePathStyle = envFlag("S3_FORCE_PATH_STYLE", !endpoint.includes("amazonaws.com"));
+  const host = endpointHostname(endpoint);
+  const isR2 = host !== null && hostMatchesSuffix(host, "r2.cloudflarestorage.com");
+  const isAws = host !== null && hostMatchesSuffix(host, "amazonaws.com");
+  const region = env.S3_REGION || (isR2 ? "auto" : "us-east-1");
+  const forcePathStyle = envFlag("S3_FORCE_PATH_STYLE", !isAws);
   const presignEndpoint = (env.S3_PRESIGN_ENDPOINT || "").replace(/\/$/, "") || undefined;
 
   return {

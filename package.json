@@ -69,6 +69,9 @@
     "dotenv": "^17.4.2",
     "hono": "^4.12.31"
   },
+  "overrides": {
+    "sharp": ">=0.35.0"
+  },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1",

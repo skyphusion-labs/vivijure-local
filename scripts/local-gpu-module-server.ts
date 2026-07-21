@@ -35,6 +35,6 @@ const app = createLocalGpuModuleApp(manifest, getEnv, storage.renders);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, async () => {
   const env = await getEnv();
-  const mode = env.LOCAL_BACKEND_URL?.trim() ? `backend=${env.LOCAL_BACKEND_URL}` : "mock";
+  const mode = env.LOCAL_BACKEND_URL?.trim() ? "backend=configured" : "mock";
   console.log(`local-gpu module on http://127.0.0.1:${port} (${mode})`);
 });
