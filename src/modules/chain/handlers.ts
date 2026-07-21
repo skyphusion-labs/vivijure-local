@@ -18,6 +18,7 @@ import type {
 import type { ArtifactStore } from "../../platform/create-storage.js";
 import { buildSilentWav } from "../../dev/minimal-media.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
+import { aiRun } from "../../platform/ai-run.js";
 import type { ChainModuleEnv } from "./chain-env.js";
 import {
   FLAG_FALLBACK_MODEL,
@@ -36,14 +37,18 @@ export { invokeImageGenerate, MODELS as IMAGE_GENERATE_MODELS } from "./image-ge
 export type { ImageGenerateInput, ImageGenerateOutput } from "./image-generate-core.js";
 import {
   AUDIO_MIME,
+  MODEL as DIALOGUE_MODEL,
   appliedTags as dialogueAppliedTags,
   audioKey,
+  buildTtsParams,
   decodePoll as decodeDialoguePoll,
+  dialogueGatewayConfigured,
   encodePoll as encodeDialoguePoll,
   normalizeInput as normalizeDialogueInput,
   readOutput as readDialogueOutput,
   stateKey as dialogueStateKey,
   type RunState as DialogueRunState,
+  type NormalizedLine,
 } from "./dialogue-gen-core.js";
 import { FROM, renderCompleteEmail } from "./notify-email-core.js";
 import { mockPlannerRaw } from "../../planner-ai-mock.js";
@@ -322,14 +327,56 @@ export async function pollCastImage(
     : { ok: true, pending: true };
 }
 
+function ttsBytesFromAiResult(result: unknown): Uint8Array {
+  if (result instanceof Uint8Array) return result;
+  if (result instanceof ArrayBuffer) return new Uint8Array(result);
+  if (result && typeof (result as { arrayBuffer?: unknown }).arrayBuffer === "function") {
+    throw new Error("dialogue: unexpected ReadableStream result (sync TTS only)");
+  }
+  if (result && typeof result === "object") {
+    const o = result as { audio?: string; data?: string };
+    const b64 = typeof o.audio === "string" ? o.audio : typeof o.data === "string" ? o.data : "";
+    if (b64) return Uint8Array.from(Buffer.from(b64, "base64"));
+  }
+  throw new Error("dialogue: TTS returned non-audio payload");
+}
+
+async function synthDialogueLine(
+  env: ChainModuleEnv,
+  store: ArtifactStore,
+  project: string,
+  line: NormalizedLine,
+): Promise<DialogueShotAudio> {
+  if (!dialogueGatewayConfigured(env)) {
+    const wav = buildSilentWav(0.25);
+    const key = audioKey(project, line.shot_id);
+    await store.put(key, wav, { httpMetadata: { contentType: AUDIO_MIME } });
+    return { shot_id: line.shot_id, audio_key: key, voice_id: line.voice };
+  }
+  const result = await aiRun(env, DIALOGUE_MODEL, buildTtsParams(line.text, line.voice));
+  const bytes = ttsBytesFromAiResult(result);
+  if (!bytes.byteLength) throw new Error(`dialogue: empty audio for ${line.shot_id}`);
+  const key = audioKey(project, line.shot_id);
+  await store.put(key, bytes, { httpMetadata: { contentType: AUDIO_MIME } });
+  return { shot_id: line.shot_id, audio_key: key, voice_id: line.voice };
+}
+
 export async function invokeDialogueGen(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   req: InvokeRequest<DialogueInput>,
 ): Promise<InvokeResponse<DialogueOutput>> {
   const norm = normalizeDialogueInput(req.input);
   if (!norm.ok) return { ok: false, error: "dialogue: " + norm.error };
   if (norm.lines.length === 0) {
-    return { ok: true, output: { project: norm.project, audio: [], applied: dialogueAppliedTags([]) } };
+    return {
+      ok: true,
+      output: {
+        project: norm.project,
+        audio: [],
+        applied: dialogueAppliedTags([], { gatewayConfigured: dialogueGatewayConfigured(env) }),
+      },
+    };
   }
   const jobId = req.context?.job_id || crypto.randomUUID();
   const state: DialogueRunState = {
@@ -349,6 +396,7 @@ export async function invokeDialogueGen(
 }
 
 export async function pollDialogueGen(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   body: PollRequest,
 ): Promise<PollResponse<DialogueOutput>> {
@@ -360,31 +408,38 @@ export async function pollDialogueGen(
   if (state.status === "done") return { ok: true, output: readDialogueOutput(state) };
   if (state.status === "failed") return { ok: false, error: state.error || "dialogue generation failed" };
 
+  const gatewayConfigured = dialogueGatewayConfigured(env);
   const line = state.lines[state.next_index];
   if (!line) {
     const done: Extract<DialogueRunState, { status: "done" }> = {
       status: "done",
       project: state.project,
       audio: state.audio,
-      applied: dialogueAppliedTags(state.audio),
+      applied: dialogueAppliedTags(state.audio, { gatewayConfigured }),
     };
     await writeJson(store, sk, done);
     return { ok: true, output: readDialogueOutput(done) };
   }
 
-  const wav = buildSilentWav(0.25);
-  const key = audioKey(state.project, line.shot_id);
-  await store.put(key, wav, { httpMetadata: { contentType: AUDIO_MIME } });
-  const shot: DialogueShotAudio = { shot_id: line.shot_id, audio_key: key, voice_id: line.voice };
-  state.audio.push(shot);
-  state.next_index += 1;
+  try {
+    const shot = await synthDialogueLine(env, store, state.project, line);
+    state.audio.push(shot);
+    state.next_index += 1;
+  } catch (e) {
+    const failed: Extract<DialogueRunState, { status: "failed" }> = {
+      status: "failed",
+      error: (e as Error).message.slice(0, 500),
+    };
+    await writeJson(store, sk, failed);
+    return { ok: false, error: failed.error };
+  }
 
   if (state.next_index >= state.lines.length) {
     const done: Extract<DialogueRunState, { status: "done" }> = {
       status: "done",
       project: state.project,
       audio: state.audio,
-      applied: dialogueAppliedTags(state.audio),
+      applied: dialogueAppliedTags(state.audio, { gatewayConfigured }),
     };
     await writeJson(store, sk, done);
     return { ok: true, output: readDialogueOutput(done) };

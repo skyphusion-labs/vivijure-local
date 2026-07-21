@@ -7,14 +7,26 @@ import { extractVideoUrl } from "../src/modules/runpod/fixed-motion.js";
 // adopt a non-video URL as the clip.
 
 describe("dialogue-gen honesty (#50)", () => {
-  it("tags the silent placeholder as a silent fallback, NOT the real Deepgram model", () => {
-    const tags = appliedTags([
-      { shot_id: "s1", audio_key: "k1", voice_id: "angus" },
-      { shot_id: "s2", audio_key: "k2", voice_id: "luna" },
-    ]);
+  it("tags the silent placeholder as a silent fallback when the gateway is unset", () => {
+    const tags = appliedTags(
+      [
+        { shot_id: "s1", audio_key: "k1", voice_id: "angus" },
+        { shot_id: "s2", audio_key: "k2", voice_id: "luna" },
+      ],
+      { gatewayConfigured: false },
+    );
     expect(tags).toContain(SILENT_FALLBACK_TAG);
-    expect(tags).not.toContain(`dialogue:${MODEL}`); // no longer claims a real TTS model it never ran
+    expect(tags).not.toContain(`dialogue:${MODEL}`);
     expect(tags).toContain("lines:2");
+  });
+
+  it("tags the real Deepgram model when the gateway is configured", () => {
+    const tags = appliedTags([{ shot_id: "s1", audio_key: "k1", voice_id: "athena" }], {
+      gatewayConfigured: true,
+    });
+    expect(tags).toContain(`dialogue:${MODEL}`);
+    expect(tags).not.toContain(SILENT_FALLBACK_TAG);
+    expect(tags).toContain("lines:1");
   });
 });
 
