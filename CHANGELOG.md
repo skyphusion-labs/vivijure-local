@@ -5,6 +5,20 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## v1.1.6 -- 2026-07-21
+
+PATCH: security hardening + CI GPU allowlist sync (#144, #145, #146).
+
+- **ci(build-image):** inline GPU allowlist sync on tag push (public repo cannot
+  `workflow_call` internal fleet-chezmoi; #144).
+- **fix(security):** bump `sharp` to 0.35.3; clear Dependabot + CodeQL alerts (#146).
+- **fix(security):** SSRF `url_guard` on finish sidecars (audio-beat-sync, audio-master,
+  audio-mix, image-prep, video-finish); Pillow 12.3.0 in image-prep/audio-beat-sync.
+- **chore:** ignore `.wrangler` local dev state (#145).
+
+No vivijure-cf bump required (local-only security + CI). Roll propagandhi after GHCR
+`:1.1.6` publish is green.
+
 ## v1.1.5 -- 2026-07-21
 
 PATCH: dual-panel parity with vivijure-cf v1.7.4 + core 1.2.2 (cf#29).
