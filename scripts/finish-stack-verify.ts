@@ -12,7 +12,7 @@
  * When FINISH_VERIFY_FILM_ID is set, also runs the voiced-verify bar: any shot tagged lipsync:v15
  * must carry non-silent audio (max_volume above -60 dB). Silent anullsrc pads report ~ -91 dB.
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -105,19 +105,14 @@ function maxVolumeDbFromClip(bytes: Buffer): number | null {
   const dir = mkdtempSync(join(tmpdir(), "finish-verify-"));
   const path = join(dir, "clip.mp4");
   writeFileSync(path, bytes);
-  try {
-    execFileSync(
-      "ffmpeg",
-      ["-hide_banner", "-i", path, "-af", "volumedetect", "-f", "null", "-"],
-      { encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] },
-    );
-    return null;
-  } catch (e) {
-    const err = e as { stderr?: string; message?: string };
-    const text = err.stderr || err.message || "";
-    const m = text.match(/max_volume:\s*(-?\d+(?:\.\d+)?) dB/);
-    return m ? Number(m[1]) : null;
-  }
+  const proc = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-i", path, "-af", "volumedetect", "-f", "null", "-"],
+    { encoding: "utf8" },
+  );
+  const text = `${proc.stderr || ""}${proc.stdout || ""}`;
+  const m = text.match(/max_volume:\s*(-?\d+(?:\.\d+)?) dB/);
+  return m ? Number(m[1]) : null;
 }
 
 async function verifyVoicedFilm(filmId: string): Promise<void> {

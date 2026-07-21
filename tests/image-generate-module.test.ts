@@ -117,11 +117,10 @@ describe("image.generate invoke", () => {
       config: { model: "@cf/black-forest-labs/flux-1-schnell" },
       context: { project: "test", job_id: "j1" },
     });
-    // aiRun posts { model, input: <params> } to the unified gateway, so the params are NESTED.
-    // My first draft read the body root and every assertion came back undefined -- which would have
-    // passed silently had I asserted "not 25" instead of an exact value.
-    const sdxl = (calls[0].body as { input: Record<string, unknown> }).input;
-    const schnell = (calls[1].body as { input: Record<string, unknown> }).input;
+    // aiRun posts params flat on the per-model /ai/run/{model} path (see platform/ai-run.ts).
+    const aiCalls = calls.filter((c) => c.url.includes("/ai/run/"));
+    const sdxl = aiCalls[0].body as Record<string, unknown>;
+    const schnell = aiCalls[1].body as Record<string, unknown>;
     expect(sdxl.num_steps).toBe(20);
     expect(sdxl.steps).toBeUndefined();
     expect(schnell.steps).toBe(4);
