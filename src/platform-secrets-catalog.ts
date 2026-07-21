@@ -206,9 +206,9 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     key: "RUNPOD_WAN_TRAIN_ENDPOINT_ID",
     label: "RunPod endpoint ID (Wan cast LoRA train, local only)",
     blurb:
-      "Dedicated local Wan train EP (default homelab: 8kjcn5sz6k8p1n / template nhuo6xsbvd). " +
-      "Must point at a RunPod endpoint whose template R2_* targets this studio's MinIO, NOT prod CF R2. " +
-      "Never set prod zqb7tougbqfkqa here (cf#29 bucket isolation). Fail-closed when unset.",
+      "Dedicated local Wan train EP (cf#29). Must point at a RunPod endpoint whose template R2_* " +
+      "targets this studio's MinIO, NOT prod CF R2. Value from fleet-chezmoi CR-2026-07-21-vivijure-wan-train-local-ep " +
+      "after approved apply. Never set prod zqb7tougbqfkqa here. Fail-closed when unset.",
     category: "providers",
     sensitive: false,
     applies_on: "immediate",
