@@ -84,7 +84,17 @@ const boot = await buildStudio();
 export const platform = boot.platform;
 export const app = createApp(boot.settingsHost);
 
-const SWEEP_INTERVAL_MS = 60_000;
+function parseSweepIntervalMs(): number {
+  const raw = process.env.RENDER_SWEEP_INTERVAL_MS?.trim();
+  if (!raw) return 60_000;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 5_000) {
+    console.warn(`render-sweep: invalid RENDER_SWEEP_INTERVAL_MS=${raw}; using 60000`);
+    return 60_000;
+  }
+  return Math.floor(n);
+}
+
 let sweepInFlight = false;
 
 function startRenderSweep(): void {
@@ -92,6 +102,7 @@ function startRenderSweep(): void {
     console.log("  render-sweep: disabled (RENDER_SWEEP_ENABLED=false)");
     return;
   }
+  const sweepIntervalMs = parseSweepIntervalMs();
   const tick = async (): Promise<void> => {
     if (sweepInFlight) return;
     sweepInFlight = true;
@@ -105,8 +116,9 @@ function startRenderSweep(): void {
       sweepInFlight = false;
     }
   };
+  console.log(`  render-sweep: every ${sweepIntervalMs}ms`);
   void tick();
-  setInterval(() => void tick(), SWEEP_INTERVAL_MS);
+  setInterval(() => void tick(), sweepIntervalMs);
 }
 
 const port = Number(env("PORT", "8790"));

@@ -414,6 +414,14 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "RENDER_SWEEP_INTERVAL_MS",
+    label: "Render sweep interval (ms)",
+    blurb: "Background advanceFilmJob tick when no client poll (default 60000). Use 15000 on GPU panels.",
+    category: "media",
+    sensitive: false,
+    applies_on: "restart",
+  },
+  {
     key: "VIDEO_FINISH_URL",
     label: "Video finish service",
     blurb: "CPU container for concat / finish / inspect.",
