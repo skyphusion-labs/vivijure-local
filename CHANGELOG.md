@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v1.1.2 -- 2026-07-20
+
+PATCH: fix `compose.yaml` YAML indent on `RUNPOD_WAN_TRAIN_ENDPOINT_ID` under `module-speech-upscale`
+and `studio` so `docker compose config` validates without on-box sed (propagandhi deploy hotfix).
+
 ## v1.1.1 -- 2026-07-20
 
 PATCH: Wan cast LoRA train + harvest writeback parity with vivijure-cf v1.7.1 (cf#29). Bumps
