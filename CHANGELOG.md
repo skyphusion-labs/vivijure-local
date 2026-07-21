@@ -5,6 +5,11 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## v1.1.7 -- 2026-07-21
+
+PATCH: bump `@skyphusion-labs/vivijure-core` to `^1.2.3` (#53 advanceFilmJob wedge fix, local#99
+`output_key` honesty). Ships core#64 + core#65. Roll propagandhi after GHCR `:1.1.7` publish is green.
+
 ## v1.1.6 -- 2026-07-21
 
 PATCH: security hardening + CI GPU allowlist sync (#144, #145, #146).
