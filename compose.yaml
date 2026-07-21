@@ -6,7 +6,7 @@
 #   COMPOSE_PROFILES=edge npm run compose:up   # + Caddy (studio + MinIO TLS)
 #   COMPOSE_PROFILES=wan-lora npm run compose:up # + alibaba-wan-lora (opt-in; delisted #772)
 #
-# Images are built on push to main and published to GHCR (see docker-build workflow).
+# Images are built on push to main and published to GHCR (see build-image workflow).
 # Override VJ_IMAGE_REGISTRY / VJ_IMAGE_TAG in .env to pin a different registry or tag.
 # Private GHCR: docker login ghcr.io (read:packages) before compose:up.
 #

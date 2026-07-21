@@ -1,4 +1,4 @@
-name: docker-build
+name: build-image
 
 # Build compose images on GitHub-hosted runners. PRs and merges to main =
 # build-only smoke (:ci tag, no push). A pushed version tag (v*) publishes GHCR
@@ -8,6 +8,7 @@ name: docker-build
 # default (VJ_IMAGE_TAG) and only moves when a release tag is cut.
 #
 # Studio image installs @skyphusion-labs/vivijure-core and vivijure-mcp from npm.
+# Tag bakes sync the org GPU allowlist on ubuntu-latest before scheduling here.
 
 on:
   push:
@@ -22,20 +23,29 @@ on:
       - reverse-proxy/**
       - package.json
       - package-lock.json
-      - .github/workflows/docker-build.yml
+      - .github/workflows/build-image.yml
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: docker-build-${{ github.ref }}
+  group: build-image-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io/skyphusion-labs
 
 jobs:
+  sync-gpu-allowlist:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: skyphusion-labs/fleet-chezmoi/.github/workflows/sync-gpu-allowlist.yml@main
+    secrets:
+      RUNNER_GROUP_ADMIN_TOKEN: ${{ secrets.RUNNER_GROUP_ADMIN_TOKEN }}
+    with:
+      ensure_repo: vivijure-local
+      ensure_tag: ${{ github.ref_name }}
+
   # SECURITY GATE (fc#859): a v* tag can point at ANY commit, including one that never merged.
   # The org tag ruleset enforces deletion + non_fast_forward only, so `git tag v9.9.9 <unmerged>
   # && git push origin v9.9.9` would PUBLISH GHCR :latest + :X.Y.Z images from unreviewed code
@@ -49,6 +59,8 @@ jobs:
   # is never blocked. A job-level `if` here would SKIP this job on non-tag and, through `needs`,
   # skip the builds too.
   assert-on-main:
+    needs: sync-gpu-allowlist
+    if: always() && (needs.sync-gpu-allowlist.result == 'success' || needs.sync-gpu-allowlist.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
