@@ -183,10 +183,14 @@ point at the previous door):
 3. `docker compose up -d --force-recreate studio module-local-gpu`
 
 Verify: `docker compose logs module-local-gpu | tail` should show the new backend URL (not the
-previous door). Architectural note: `local-gpu` motion still uses RunPod for keyframes until
-[local#153](https://github.com/skyphusion-labs/vivijure-local/issues/153) lands; set
-`RUNPOD_WORKERS_MAX=3` in `.env` for local panel RunPod quota headroom (compose default; do not
-use 4).
+previous door).
+
+**Local keyframes (#153):** `local-gpu` is dual-hook (keyframe + motion). Picking
+`motion_backend: local-gpu` couples keyframes onto the same door's `action: preview` (SDXL on the
+homelab card) — no RunPod `vivijure-backend` for the keyframe phase. Redeploy/recreate
+`module-local-gpu` (and the 12gb/16gb door image) after upgrading so the manifest advertises the
+`keyframe` hook and the door accepts `preview`. Keep `RUNPOD_WORKERS_MAX=3` in `.env` for any
+remaining RunPod modules (finish chain / non-local films; compose default; do not use 4).
 
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 

@@ -26,6 +26,7 @@ import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
 import {
   discoverModules,
   emitStructuredEvent,
+  localGpuKeyframePreflightError,
   motionBackendPreflightError,
   motionConfigPreflightError,
 } from "@skyphusion-labs/vivijure-core";
@@ -232,6 +233,8 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       if (filmMotionErr) throw badRequest(filmMotionErr);
       const filmCfgErr = motionConfigPreflightError(filmModules, a.motion_backend, a.motion_config);
       if (filmCfgErr) throw badRequest(filmCfgErr);
+      const filmKfErr = localGpuKeyframePreflightError(filmModules, a.motion_backend, a.keyframe_backend);
+      if (filmKfErr) throw badRequest(filmKfErr);
 
       const resolvedLoras =
         a.cast_loras && Object.keys(a.cast_loras).length

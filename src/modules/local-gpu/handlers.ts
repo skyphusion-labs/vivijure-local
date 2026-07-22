@@ -3,6 +3,8 @@ import type {
   CancelResponse,
   InvokeRequest,
   InvokeResponse,
+  KeyframeInput,
+  KeyframeOutput,
   MotionBackendInput,
   MotionBackendOutput,
   PollRequest,
@@ -13,10 +15,19 @@ import {
   classifyGoneState,
   decodePoll,
   encodePoll,
+  isSafeJobId,
   jobGone,
+  normalizeBackendUrl,
   readDurationGrid,
   readOutput,
 } from "./i2v-core.js";
+import {
+  buildPreviewBody,
+  decodeKeyframePoll,
+  encodeKeyframePoll,
+  parseKeyframes,
+  parseTrainedLoras,
+} from "./keyframe-core.js";
 
 export interface LocalGpuEnv {
   LOCAL_BACKEND_URL?: string;
@@ -24,13 +35,15 @@ export interface LocalGpuEnv {
 }
 
 export function localGpuConfigured(env: LocalGpuEnv): boolean {
-  return Boolean(env.LOCAL_BACKEND_URL?.trim());
+  return Boolean(normalizeBackendUrl(env.LOCAL_BACKEND_URL ?? ""));
 }
 
-function backendCfg(env: LocalGpuEnv): { baseUrl: string; token: string } {
+function backendCfg(env: LocalGpuEnv): { baseUrl: string; token: string; urlError?: string } {
+  const baseUrl = normalizeBackendUrl(env.LOCAL_BACKEND_URL ?? "");
   return {
-    baseUrl: (env.LOCAL_BACKEND_URL ?? "").replace(/\/+$/, ""),
+    baseUrl: baseUrl ?? "",
     token: env.LOCAL_BACKEND_TOKEN?.trim() ?? "",
+    urlError: baseUrl ? undefined : "local-gpu: LOCAL_BACKEND_URL must be an absolute http(s) URL",
   };
 }
 
@@ -61,8 +74,8 @@ export async function invokeLocalGpu(
   if (!input?.prompt || !input.shot_id) {
     return { ok: false, error: "motion.backend: input needs shot_id and prompt" };
   }
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
     const grid = await doorDurationGrid(env);
     const r = await fetch(`${baseUrl}/run`, {
@@ -72,13 +85,12 @@ export async function invokeLocalGpu(
     });
     if (!r.ok) return { ok: false, error: `local-gpu /run -> ${r.status}` };
     const jobId = ((await r.json()) as { id?: string }).id;
-    if (!jobId) return { ok: false, error: "local-gpu /run returned no job id" };
+    if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu /run returned no job id" };
     return {
       ok: true,
       pending: true,
       poll: encodePoll({
         jobId,
-        project: req.context.project,
         shotId: input.shot_id,
         submittedAt: Date.now(),
       }),
@@ -95,13 +107,15 @@ export async function pollLocalGpu(
 ): Promise<PollResponse<MotionBackendOutput>> {
   const st = decodePoll(body.poll);
   if (!st) return { ok: false, error: "local-gpu: bad poll token" };
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
 
   let httpStatus = 0;
   let s: { status?: string; output?: unknown; error?: unknown };
   try {
-    const resp = await fetch(`${baseUrl}/status/${st.jobId}`, { headers: authHeaders(token) });
+    const resp = await fetch(`${baseUrl}/status/${encodeURIComponent(st.jobId)}`, {
+      headers: authHeaders(token),
+    });
     httpStatus = resp.status;
     s = (await resp.json()) as typeof s;
   } catch {
@@ -123,12 +137,15 @@ export async function pollLocalGpu(
 }
 
 export async function cancelLocalGpu(env: LocalGpuEnv, body: CancelRequest): Promise<CancelResponse> {
-  const st = decodePoll(body.poll);
-  if (!st) return { ok: false, error: "local-gpu: bad poll token" };
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const motion = decodePoll(body.poll);
+  const kf = decodeKeyframePoll(body.poll);
+  if (motion && kf) return { ok: false, error: "local-gpu: ambiguous poll token" };
+  const jobId = motion?.jobId ?? kf?.jobId;
+  if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu: bad poll token" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
-    const resp = await fetch(`${baseUrl}/cancel/${st.jobId}`, {
+    const resp = await fetch(`${baseUrl}/cancel/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: authHeaders(token),
     });
@@ -137,6 +154,76 @@ export async function cancelLocalGpu(env: LocalGpuEnv, body: CancelRequest): Pro
   } catch (e) {
     return { ok: false, error: `local-gpu cancel failed: ${(e as Error).message}` };
   }
+}
+
+export async function invokeLocalKeyframe(
+  env: LocalGpuEnv,
+  req: InvokeRequest<KeyframeInput>,
+): Promise<InvokeResponse<KeyframeOutput>> {
+  const input = req.input;
+  if (!input?.project || !input.bundle_key) {
+    return { ok: false, error: "keyframe: input needs project and bundle_key" };
+  }
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
+  try {
+    const r = await fetch(`${baseUrl}/run`, {
+      method: "POST",
+      headers: { ...authHeaders(token), "content-type": "application/json" },
+      body: JSON.stringify(buildPreviewBody(input, req.config ?? {})),
+    });
+    if (!r.ok) return { ok: false, error: `local-gpu keyframe /run -> ${r.status}` };
+    const jobId = ((await r.json()) as { id?: string }).id;
+    if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu keyframe /run returned no job id" };
+    return {
+      ok: true,
+      pending: true,
+      poll: encodeKeyframePoll({ jobId, project: input.project, submittedAt: Date.now(), kind: "keyframe" }),
+      jobId,
+    };
+  } catch (e) {
+    return { ok: false, error: `local-gpu keyframe submit failed: ${(e as Error).message}` };
+  }
+}
+
+export async function pollLocalKeyframe(
+  env: LocalGpuEnv,
+  body: PollRequest,
+): Promise<PollResponse<KeyframeOutput>> {
+  const st = decodeKeyframePoll(body.poll);
+  if (!st) return { ok: false, error: "local-gpu: bad keyframe poll token" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
+
+  let httpStatus = 0;
+  let s: { status?: string; output?: unknown; error?: unknown };
+  try {
+    const resp = await fetch(`${baseUrl}/status/${encodeURIComponent(st.jobId)}`, {
+      headers: authHeaders(token),
+    });
+    httpStatus = resp.status;
+    s = (await resp.json()) as typeof s;
+  } catch {
+    return { ok: true, pending: true };
+  }
+  if (jobGone(httpStatus, s as { status?: unknown; title?: unknown })) {
+    if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
+      return { ok: false, error: "local-gpu keyframe job not found" };
+    }
+    return { ok: true, pending: true };
+  }
+  if (s.status === "FAILED") {
+    return { ok: false, error: `local-gpu keyframe failed: ${JSON.stringify(s.error ?? s).slice(0, 200)}` };
+  }
+  if (s.status !== "COMPLETED") return { ok: true, pending: true };
+  const keyframes = parseKeyframes(s.output);
+  if (keyframes.length === 0) {
+    return { ok: false, error: "local-gpu keyframe job COMPLETED but produced no keyframes" };
+  }
+  const trained = parseTrainedLoras(s.output);
+  const output: KeyframeOutput = { project: st.project, keyframes };
+  if (Object.keys(trained).length) output.trained_loras = trained;
+  return { ok: true, output };
 }
 
 export function localGpuEnvFromProcess(env: NodeJS.ProcessEnv): LocalGpuEnv {
