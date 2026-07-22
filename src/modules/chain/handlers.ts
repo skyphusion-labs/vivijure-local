@@ -77,10 +77,12 @@ import {
   authHeader,
   cancelRunpodJobBestEffort,
   classifyGoneState,
+  reconcileWorkersMaxOrError,
   runpodBase,
   runpodJobGone,
   terminalErrorInOutput,
 } from "../runpod/shared.js";
+import { resolveWorkersMax, type RunpodModuleEnv } from "../runpod/env.js";
 
 export type ChainModuleName =
   | "plan-enhance"
@@ -468,6 +470,13 @@ export async function invokeSpeechUpscale(
   }
   const apiKey = env.RUNPOD_API_KEY!;
   const endpointId = speechRunpodEndpointId(env)!;
+  const rec = await reconcileWorkersMaxOrError(
+    "speech-upscale",
+    apiKey,
+    endpointId,
+    resolveWorkersMax(env as RunpodModuleEnv),
+  );
+  if (!rec.ok) return { ok: false, error: rec.error };
   const base = runpodBase(endpointId);
   try {
     const r = await fetch(`${base}/run`, {

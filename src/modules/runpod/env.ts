@@ -8,6 +8,8 @@ export interface RunpodModuleEnv {
   VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
   MUSETALK_RUNPOD_ENDPOINT_ID?: string;
   AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
+  /** cf#61: expected workersMax for pre-submit idle reconcile (matches cf module wrangler vars). */
+  RUNPOD_WORKERS_MAX?: string;
   S3_ENDPOINT?: string;
   S3_ACCESS_KEY_ID?: string;
   S3_SECRET_ACCESS_KEY?: string;
@@ -41,6 +43,7 @@ export function runpodModuleEnvFromProcess(env: NodeJS.ProcessEnv): RunpodModule
     VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: env.VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     MUSETALK_RUNPOD_ENDPOINT_ID: env.MUSETALK_RUNPOD_ENDPOINT_ID?.trim() || undefined,
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: env.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    RUNPOD_WORKERS_MAX: env.RUNPOD_WORKERS_MAX?.trim() || undefined,
     S3_ENDPOINT: env.S3_ENDPOINT,
     S3_ACCESS_KEY_ID: env.S3_ACCESS_KEY_ID,
     S3_SECRET_ACCESS_KEY: env.S3_SECRET_ACCESS_KEY,
@@ -56,4 +59,10 @@ export function runpodModuleEnvFromRuntime(runtime: { asProcessEnv(): NodeJS.Pro
 
 export function runpodConfigured(env: RunpodModuleEnv, moduleName = ""): boolean {
   return Boolean(env.RUNPOD_API_KEY && resolveRunpodEndpointId(moduleName, env));
+}
+
+export function resolveWorkersMax(env: RunpodModuleEnv): number | null {
+  const n = Number(env.RUNPOD_WORKERS_MAX);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
 }

@@ -7,6 +7,7 @@ export type ChainModuleEnv = PlannerEnv & {
   RUNPOD_API_KEY?: string;
   RUNPOD_ENDPOINT_ID?: string;
   AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
+  RUNPOD_WORKERS_MAX?: string;
 };
 
 export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = process.env): ChainModuleEnv {
@@ -17,6 +18,7 @@ export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = proces
     RUNPOD_API_KEY: processEnv.RUNPOD_API_KEY?.trim() || undefined,
     RUNPOD_ENDPOINT_ID: processEnv.RUNPOD_ENDPOINT_ID?.trim() || undefined,
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: processEnv.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,
+    RUNPOD_WORKERS_MAX: processEnv.RUNPOD_WORKERS_MAX?.trim() || undefined,
   };
 }
 

@@ -12,11 +12,12 @@ import type {
   FinishInput,
   FinishOutput,
 } from "@skyphusion-labs/vivijure-core";
-import { runpodConfigured, resolveRunpodEndpointId, type RunpodModuleEnv } from "./env.js";
+import { runpodConfigured, resolveRunpodEndpointId, resolveWorkersMax, type RunpodModuleEnv } from "./env.js";
 import {
   authHeader,
   cancelRunpodJobBestEffort,
   classifyGoneState,
+  reconcileWorkersMaxOrError,
   runpodBase,
   runpodJobGone,
   runpodTerminalFailure,
@@ -65,6 +66,8 @@ export async function invokeKeyframeRunpod(
   }
   const creds = await runpodCreds(env, "keyframe");
   if (!creds) return { ok: false, error: "keyframe: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
+  const rec = await reconcileWorkersMaxOrError("keyframe", creds.apiKey, creds.endpointId, resolveWorkersMax(env));
+  if (!rec.ok) return { ok: false, error: rec.error };
   const base = runpodBase(creds.endpointId);
   try {
     const r = await fetch(`${base}/run`, {
@@ -143,6 +146,8 @@ export async function invokeOwnGpu(
   }
   const creds = await runpodCreds(env, "own-gpu");
   if (!creds) return { ok: false, error: "own-gpu: RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID not configured" };
+  const rec = await reconcileWorkersMaxOrError("own-gpu", creds.apiKey, creds.endpointId, resolveWorkersMax(env));
+  if (!rec.ok) return { ok: false, error: rec.error };
   const base = runpodBase(creds.endpointId);
   try {
     const r = await fetch(`${base}/run`, {
@@ -224,6 +229,8 @@ async function invokeFinish(
   if (!creds) {
     return { ok: true, output: passthroughOutput(input, "no-runpod-secrets") };
   }
+  const rec = await reconcileWorkersMaxOrError(moduleName, creds.apiKey, creds.endpointId, resolveWorkersMax(env));
+  if (!rec.ok) return { ok: false, error: rec.error };
   const runBody =
     action === "lipsync_clip"
       ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
