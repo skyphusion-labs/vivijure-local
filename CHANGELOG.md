@@ -11,6 +11,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   12GB↔16GB door switch sequence (`sync:secrets:compose` + force-recreate; `platform_secrets` wins
   over compose env). Links local#153, fleet#962.
 
+## v1.1.9 -- 2026-07-22
+
+PATCH: dual-panel parity with vivijure-cf **v1.7.8** -- re-list `alibaba-wan-lora` on the default
+compose stack (drop `profiles: [wan-lora]`), wire `MODULE_ALIBABA_WAN_LORA_URL` + `depends_on` on
+studio. Matches the CF IaC re-list after the 2x2 Wan LoRA sign-off (cf#29 follow-up).
+
 ## v1.1.8 -- 2026-07-22
 
 PATCH: pre-submit RunPod idle workersMax reconcile parity (cf#61). Bumps `@skyphusion-labs/vivijure-core`

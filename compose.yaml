@@ -4,7 +4,6 @@
 #   npm run compose:up       # pull GHCR :latest + docker compose up -d
 #   npm run install:edge     # DNS checklist + Caddy site config for public HTTPS
 #   COMPOSE_PROFILES=edge npm run compose:up   # + Caddy (studio + MinIO TLS)
-#   COMPOSE_PROFILES=wan-lora npm run compose:up # + alibaba-wan-lora (opt-in; delisted #772)
 #
 # Images are built on push to main and published to GHCR (see build-image workflow).
 # Override VJ_IMAGE_REGISTRY / VJ_IMAGE_TAG in .env to pin a different registry or tag.
@@ -277,7 +276,6 @@ services:
 
   module-alibaba-wan-lora:
     <<: *runpod-module
-    profiles: [wan-lora]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9156", "alibaba-wan-lora"]
     healthcheck:
       <<: *module-health-url
@@ -515,6 +513,7 @@ services:
       MODULE_MINIMAX_HAILUO_URL: http://module-minimax-hailuo:9153
       MODULE_VIDU_Q3_URL: http://module-vidu-q3:9154
       MODULE_ALIBABA_WAN_URL: http://module-alibaba-wan:9155
+      MODULE_ALIBABA_WAN_LORA_URL: http://module-alibaba-wan-lora:9156
       MODULE_CLOUD_KEYFRAME_URL: http://module-cloud-keyframe:9157
       MODULE_MUSIC_GEN_URL: http://module-music-gen:9158
       MODULE_NARRATION_GEN_URL: http://module-narration-gen:9159
@@ -570,6 +569,8 @@ services:
       module-vidu-q3:
         condition: service_started
       module-alibaba-wan:
+        condition: service_started
+      module-alibaba-wan-lora:
         condition: service_started
       module-cloud-keyframe:
         condition: service_started
