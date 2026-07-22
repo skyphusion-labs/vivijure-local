@@ -171,7 +171,17 @@ test.describe("cast page", () => {
   test("list loads and new character UI", async ({ page }) => {
     await page.goto("/cast.html");
     await expect(page.getByRole("heading", { name: /^cast$/i })).toBeVisible();
-    await expect(page.locator("#cast-list")).toBeVisible();
+
+    // Pane is always sized. Empty #cast-list has no bounding box, so toBeVisible()
+    // fails on a fresh DB (local#113 / gate hosts). Assert the shell + load completion.
+    await expect(page.locator(".cast-list-pane")).toBeVisible();
+    await expect(page.locator("#cast-list")).toBeAttached();
+    await expect(page.locator("#cast-list-status")).not.toHaveText("loading...", {
+      timeout: 30_000,
+    });
+    await expect(
+      page.locator("#cast-list-status, #cast-list .cast-list-item").first(),
+    ).toBeVisible();
 
     const newBtn = page.locator("#cast-new-btn");
     await newBtn.click();
