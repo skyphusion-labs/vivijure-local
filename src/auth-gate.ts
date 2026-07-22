@@ -179,6 +179,8 @@ export function isDemoDeniedRead(pathname: string): boolean {
   if (/^\/api\/storyboard\/render\/[^/]+$/.test(pathname)) return true;
   if (/^\/api\/render\/film\/[^/]+$/.test(pathname)) return true;
   if (/^\/api\/cast\/[^/]+\/refs-job\/[^/]+$/.test(pathname)) return true;
+  // Cast .vvcast export includes portraits, refs, and trained LoRA weights — operator-only.
+  if (/^\/api\/cast\/export\/[^/]+$/.test(pathname)) return true;
   return false;
 }
 
