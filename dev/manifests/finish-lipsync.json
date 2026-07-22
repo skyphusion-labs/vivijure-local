@@ -1,6 +1,6 @@
 {
   "name": "finish-lipsync",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"

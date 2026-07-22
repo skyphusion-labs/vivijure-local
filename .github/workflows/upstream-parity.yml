@@ -2,6 +2,7 @@ name: upstream-parity
 
 # Keep verbatim-copy surfaces aligned with skyphusion-labs/vivijure-cf main so the homelab host
 # does not ship a stale public/ UI (planner, cast, settings) while CF-native v1 moves forward.
+# Also fail when committed dev/manifests/*.json drift from the real module MANIFESTs (#117).
 # (vivijure-cf is the Cloudflare studio host: the old monolith skyphusion-labs/vivijure was
 # retired into a constellation hub and no longer carries public/ or the wire contract.)
 on:
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   upstream-parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,3 +36,11 @@ jobs:
       - name: Diff public/ against vivijure-cf main
         working-directory: vivijure-local
         run: bash scripts/upstream-public-parity.sh .upstream/vivijure
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Diff dev/manifests against regenerated vivijure-cf MANIFESTs
+        working-directory: vivijure-local
+        run: bash scripts/check-module-manifest-drift.sh .upstream/vivijure

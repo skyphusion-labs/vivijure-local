@@ -43,6 +43,11 @@
       "min": 1,
       "max": 4,
       "label": "reference images per character"
+    },
+    "film_ref": {
+      "type": "string",
+      "default": "none",
+      "label": "film-wide reference lock (none | first_keyframe | cast:<slot>)"
     }
   },
   "ui": {

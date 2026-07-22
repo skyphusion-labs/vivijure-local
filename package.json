@@ -37,6 +37,8 @@
     "render:caddy-sites": "tsx scripts/render-caddy-sites.ts",
     "issue:edge-certs": "bash scripts/issue-edge-certs-manual.sh",
     "module-manifests": "tsx scripts/sync-module-manifests.ts",
+    "module-manifests:check": "bash scripts/check-module-manifest-drift.sh",
+    "sync:from-cf": "bash scripts/sync-from-vivijure.sh",
     "module-fleet": "bash scripts/dev-module-fleet.sh",
     "module-fleet:stop": "bash scripts/stop-module-fleet.sh",
     "sync-containers": "bash scripts/sync-containers.sh",
