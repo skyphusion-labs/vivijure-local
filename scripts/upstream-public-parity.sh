@@ -152,7 +152,10 @@ if [[ $STRICT -eq 1 ]]; then
 fi
 
 if [[ $fail -ne 0 ]]; then
-  echo "upstream-public-parity: FAIL -- run scripts/sync-from-vivijure.sh, merge, and commit" >&2
+  echo "upstream-public-parity: FAIL -- sync shared public/ from vivijure-cf, then commit:" >&2
+  echo "  VIVIJURE_SRC=$UP bash scripts/sync-from-vivijure.sh" >&2
+  echo "  bash scripts/upstream-public-parity.sh \"$UP\"" >&2
+  echo "(sync-from-vivijure.sh overwrites shared public/ files and leaves local overlays alone: ${LOCAL_PUBLIC_SKIP[*]#public/})" >&2
   exit 1
 fi
 

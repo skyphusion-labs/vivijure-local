@@ -12,7 +12,9 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = join(import.meta.dirname, "..");
 const VIV = process.env.VIVIJURE_SRC ?? join(ROOT, "..", "vivijure-cf");
-const OUT = join(ROOT, "dev", "manifests");
+// MANIFESTS_OUT lets CI / check-module-manifest-drift.sh regenerate into a temp dir
+// without touching the committed fixtures.
+const OUT = process.env.MANIFESTS_OUT ?? join(ROOT, "dev", "manifests");
 
 const MODULES = [
   "keyframe",
@@ -128,13 +130,17 @@ function inlineBareConsts(literal: string, modDir: string): string {
   for (const file of readdirSync(modDir)) {
     if (!file.endsWith(".ts")) continue;
     const src = readFileSync(join(modDir, file), "utf8");
-    const arrRe = /(?:export )?const ([A-Z][A-Z0-9_]*)\s*=\s*(\[[\s\S]*?\])\s*;?/g;
+    // Optional TypeScript type annotation between name and `=` (cast-image TRAINING_PROMPTS).
+    const arrRe =
+      /(?:export )?const ([A-Z][A-Z0-9_]*)\s*(?::\s*[^=]+)?\s*=\s*(\[[\s\S]*?\])\s*;?/g;
     let m: RegExpExecArray | null;
     while ((m = arrRe.exec(src))) {
       if (m[2].includes("{")) continue;
       try {
         const parsed = Function(`"use strict"; return (${m[2]});`)();
         if (!Array.isArray(parsed)) continue;
+        // Prefer .length / [0] before the bare-name replace so manifests stay numeric/scalar.
+        out = out.replace(new RegExp(`${m[1]}\\.length\\b`, "g"), String(parsed.length));
         out = out.replace(new RegExp(`${m[1]}\\[0\\]`, "g"), JSON.stringify(parsed[0]));
         out = out.replace(new RegExp(`\\b${m[1]}\\b`, "g"), JSON.stringify(parsed));
       } catch {

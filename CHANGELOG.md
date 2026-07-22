@@ -12,6 +12,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   over compose env). Links local#153, fleet#962.
 - **fix(e2e):** cast-page smoke asserts the list pane + empty-state status on a fresh DB instead of
   `toBeVisible()` on an empty `#cast-list` (local#113).
+- **fix(ci):** `sync-from-vivijure.sh` force-syncs shared `public/` (respects LOCAL_PUBLIC_SKIP);
+  parity FAIL message names that remedy (#103).
+- **fix(ci):** `check-module-manifest-drift.sh` on the upstream-parity job so committed
+  `dev/manifests/` cannot silently diverge from vivijure-cf (excludes `bare-planner.json`) (#117).
+  Regenerates fixtures from cf main (cast-image extract fix for typed `TRAINING_PROMPTS.length`;
+  refreshes cloud-keyframe `film_ref` + finish/keyframe/own-gpu/speech-upscale version bumps).
 
 ## v1.1.9 -- 2026-07-22
 
