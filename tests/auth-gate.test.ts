@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   gateApi,
   constantTimeEqual,
+  isDemoAllowedArtifactKey,
   isDemoDeniedRead,
   sha256Hex,
   TOKEN_COOKIE,
@@ -197,6 +198,14 @@ describe("gateApi -- demo mode operator-config exposure (#43)", () => {
     expect(isDemoDeniedRead("/api/render/film/job-1")).toBe(true);
     expect(isDemoDeniedRead("/api/cast/c1/refs-job/j1")).toBe(true);
     expect(isDemoDeniedRead("/api/cast/export/c1")).toBe(true);
+    expect(isDemoDeniedRead("/api/artifact/cast/c1/portrait.png")).toBe(true);
+    expect(isDemoDeniedRead("/api/artifact/bundles/proj/story.json")).toBe(true);
+    expect(isDemoDeniedRead("/api/artifact/renders/operator/out.mp4")).toBe(true);
+    expect(isDemoDeniedRead("/api/artifact/demo/kf/neon.png")).toBe(false);
+    expect(isDemoDeniedRead("/api/artifact/renders/demo/clip.mp4")).toBe(false);
+    expect(isDemoAllowedArtifactKey("demo/kf/x.png")).toBe(true);
+    expect(isDemoAllowedArtifactKey("renders%2Fdemo%2Fclip.mp4")).toBe(true);
+    expect(isDemoAllowedArtifactKey("cast/c1/portrait.png")).toBe(false);
   });
 
   it("demo mode denies cast bundle export (LoRA + media)", async () => {
@@ -204,6 +213,17 @@ describe("gateApi -- demo mode operator-config exposure (#43)", () => {
     expect(await gateApi(req({}, "GET", "/api/cast/export/c1"), demo)).toMatchObject({
       ok: false,
       status: 403,
+    });
+  });
+
+  it("demo mode denies operator artifact keys; allows demo prefix", async () => {
+    const demo = { AUTH_MODE: "demo" };
+    expect(await gateApi(req({}, "GET", "/api/artifact/cast/c1/portrait.png"), demo)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
+    expect(await gateApi(req({}, "GET", "/api/artifact/demo/kf/neon.png"), demo)).toMatchObject({
+      ok: true,
     });
   });
 });
