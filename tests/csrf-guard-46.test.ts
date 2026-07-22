@@ -73,28 +73,42 @@ afterEach(() => {
 
 describe("isCrossSiteRequest (#46)", () => {
   const req = (headers: Record<string, string>) => new Request("http://studio.local/api/x", { headers });
-  it("blocks an explicit Sec-Fetch-Site: cross-site", () => {
-    expect(isCrossSiteRequest(req({ "sec-fetch-site": "cross-site" }))).toBe(true);
+  const cookie = { cookie: "vivijure_token=x" };
+  it("blocks an explicit Sec-Fetch-Site: cross-site when the ambient cookie is present", () => {
+    expect(isCrossSiteRequest(req({ ...cookie, "sec-fetch-site": "cross-site" }))).toBe(true);
   });
   it("passes same-origin / same-site / none (the operator UI + address-bar hits)", () => {
-    expect(isCrossSiteRequest(req({ "sec-fetch-site": "same-origin" }))).toBe(false);
-    expect(isCrossSiteRequest(req({ "sec-fetch-site": "same-site" }))).toBe(false);
-    expect(isCrossSiteRequest(req({ "sec-fetch-site": "none" }))).toBe(false);
+    expect(isCrossSiteRequest(req({ ...cookie, "sec-fetch-site": "same-origin" }))).toBe(false);
+    expect(isCrossSiteRequest(req({ ...cookie, "sec-fetch-site": "same-site" }))).toBe(false);
+    expect(isCrossSiteRequest(req({ ...cookie, "sec-fetch-site": "none" }))).toBe(false);
+  });
+  it("has no CSRF surface without the ambient cookie (Bearer / curl / Slate)", () => {
+    expect(isCrossSiteRequest(req({}))).toBe(false);
+    expect(isCrossSiteRequest(req({ authorization: "Bearer api-token-value" }))).toBe(false);
+    expect(
+      isCrossSiteRequest(req({ authorization: "Bearer api-token-value", "sec-fetch-site": "cross-site" })),
+    ).toBe(false);
   });
   it("fails CLOSED for ambient-cookie requests with no fetch-metadata and no Origin", () => {
-    expect(isCrossSiteRequest(req({}))).toBe(true);
-    expect(isCrossSiteRequest(req({ cookie: "vivijure_token=x" }))).toBe(true);
+    expect(isCrossSiteRequest(req(cookie))).toBe(true);
   });
-  it("fails OPEN for Bearer clients with no fetch-metadata (curl / Slate / API consumers)", () => {
-    expect(isCrossSiteRequest(req({ authorization: "Bearer api-token-value" }))).toBe(false);
+  it("does not let a decoy Bearer skip CSRF when the ambient cookie is present", () => {
+    expect(
+      isCrossSiteRequest(
+        req({ authorization: "Bearer decoy", ...cookie, "sec-fetch-site": "cross-site" }),
+      ),
+    ).toBe(true);
+    expect(isCrossSiteRequest(req({ authorization: "Bearer decoy", ...cookie }))).toBe(true);
   });
   it("blocks unknown Sec-Fetch-Site values on the cookie path", () => {
-    expect(isCrossSiteRequest(req({ "sec-fetch-site": "nested-site" }))).toBe(true);
+    expect(isCrossSiteRequest(req({ ...cookie, "sec-fetch-site": "nested-site" }))).toBe(true);
   });
-  it("falls back to Origin when Sec-Fetch-Site is absent on the cookie path", () => {
-    expect(isCrossSiteRequest(req({ origin: "http://evil.example" }))).toBe(true); // cross-origin
-    expect(isCrossSiteRequest(req({ origin: "http://studio.local" }))).toBe(false); // same-origin
-    expect(isCrossSiteRequest(req({ origin: "not a url" }))).toBe(true); // malformed -> suspicious
+  it("falls back to full same-origin Origin when Sec-Fetch-Site is absent on the cookie path", () => {
+    expect(isCrossSiteRequest(req({ ...cookie, origin: "http://evil.example" }))).toBe(true);
+    expect(isCrossSiteRequest(req({ ...cookie, origin: "http://studio.local" }))).toBe(false);
+    expect(isCrossSiteRequest(req({ ...cookie, origin: "https://studio.local" }))).toBe(true); // scheme
+    expect(isCrossSiteRequest(req({ ...cookie, origin: "http://studio.local:8080" }))).toBe(true); // port
+    expect(isCrossSiteRequest(req({ ...cookie, origin: "not a url" }))).toBe(true);
   });
 });
 

@@ -103,37 +103,53 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
  *  the operator's browser could drive them with that ambient cookie (classic CSRF; bounded -- no fresh
  *  spend, the attacker must already know the job id).
  *
- *  Auth modes for this helper:
- *  - `Authorization: Bearer …` → not cross-site. API clients (Slate, curl) omit fetch-metadata; an
- *    attacker cannot forge the Bearer token, so CSRF does not apply.
- *  - Ambient cookie / no Bearer → require an explicit safe `Sec-Fetch-Site` (`same-origin`,
- *    `same-site`, or `none`). If that header is absent, fall back to a same-host `Origin`. If both
- *    are missing (or Origin is cross-host / malformed), FAIL CLOSED — legacy browsers without
- *    fetch-metadata must not bypass the guard for cookie-authenticated advances. */
+ *  The CSRF surface is the ambient cookie. No `vivijure_token` cookie → not cross-site (pure Bearer /
+ *  curl / Slate clients). A decoy `Authorization: Bearer …` MUST NOT exempt a request that still
+ *  carries the cookie — browsers attach cookies independently of Authorization.
+ *
+ *  When the cookie is present: require an explicit safe `Sec-Fetch-Site` (`same-origin`,
+ *  `same-site`, or `none`). If that header is absent, fall back to a full same-origin `Origin`
+ *  (scheme + host + port). Missing / cross-origin / malformed Origin → FAIL CLOSED. */
 /** Shared 403 message for a cross-site request to a state-advancing GET (thrown as `forbidden(...)`). */
 export const CSRF_ADVANCE_MSG =
   "cross-site request blocked (CSRF guard): this route advances a job -- use Authorization: Bearer for cross-origin access";
 
-function hasBearerAuthorization(request: Request): boolean {
-  return /^Bearer\s+\S+$/i.test((request.headers.get("authorization") || "").trim());
+function hasTokenCookie(request: Request): boolean {
+  const cookie = request.headers.get("cookie") || "";
+  for (const part of cookie.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === TOKEN_COOKIE) {
+      return part.slice(eq + 1).trim().length > 0;
+    }
+  }
+  return false;
+}
+
+/** True when Origin matches the request URL's scheme, host, and port (URL.host includes port). */
+function isSameOriginHeader(originHeader: string, requestUrl: string): boolean {
+  try {
+    const origin = new URL(originHeader);
+    const req = new URL(requestUrl);
+    return origin.protocol === req.protocol && origin.host === req.host;
+  } catch {
+    return false;
+  }
 }
 
 export function isCrossSiteRequest(request: Request): boolean {
-  if (hasBearerAuthorization(request)) return false;
+  // No ambient cookie → nothing for a cross-site page to forge; Bearer-only clients pass.
+  if (!hasTokenCookie(request)) return false;
 
   const site = (request.headers.get("sec-fetch-site") || "").trim().toLowerCase();
   if (site === "same-origin" || site === "same-site" || site === "none") return false;
   if (site === "cross-site") return true;
   if (site) return true; // unknown Sec-Fetch-Site value → treat as cross-site
 
-  // Cookie / ambient path with no fetch-metadata: Origin must prove same-host, else fail closed.
+  // Cookie present, no fetch-metadata: Origin must prove same-origin, else fail closed.
   const origin = request.headers.get("origin");
   if (!origin) return true;
-  try {
-    return new URL(origin).host !== new URL(request.url).host;
-  } catch {
-    return true; // a malformed Origin is suspicious -> treat as cross-site
-  }
+  return !isSameOriginHeader(origin, request.url);
 }
 
 export function isDemoMode(env: AuthEnv): boolean {
