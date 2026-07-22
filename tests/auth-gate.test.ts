@@ -193,5 +193,8 @@ describe("gateApi -- demo mode operator-config exposure (#43)", () => {
     expect(isDemoDeniedRead("/api/modules")).toBe(false);
     expect(isDemoDeniedRead("/api/modules/musetalk")).toBe(false);
     expect(isDemoDeniedRead("/api/cast")).toBe(false);
+    expect(isDemoDeniedRead("/api/storyboard/render/job-1")).toBe(true);
+    expect(isDemoDeniedRead("/api/render/film/job-1")).toBe(true);
+    expect(isDemoDeniedRead("/api/cast/c1/refs-job/j1")).toBe(true);
   });
 });
