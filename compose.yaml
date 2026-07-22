@@ -10,8 +10,9 @@
 # Private GHCR: docker login ghcr.io (read:packages) before compose:up.
 #
 # Studio UI:     http://127.0.0.1:8790  (or https via COMPOSE_PROFILES=edge; see docs/EDGE.md)
-# MinIO console: http://127.0.0.1:9001  (rotate off minioadmin before public expose)
+# MinIO console: http://127.0.0.1:9001  (localhost-only default minioadmin; edge refuses it)
 # MinIO S3 API:  http://127.0.0.1:9000  (in-network); public HTTPS via Caddy + S3_PRESIGN_ENDPOINT
+#               COMPOSE_PROFILES=edge requires non-placeholder S3_* (npm run install:edge mints them).
 #
 # GPU motion modules proxy to RunPod or LOCAL_BACKEND_URL; control plane never runs GPU work.
 # Keyframe falls back to mock PNGs when RUNPOD_* is unset; local-gpu falls back to mock when
@@ -599,6 +600,26 @@ services:
       module-notify-email:
         condition: service_healthy
 
+  # Fail-closed: public edge must not start with default minioadmin root creds.
+  # Localhost compose (no edge profile) may keep minioadmin; install:edge mints S3_*.
+  edge-minio-creds-gate:
+    profiles: [edge]
+    image: busybox:1.36
+    restart: "no"
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$$S3_ACCESS_KEY_ID" ] || [ -z "$$S3_SECRET_ACCESS_KEY" ] \
+          || [ "$$S3_ACCESS_KEY_ID" = "minioadmin" ] || [ "$$S3_SECRET_ACCESS_KEY" = "minioadmin" ]; then
+          echo "REFUSING COMPOSE_PROFILES=edge with default MinIO credentials (minioadmin)." >&2
+          echo "Run: npm run install:edge   (or set non-placeholder S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY)" >&2
+          exit 1
+        fi
+        exit 0
+
   caddy:
     # Public HTTPS edge (Let's Encrypt). Opt-in: COMPOSE_PROFILES=edge.
     # Terminates TLS for the studio host and MinIO (including *.minio-host wildcard for S3
@@ -641,6 +662,8 @@ services:
       - ./reverse-proxy/sites.runtime.caddyfile:/etc/caddy/sites.caddyfile:ro
       - ./reverse-proxy/certs:/certs:ro
     depends_on:
+      edge-minio-creds-gate:
+        condition: service_completed_successfully
       studio:
         condition: service_started
       minio:
