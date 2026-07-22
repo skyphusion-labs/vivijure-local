@@ -108,7 +108,7 @@ describe("M3 CRUD routes", () => {
     const portrait = await app.request(`/api/cast/${cast.id}/portrait`, {
       method: "POST",
       headers: { ...auth(), "content-type": "image/png" },
-      body: new Uint8Array([1, 2, 3]),
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]),
     });
     expect(portrait.status).toBe(200);
     const withPortrait = (await portrait.json()) as { cast: { portrait_key: string } };

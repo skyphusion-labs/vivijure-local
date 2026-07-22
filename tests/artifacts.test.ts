@@ -94,8 +94,21 @@ describe("M2 artifacts", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("content-disposition")).toMatch(/attachment/);
     expect(res.headers.get("accept-ranges")).toBe("bytes");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
+  });
+
+  it("forces a safe content-type for a legacy text/html object", async () => {
+    const store = new FilesystemObjectStore(dir);
+    await store.put("cast/1/evil.html", new TextEncoder().encode("<script>alert(1)</script>"), {
+      httpMetadata: { contentType: "text/html" },
+    });
+    const res = await app.request("/api/artifact/cast/1/evil.html", { headers: authHeaders() });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/octet-stream");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("content-disposition")).toMatch(/attachment/);
   });
 
   it("404s keys outside artifact prefixes", async () => {
