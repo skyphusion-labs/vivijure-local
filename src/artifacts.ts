@@ -30,12 +30,24 @@ export const ARTIFACT_PREFIXES = [
   "uploads/",
 ];
 
-function artifactHeaders(contentType: string): Headers {
+const ARTIFACT_SAFE_CT_RE =
+  /^(image\/(png|jpe?g|webp|gif)|video\/(mp4|webm|quicktime)|audio\/[\w.+-]+|application\/(octet-stream|json|x-tar|zip|safetensors))$/i;
+
+function safeArtifactContentType(contentType: string): string {
+  const t = (contentType || "").split(";")[0].trim();
+  if (ARTIFACT_SAFE_CT_RE.test(t)) return t === "image/jpg" ? "image/jpeg" : t;
+  return "application/octet-stream";
+}
+
+function artifactHeaders(contentType: string, key?: string): Headers {
   const h = new Headers();
-  h.set("content-type", contentType || "application/octet-stream");
+  h.set("content-type", safeArtifactContentType(contentType));
   h.set("cache-control", "private, max-age=300");
   h.set("accept-ranges", "bytes");
   h.set("x-content-type-options", "nosniff");
+  const base = (key || "artifact").split("/").pop() || "artifact";
+  const safeName = base.replace(/[^\w.\-]+/g, "_").slice(0, 180) || "artifact";
+  h.set("content-disposition", `attachment; filename="${safeName}"`);
   return h;
 }
 
@@ -74,12 +86,12 @@ export async function handleServeArtifact(req: Request, store: ArtifactStore, ra
     const parsed = parseByteRange(rangeHeader, meta.size);
 
     if (parsed === "unsatisfiable") {
-      const h = artifactHeaders(ct);
+      const h = artifactHeaders(ct, key);
       h.set("content-range", `bytes */${meta.size}`);
       return new Response(null, { status: 416, headers: h });
     }
     if (parsed) {
-      const h = artifactHeaders(ct);
+      const h = artifactHeaders(ct, key);
       h.set("content-range", `bytes ${parsed.start}-${parsed.end}/${meta.size}`);
       h.set("content-length", String(parsed.length));
       if (isHead) return new Response(null, { status: 206, headers: h });
@@ -87,7 +99,7 @@ export async function handleServeArtifact(req: Request, store: ArtifactStore, ra
       if (!slice) throw notFound("artifact");
       return new Response(slice, { status: 206, headers: h });
     }
-    const h = artifactHeaders(ct);
+    const h = artifactHeaders(ct, key);
     h.set("content-length", String(meta.size));
     if (isHead) return new Response(null, { status: 200, headers: h });
     const full = await store.getBytes(key);
@@ -97,7 +109,7 @@ export async function handleServeArtifact(req: Request, store: ArtifactStore, ra
 
   const obj = await store.getBytes(key);
   if (!obj) throw notFound("artifact");
-  const h = artifactHeaders(obj.contentType);
+  const h = artifactHeaders(obj.contentType, key);
   h.set("content-length", String(obj.size));
   return new Response(obj.bytes, { headers: h });
 }
