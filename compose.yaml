@@ -80,6 +80,8 @@ x-runpod-module: &runpod-module
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
     # Wan cast LoRA train: local RunPod EP only (see fleet CR-2026-07-21-vivijure-wan-train-local-ep). Never prod zqb7…
     RUNPOD_WAN_TRAIN_ENDPOINT_ID: ${RUNPOD_WAN_TRAIN_ENDPOINT_ID:-}
+    # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 4; satellites override below)
+    RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-4}
     S3_ENDPOINT: http://minio:9000
     S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
     S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -215,6 +217,8 @@ services:
 
   module-finish-lipsync:
     <<: *runpod-module
+    environment:
+      RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9111", "finish-lipsync"]
     healthcheck:
       <<: *module-health-url
@@ -222,6 +226,8 @@ services:
 
   module-finish-upscale:
     <<: *runpod-module
+    environment:
+      RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9112", "finish-upscale"]
     healthcheck:
       <<: *module-health-url
@@ -445,6 +451,7 @@ services:
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
       # Wan cast LoRA train: local RunPod EP only (fleet CR-2026-07-21-vivijure-wan-train-local-ep). Never prod zqb7…
       RUNPOD_WAN_TRAIN_ENDPOINT_ID: ${RUNPOD_WAN_TRAIN_ENDPOINT_ID:-}
+      RUNPOD_WORKERS_MAX: "2"
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}

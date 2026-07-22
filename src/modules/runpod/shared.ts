@@ -2,6 +2,8 @@
  * Shared RunPod async helpers (ported from vivijure module workers).
  */
 
+import { reconcileRunpodEndpointWorkersMax } from "@skyphusion-labs/vivijure-core/runpod-endpoint-reconcile";
+
 export const RUNPOD_COLD_GRACE_MS = 90_000;
 
 export function runpodBase(endpointIdOrUrl: string): string {
@@ -82,4 +84,22 @@ export async function cancelRunpodJobBestEffort(apiKey: string, base: string, jo
   } catch {
     /* best-effort */
   }
+}
+
+/** cf#61: restore workersMax before /run when configured; fail closed with guidance on 401. */
+export async function reconcileWorkersMaxOrError(
+  label: string,
+  apiKey: string,
+  endpointId: string,
+  workersMax: number | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (workersMax == null) return { ok: true };
+  const rec = await reconcileRunpodEndpointWorkersMax({
+    apiKey,
+    endpointId,
+    spec: { workersMax },
+  });
+  if (rec.ok) return { ok: true };
+  const msg = rec.guidance ? `${rec.error}. ${rec.guidance}` : rec.error;
+  return { ok: false, error: `${label}: ${msg}` };
 }
