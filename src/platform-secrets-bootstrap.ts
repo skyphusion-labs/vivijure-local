@@ -4,19 +4,15 @@
 import type { Database } from "./platform/types.js";
 import { PLATFORM_SECRET_FIELDS } from "./platform-secrets-catalog.js";
 import { listPlatformSecrets, upsertPlatformSecret } from "./platform-secrets-db.js";
+import { isStudioApiTokenPlaceholder } from "./studio-token.js";
+
+export { isStudioApiTokenPlaceholder, STUDIO_API_TOKEN_PLACEHOLDER } from "./studio-token.js";
 
 /** Env keys install / compose may seed into platform_secrets (includes install-only studio token). */
 export const PLATFORM_SECRET_BOOTSTRAP_KEYS: readonly string[] = [
   "STUDIO_API_TOKEN",
   ...PLATFORM_SECRET_FIELDS.map((f) => f.key),
 ];
-
-export const STUDIO_API_TOKEN_PLACEHOLDER = "change-me-local-dev-only";
-
-export function isStudioApiTokenPlaceholder(value: string | undefined): boolean {
-  const v = (value ?? "").trim();
-  return !v || v === STUDIO_API_TOKEN_PLACEHOLDER;
-}
 
 export interface BootstrapPlatformSecretsResult {
   seeded: string[];
