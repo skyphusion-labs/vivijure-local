@@ -7,6 +7,17 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.1.11 -- 2026-07-22
+
+PATCH: security grind (dual-panel with vivijure-cf **v1.7.10**). Core pin unchanged (`^1.2.5`).
+
+- **fix(security):** reject placeholder `STUDIO_API_TOKEN`; fail-closed CSRF on cookie advances (#164/#165)
+- **fix(security):** pass `project` into speech-upscale RunPod body (#167)
+- **fix(security):** mint MinIO S3_* on `install:edge`; refuse edge profile with `minioadmin` (#168/#170)
+- **fix(security):** demo gate denies state-advancing GETs, cast export, and non-`demo/` artifacts (#169/#171/#172)
+- **fix(security):** validate cast image MIME + artifact serve hardening (#173)
+- **ci:** adversarial security audit workflow
+
 ## v1.1.10 -- 2026-07-22
 
 PATCH: dual-panel parity with vivijure-cf **v1.7.9** -- pin `@skyphusion-labs/vivijure-core` to
