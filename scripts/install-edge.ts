@@ -8,7 +8,7 @@
  *   2 = operator action still needed (no TTY / declined cert step / missing token)
  *   1 = hard misconfiguration
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -20,6 +20,11 @@ import {
 } from "./print-edge-dns.js";
 import { writeSitesRuntime, type CaddyTlsMode } from "./render-caddy-sites.js";
 import type { DnsProviderId } from "./dns-provider-detect.js";
+import {
+  isMinioCredsPlaceholder,
+  mintMinioAccessKey,
+  mintMinioSecretKey,
+} from "../src/minio-creds.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = join(ROOT, ".env");
@@ -131,6 +136,34 @@ async function main(): Promise<void> {
     console.error("  EDGE_PUBLIC_IP=<your public IP or load balancer VIP>");
     console.error("  CADDY_ACME_EMAIL=you@example.com");
     process.exit(1);
+  }
+
+  // Public edge terminates TLS for MinIO -- refuse default minioadmin root creds.
+  const s3Access = process.env.S3_ACCESS_KEY_ID || env.get("S3_ACCESS_KEY_ID") || "";
+  const s3Secret = process.env.S3_SECRET_ACCESS_KEY || env.get("S3_SECRET_ACCESS_KEY") || "";
+  if (isMinioCredsPlaceholder(s3Access, s3Secret)) {
+    if (dryRun) {
+      console.error(
+        "Edge install refuses default MinIO credentials (minioadmin). " +
+          "Run without INSTALL_EDGE_DRY_RUN to mint, or: npm run rotate:minio-creds",
+      );
+      process.exit(1);
+    }
+    const access = mintMinioAccessKey();
+    const secret = mintMinioSecretKey();
+    upsertEnvKeys(ENV_PATH, {
+      S3_ACCESS_KEY_ID: access,
+      S3_SECRET_ACCESS_KEY: secret,
+    });
+    chmodSync(ENV_PATH, 0o600);
+    env.set("S3_ACCESS_KEY_ID", access);
+    env.set("S3_SECRET_ACCESS_KEY", secret);
+    console.log("Minted S3_* credentials (replaced minioadmin defaults).");
+    console.log(
+      "If MinIO already ran with the old root user: npm run sync:secrets && " +
+        "docker compose up -d --force-recreate minio minio-init studio",
+    );
+    console.log("---");
   }
 
   const checklist = await buildEdgeDnsChecklist({
