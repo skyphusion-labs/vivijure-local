@@ -47,9 +47,15 @@ export function successOutput(
   };
 }
 
-export function buildRunPodBody(input: SpeechInput, cfg: SpeechUpscaleConfig): { input: Record<string, unknown> } {
+export function buildRunPodBody(
+  input: SpeechInput,
+  cfg: SpeechUpscaleConfig,
+  project: string,
+): { input: Record<string, unknown> } {
+  // `project` scopes R2 keys on the shared-bucket speech endpoint (renders/<project>/...).
   return {
     input: {
+      project,
       audio_key: input.audio_key,
       output_key: enhancedAudioKey(input.audio_key),
       denoise: cfg.denoise,
