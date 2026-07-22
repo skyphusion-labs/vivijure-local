@@ -196,5 +196,14 @@ describe("gateApi -- demo mode operator-config exposure (#43)", () => {
     expect(isDemoDeniedRead("/api/storyboard/render/job-1")).toBe(true);
     expect(isDemoDeniedRead("/api/render/film/job-1")).toBe(true);
     expect(isDemoDeniedRead("/api/cast/c1/refs-job/j1")).toBe(true);
+    expect(isDemoDeniedRead("/api/cast/export/c1")).toBe(true);
+  });
+
+  it("demo mode denies cast bundle export (LoRA + media)", async () => {
+    const demo = { AUTH_MODE: "demo" };
+    expect(await gateApi(req({}, "GET", "/api/cast/export/c1"), demo)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
   });
 });
