@@ -9,7 +9,7 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 PATCH: pre-submit RunPod idle workersMax reconcile parity (cf#61). Bumps `@skyphusion-labs/vivijure-core`
 to `^1.2.4`. RunPod module sidecars and `speech-upscale` chain handler reconcile before `/run` when
-`RUNPOD_WORKERS_MAX` is configured (compose defaults: backend 4, satellites 2).
+`RUNPOD_WORKERS_MAX` is configured (compose defaults: backend 3, satellites 2).
 
 ## v1.1.7 -- 2026-07-21
 
