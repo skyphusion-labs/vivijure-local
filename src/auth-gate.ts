@@ -2,7 +2,7 @@
 // CF Access (access mode) is a cloud-host concern; unset/legacy path honors ALLOW_UNAUTHENTICATED only.
 
 import type { AuthEnv } from "./env.js";
-import { isStudioApiTokenPlaceholder, STUDIO_API_TOKEN_PLACEHOLDER } from "./studio-token.js";
+import { isStudioApiTokenPlaceholder } from "./studio-token.js";
 
 export const TOKEN_COOKIE = "vivijure_token";
 
@@ -69,15 +69,14 @@ async function namedTokenConsumer(presented: string, env: AuthEnv): Promise<stri
 export async function verifyTokenRequest(request: Request, env: AuthEnv): Promise<AccessDecision> {
   const secret = (env.STUDIO_API_TOKEN || "").trim();
   if (isStudioApiTokenPlaceholder(secret)) {
-    const reason = secret
-      ? `token mode: STUDIO_API_TOKEN is still the public placeholder ${STUDIO_API_TOKEN_PLACEHOLDER} -- ` +
-        "denying everything (fail closed). Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)"
-      : "token mode: STUDIO_API_TOKEN secret is not set -- denying everything (fail closed). " +
-        "Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)";
+    // Generic client-facing reason: do not echo the placeholder value (or distinguish unset vs
+    // placeholder) — that string is public compose bait and belongs only in server logs / docs.
     return {
       ok: false,
       status: 403,
-      reason,
+      reason:
+        "token mode: STUDIO_API_TOKEN is not configured -- denying everything (fail closed). " +
+        "Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)",
     };
   }
   const presented = presentedToken(request);
@@ -102,26 +101,34 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
  *  `vivijure_token` cookie on GET/HEAD so the same-origin operator UI can poll with the ambient
  *  cookie -- but a handful of GETs advance jobs / write render rows, so a malicious cross-site page in
  *  the operator's browser could drive them with that ambient cookie (classic CSRF; bounded -- no fresh
- *  spend, the attacker must already know the job id). Block a request the BROWSER labels cross-site.
+ *  spend, the attacker must already know the job id).
  *
- *  FAIL OPEN when the browser fetch-metadata is absent: a non-browser client (the Slate bot, curl, any
- *  API consumer) authenticates with `Authorization: Bearer` and sends no `Sec-Fetch-Site`, and a
- *  cross-site fetch there is not forgeable anyway (the attacker cannot read the Bearer token). We also
- *  pass `same-origin` / `same-site` and user-initiated (`Sec-Fetch-Site: none`, e.g. an address-bar
- *  hit) so the operator UI is unaffected. Only an explicit `cross-site` (or, absent the header, a
- *  cross-origin `Origin`) is rejected. */
+ *  Auth modes for this helper:
+ *  - `Authorization: Bearer …` → not cross-site. API clients (Slate, curl) omit fetch-metadata; an
+ *    attacker cannot forge the Bearer token, so CSRF does not apply.
+ *  - Ambient cookie / no Bearer → require an explicit safe `Sec-Fetch-Site` (`same-origin`,
+ *    `same-site`, or `none`). If that header is absent, fall back to a same-host `Origin`. If both
+ *    are missing (or Origin is cross-host / malformed), FAIL CLOSED — legacy browsers without
+ *    fetch-metadata must not bypass the guard for cookie-authenticated advances. */
 /** Shared 403 message for a cross-site request to a state-advancing GET (thrown as `forbidden(...)`). */
 export const CSRF_ADVANCE_MSG =
   "cross-site request blocked (CSRF guard): this route advances a job -- use Authorization: Bearer for cross-origin access";
 
+function hasBearerAuthorization(request: Request): boolean {
+  return /^Bearer\s+\S+$/i.test((request.headers.get("authorization") || "").trim());
+}
+
 export function isCrossSiteRequest(request: Request): boolean {
+  if (hasBearerAuthorization(request)) return false;
+
   const site = (request.headers.get("sec-fetch-site") || "").trim().toLowerCase();
-  if (site) return site === "cross-site";
-  // No Sec-Fetch-Site (non-browser client, or a browser too old to send it). Best-effort Origin
-  // check: a cross-origin Origin on a credentialed GET is a browser cross-site fetch; an absent
-  // Origin is a same-origin navigation or a non-browser client -> allow.
+  if (site === "same-origin" || site === "same-site" || site === "none") return false;
+  if (site === "cross-site") return true;
+  if (site) return true; // unknown Sec-Fetch-Site value → treat as cross-site
+
+  // Cookie / ambient path with no fetch-metadata: Origin must prove same-host, else fail closed.
   const origin = request.headers.get("origin");
-  if (!origin) return false;
+  if (!origin) return true;
   try {
     return new URL(origin).host !== new URL(request.url).host;
   } catch {

@@ -35,7 +35,20 @@ describe("gateApi -- token mode", () => {
     const env = { AUTH_MODE: "token", STUDIO_API_TOKEN: STUDIO_API_TOKEN_PLACEHOLDER };
     const d = await gateApi(bearer(STUDIO_API_TOKEN_PLACEHOLDER), env);
     expect(d).toMatchObject({ ok: false, status: 403 });
-    if (!d.ok) expect(d.reason).toContain("public placeholder");
+    if (!d.ok) {
+      expect(d.reason).toContain("not configured");
+      // Client-facing reason must not echo the placeholder string.
+      expect(d.reason).not.toContain(STUDIO_API_TOKEN_PLACEHOLDER);
+    }
+  });
+
+  it("uses the same generic reason when STUDIO_API_TOKEN is whitespace-only", async () => {
+    const d = await gateApi(bearer("x"), { AUTH_MODE: "token", STUDIO_API_TOKEN: "   " });
+    expect(d).toMatchObject({ ok: false, status: 403 });
+    if (!d.ok) {
+      expect(d.reason).toContain("not configured");
+      expect(d.reason).not.toContain(STUDIO_API_TOKEN_PLACEHOLDER);
+    }
   });
 
   it("admits a valid bearer token", async () => {
