@@ -7,9 +7,11 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
-- **feat(ui):** Stages + planner render panels sort hooks by `catalog[].order` from core 1.2.6
-  (core#54); drop hardcoded HOOK_ORDER / PANEL_ORDER (dual-panel with cf).
-- **chore:** bump `@skyphusion-labs/vivijure-core` to `^1.2.6` (cf#110 + core#54).
+## v1.1.10 -- 2026-07-22
+
+PATCH: dual-panel parity with vivijure-cf **v1.7.9** -- pin `@skyphusion-labs/vivijure-core` to
+`^1.2.5` (cf#110 + core#54) and sort Stages / planner render panels by `catalog[].order`.
+
 - **docs:** `.env.example` + `DEPLOYMENT.md` document local panel `RUNPOD_WORKERS_MAX=3` and the
   12GB↔16GB door switch sequence (`sync:secrets:compose` + force-recreate; `platform_secrets` wins
   over compose env). Links local#153, fleet#962.
@@ -19,8 +21,9 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   parity FAIL message names that remedy (#103).
 - **fix(ci):** `check-module-manifest-drift.sh` on the upstream-parity job so committed
   `dev/manifests/` cannot silently diverge from vivijure-cf (excludes `bare-planner.json`) (#117).
-  Regenerates fixtures from cf main (cast-image extract fix for typed `TRAINING_PROMPTS.length`;
-  refreshes cloud-keyframe `film_ref` + finish/keyframe/own-gpu/speech-upscale version bumps).
+- **ci:** adversarial security audit workflow on a schedule (`ADVERSARIAL_AUDIT_CF_API_TOKEN`).
+
+Roll propagandhi after GHCR `:1.1.10` publish is green.
 
 ## v1.1.9 -- 2026-07-22
 
