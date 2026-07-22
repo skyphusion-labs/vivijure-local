@@ -173,6 +173,12 @@ export const DEMO_WRITE_ROUTES: ReadonlySet<string> = new Set(["/api/demo/render
 export function isDemoDeniedRead(pathname: string): boolean {
   if (pathname === "/api/settings" || pathname.startsWith("/api/settings/")) return true;
   if (/^\/api\/modules\/[^/]+\/config$/.test(pathname)) return true;
+  // State-advancing GETs: CSRF only fires when vivijure_token cookie is present. Demo visitors
+  // have no cookie, so cross-site <img>/poll would otherwise drive GPU spend anonymously.
+  // Demo UI uses /api/demo/* — these operator poll routes stay denied.
+  if (/^\/api\/storyboard\/render\/[^/]+$/.test(pathname)) return true;
+  if (/^\/api\/render\/film\/[^/]+$/.test(pathname)) return true;
+  if (/^\/api\/cast\/[^/]+\/refs-job\/[^/]+$/.test(pathname)) return true;
   return false;
 }
 
