@@ -32,7 +32,7 @@ gh run list --workflow build-image.yml --limit 3
 
 | git tag | GHCR studio | source commit | published | notes |
 |---|---|---|---|---|
-| `v1.1.10` | 1.1.10 | (tag tip) | 2026-07-22 | **Dual-panel cf v1.7.9:** core ^1.2.5 (cf#110 + core#54 catalog.order UI); parity/CI #103/#117; cast e2e #113. |
+| `v1.1.10` | 1.1.10 | 20d4a81 | 2026-07-22 | **Dual-panel cf v1.7.9:** core ^1.2.5 (cf#110 + core#54 catalog.order UI); parity/CI #103/#117; cast e2e #113. |
 | `v1.1.9` | 1.1.9 | 3748560 | 2026-07-22 | **Dual-panel cf v1.7.8:** re-list `alibaba-wan-lora` on default compose (drop profile gate); wire studio `MODULE_ALIBABA_WAN_LORA_URL` + depends_on. |
 | `v1.1.6` | 1.1.6 | (pending) | (pending) | Security (#146): sharp 0.35.3, SSRF url_guard on finish sidecars, CodeQL config. CI inline GPU sync (#144). gitignore .wrangler (#145). |
 | `v1.1.5` | 1.1.5 | d7700bb | 2026-07-21 | **Dual-panel cf#29:** core ^1.2.2, Aura-1 TTS (#141), ai-run path fix, dialogue-gen gateway env, finish-stack voiced verify. Pairs cf v1.7.4. |
