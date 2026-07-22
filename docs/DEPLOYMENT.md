@@ -356,3 +356,51 @@ The Cloudflare-hosted studio, with the full module catalog and deploy tooling, i
 - [docs/DEPLOYMENT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/DEPLOYMENT.md)
 
 `vivijure-local` proves the same contract on your box; it does not replace that deploy today.
+
+---
+
+## Production: propagandhi (fleet overlay)
+
+The live public studio at `https://vivijure-local.skyphusion.org` runs on **propagandhi**
+(`10.1.1.7`) behind a Hetzner L4 edge load balancer. This is **not** the homelab
+`COMPOSE_PROFILES=edge` path from [EDGE.md](EDGE.md). Fleet IaC owns the overlay files.
+
+**Every release roll must:**
+
+1. Check out the pinned vivijure-local tag in the compose root (typically
+   `/home/strummer/dev/vivijure-local` on propagandhi).
+2. Copy fleet files **before** `docker compose up` (git checkout does not restore them):
+
+   ```bash
+   FLEET=/opt/fleet-chezmoi/system/stacks/propagandhi/vivijure-local
+   cp "$FLEET/docker-compose.override.yml" .
+   mkdir -p caddy && cp "$FLEET/caddy/Caddyfile.propagandhi ./caddy/
+   ```
+
+   The override mounts the fleet Caddyfile (PROXY protocol wrapper for the edge LB). Without
+   it, Caddy listens but the public URL breaks.
+
+3. Set **`EDGE_BIND_IP=10.1.1.7`** in `.env`. Compose publishes Caddy on this VLAN address
+   only. Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
+
+4. Roll the **full** stack with the reverse-proxy profile:
+
+   ```bash
+   COMPOSE_PROFILES=reverse-proxy docker compose pull
+   COMPOSE_PROFILES=reverse-proxy docker compose up -d --pull always
+   ss -ltnp | grep ':443'   # must show 10.1.1.7, not 0.0.0.0
+   ```
+
+5. Reconcile host firewall after deploy:
+
+   ```bash
+   sudo /opt/fleet-chezmoi/system/ufw/apply-ufw.sh propagandhi
+   ```
+
+   Allows edge LB traffic (`10.1.0.0/16`) to `10.1.1.7:443`. VLAN bind remains the
+   load-bearing control; ufw is belt-and-suspenders.
+
+Canonical operator checklist:
+[fleet-chezmoi `vivijure-local-propagandhi-release.md`](https://github.com/skyphusion-labs/fleet-chezmoi/blob/main/docs/runbooks/vivijure-local-propagandhi-release.md).
+Stack README:
+[`system/stacks/propagandhi/vivijure-local/`](https://github.com/skyphusion-labs/fleet-chezmoi/tree/main/system/stacks/propagandhi/vivijure-local).
