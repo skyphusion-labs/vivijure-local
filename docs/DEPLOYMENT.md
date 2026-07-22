@@ -144,19 +144,49 @@ docker compose up -d --force-recreate minio minio-init studio
 ```
 
 When studio runs in compose, secrets live in the `studio-data` volume (`/app/vivijure-local/data/studio.db`).
-Use `sync:secrets:compose` so the running studio and module sidecars pick up `.env` changes
-(`S3_*`, `LOCAL_BACKEND_*`, RunPod endpoint IDs, demo-off flags).
+At runtime **`platform_secrets` in SQLite wins over compose env** for keys the sync script upserts
+(`LOCAL_BACKEND_URL`, RunPod endpoint IDs, `S3_*`, etc.). Editing `.env` alone does not change what
+a running studio reads; `npm run sync:secrets:compose` upserts `.env` into the DB, but the studio
+and `module-local-gpu` containers still hold **process env from their last create** until
+force-recreate.
 
-**local-gpu (homelab):** set `LOCAL_BACKEND_URL` to the reachable GPU backend URL and
-`LOCAL_BACKEND_TOKEN` to the backend bearer token, then:
+Use `sync:secrets:compose` after every `.env` change, then **always** force-recreate the consumers:
 
 ```bash
 npm run sync:secrets:compose
 docker compose up -d --force-recreate studio module-local-gpu
 ```
 
+**local-gpu (homelab):** set `LOCAL_BACKEND_URL` to the reachable GPU backend URL and
+`LOCAL_BACKEND_TOKEN` to the backend bearer token, then run the sync + recreate sequence above.
+
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
 the root user password changes.
+
+### Switching 12GB ↔ 16GB GPU doors (homelab)
+
+Co-located panels often run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
+(LTX) and [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) (CogVideoX)
+on the same host with door-pin scripts (see
+[fleet#962](https://github.com/skyphusion-labs/fleet-chezmoi/issues/962) for IaC reconciliation).
+Only one door may hold the GPU at a time.
+
+After pinning the target door up, **all three steps are mandatory** (skipping recreate leaves a
+stale `LOCAL_BACKEND_URL` in `platform_secrets` and in the studio process env; smokes will still
+point at the previous door):
+
+1. Update studio `.env`:
+   - 12GB: `LOCAL_BACKEND_URL=http://vivijure-local-12gb:8000`
+   - 16GB: `LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000`
+   - Set `LOCAL_BACKEND_TOKEN` to match the active door's bearer token.
+2. `npm run sync:secrets:compose`
+3. `docker compose up -d --force-recreate studio module-local-gpu`
+
+Verify: `docker compose logs module-local-gpu | tail` should show the new backend URL (not the
+previous door). Architectural note: `local-gpu` motion still uses RunPod for keyframes until
+[local#153](https://github.com/skyphusion-labs/vivijure-local/issues/153) lands; set
+`RUNPOD_WORKERS_MAX=3` in `.env` for local panel RunPod quota headroom (compose default; do not
+use 4).
 
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
@@ -280,6 +310,8 @@ See [ROADMAP.md](ROADMAP.md).
 | video-finish 400 "scheme not allowed" | Presign host not on CPU allowlist | Ensure `S3_PRESIGN_ENDPOINT=http://minio:9000` and CPU `ALLOWED_FETCH_HOSTS=minio` |
 | Planner always mock | `PLANNER_AI_MOCK=true` | Set `false` and add gateway/BYOK keys |
 | Smoke timeout | Slow first render or stuck job | `docker compose logs -f studio`; re-run after healthy |
+| local-gpu hits wrong door after 12GB↔16GB swap | Stale `LOCAL_BACKEND_URL` in `platform_secrets` or container env | Update `.env`, `sync:secrets:compose`, `--force-recreate studio module-local-gpu` (see above) |
+| keyframe RunPod quota / workersMax restore failed | `RUNPOD_WORKERS_MAX=4` on local panel EP | Set `RUNPOD_WORKERS_MAX=3` in `.env`; recreate RunPod module sidecars |
 
 ---
 

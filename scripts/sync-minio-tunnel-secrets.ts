@@ -64,7 +64,9 @@ for (const key of TUNNEL_KEYS) {
 
 if (updated.length) {
   console.log("platform_secrets updated:", updated.join(", "));
-  console.log("restart studio: docker compose restart studio");
+  console.log(
+    "force-recreate consumers (DB wins over compose env): docker compose up -d --force-recreate studio module-local-gpu",
+  );
 } else {
   console.log("nothing to update;", skipped.join("; ") || "all tunnel keys unset in env");
 }
