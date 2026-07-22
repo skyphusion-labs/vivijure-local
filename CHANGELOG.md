@@ -10,6 +10,8 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 - **docs:** `.env.example` + `DEPLOYMENT.md` document local panel `RUNPOD_WORKERS_MAX=3` and the
   12GB↔16GB door switch sequence (`sync:secrets:compose` + force-recreate; `platform_secrets` wins
   over compose env). Links local#153, fleet#962.
+- **fix(e2e):** cast-page smoke asserts the list pane + empty-state status on a fresh DB instead of
+  `toBeVisible()` on an empty `#cast-list` (local#113).
 
 ## v1.1.9 -- 2026-07-22
 
