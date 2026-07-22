@@ -7,6 +7,16 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.1.12 -- 2026-07-22
+
+PATCH: dual-panel with vivijure-cf **v1.7.11** -- local-GPU film keyframes (#153). Pins
+`@skyphusion-labs/vivijure-core` to `^1.2.7`.
+
+- **feat(local-gpu):** dual-hook `local-gpu` v0.2.0 (`motion.backend` + `keyframe`) so local-motion
+  films render keyframes on the door (`action: preview`) instead of RunPod (#176)
+- **fix(security):** validate `LOCAL_BACKEND_URL` / poll `jobId`s; scope motion vs keyframe poll tokens
+- Pair with door images `vivijure-local-{12,16}gb:1.0.3`
+
 ## v1.1.11 -- 2026-07-22
 
 PATCH: security grind (dual-panel with vivijure-cf **v1.7.10**). Core pin unchanged (`^1.2.5`).
