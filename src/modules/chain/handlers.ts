@@ -482,7 +482,7 @@ export async function invokeSpeechUpscale(
     const r = await fetch(`${base}/run`, {
       method: "POST",
       headers: { ...authHeader(apiKey), "content-type": "application/json" },
-      body: JSON.stringify(buildRunPodBody(input, cfg)),
+      body: JSON.stringify(buildRunPodBody(input, cfg, req.context.project)),
     });
     if (!r.ok) {
       return { ok: true, output: speechPassthrough(input, "runpod-run-failed", `HTTP ${r.status}`) };

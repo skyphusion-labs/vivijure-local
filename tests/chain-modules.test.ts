@@ -7,7 +7,7 @@ import {
 } from "../src/modules/chain/plan-enhance-core.js";
 import { opusModel, pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
 import { invokePlanEnhance } from "../src/modules/chain/handlers.js";
-import { coerceConfig, passthroughOutput } from "../src/modules/chain/speech-upscale-core.js";
+import { buildRunPodBody, coerceConfig, passthroughOutput } from "../src/modules/chain/speech-upscale-core.js";
 
 describe("plan.enhance core", () => {
   it("parses a JSON array of rewritten prompts", () => {
@@ -92,5 +92,17 @@ describe("speech-upscale", () => {
 
   it("coerces config defaults", () => {
     expect(coerceConfig({})).toEqual({ enable: false, denoise: false });
+  });
+
+  it("wires project into the RunPod body for shared-bucket key scoping", () => {
+    const body = buildRunPodBody(
+      { shot_id: "shot_01", audio_key: "renders/neon/dialogue/shot_01.wav" },
+      { enable: true, denoise: true },
+      "neon",
+    );
+    expect(body.input.project).toBe("neon");
+    expect(body.input.audio_key).toBe("renders/neon/dialogue/shot_01.wav");
+    expect(body.input.output_key).toBe("renders/neon/dialogue/shot_01_enh.wav");
+    expect(body.input.denoise).toBe(true);
   });
 });
