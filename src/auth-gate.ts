@@ -2,6 +2,7 @@
 // CF Access (access mode) is a cloud-host concern; unset/legacy path honors ALLOW_UNAUTHENTICATED only.
 
 import type { AuthEnv } from "./env.js";
+import { isStudioApiTokenPlaceholder, STUDIO_API_TOKEN_PLACEHOLDER } from "./studio-token.js";
 
 export const TOKEN_COOKIE = "vivijure_token";
 
@@ -67,13 +68,16 @@ async function namedTokenConsumer(presented: string, env: AuthEnv): Promise<stri
 
 export async function verifyTokenRequest(request: Request, env: AuthEnv): Promise<AccessDecision> {
   const secret = (env.STUDIO_API_TOKEN || "").trim();
-  if (!secret) {
+  if (isStudioApiTokenPlaceholder(secret)) {
+    const reason = secret
+      ? `token mode: STUDIO_API_TOKEN is still the public placeholder ${STUDIO_API_TOKEN_PLACEHOLDER} -- ` +
+        "denying everything (fail closed). Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)"
+      : "token mode: STUDIO_API_TOKEN secret is not set -- denying everything (fail closed). " +
+        "Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)";
     return {
       ok: false,
       status: 403,
-      reason:
-        "token mode: STUDIO_API_TOKEN secret is not set -- denying everything (fail closed). " +
-        "Set STUDIO_API_TOKEN in .env (e.g. openssl rand -hex 32)",
+      reason,
     };
   }
   const presented = presentedToken(request);

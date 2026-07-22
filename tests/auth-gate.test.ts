@@ -12,6 +12,7 @@ import {
 } from "../src/auth-gate.js";
 import { createApp } from "../src/app.js";
 import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
+import { STUDIO_API_TOKEN_PLACEHOLDER } from "../src/studio-token.js";
 import type { Platform } from "../src/platform/types.js";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
@@ -28,6 +29,13 @@ describe("gateApi -- token mode", () => {
   it("denies when STUDIO_API_TOKEN is unset (fail closed)", async () => {
     const d = await gateApi(req(), { AUTH_MODE: "token" });
     expect(d).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("denies when STUDIO_API_TOKEN is the public compose placeholder", async () => {
+    const env = { AUTH_MODE: "token", STUDIO_API_TOKEN: STUDIO_API_TOKEN_PLACEHOLDER };
+    const d = await gateApi(bearer(STUDIO_API_TOKEN_PLACEHOLDER), env);
+    expect(d).toMatchObject({ ok: false, status: 403 });
+    if (!d.ok) expect(d.reason).toContain("public placeholder");
   });
 
   it("admits a valid bearer token", async () => {
