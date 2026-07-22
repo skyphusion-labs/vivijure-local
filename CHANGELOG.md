@@ -7,6 +7,9 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+- **feat(ui):** Stages + planner render panels sort hooks by `catalog[].order` from core 1.2.6
+  (core#54); drop hardcoded HOOK_ORDER / PANEL_ORDER (dual-panel with cf).
+- **chore:** bump `@skyphusion-labs/vivijure-core` to `^1.2.6` (cf#110 + core#54).
 - **docs:** `.env.example` + `DEPLOYMENT.md` document local panel `RUNPOD_WORKERS_MAX=3` and the
   12GB↔16GB door switch sequence (`sync:secrets:compose` + force-recreate; `platform_secrets` wins
   over compose env). Links local#153, fleet#962.
