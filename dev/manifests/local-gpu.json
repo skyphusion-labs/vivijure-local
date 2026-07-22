@@ -1,14 +1,19 @@
 {
   "name": "local-gpu",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "api": "vivijure-module/2",
   "hooks": [
-    "motion.backend"
+    "motion.backend",
+    "keyframe"
   ],
   "provides": [
     {
       "id": "i2v-local-gpu",
       "label": "Local GPU (image-to-video on your own card)"
+    },
+    {
+      "id": "keyframe-local-gpu",
+      "label": "Local GPU Keyframe (SDXL on your own card)"
     }
   ],
   "config_schema": {
@@ -21,6 +26,16 @@
       ],
       "default": "standard",
       "label": "quality"
+    },
+    "quality_tier": {
+      "type": "enum",
+      "values": [
+        "draft",
+        "standard",
+        "final"
+      ],
+      "default": "final",
+      "label": "keyframe quality tier"
     },
     "fps": {
       "type": "int",
@@ -41,6 +56,34 @@
       "default": "",
       "label": "negative prompt (additive)"
     },
+    "width": {
+      "type": "int",
+      "default": 1344,
+      "min": 512,
+      "max": 1536,
+      "label": "keyframe width"
+    },
+    "height": {
+      "type": "int",
+      "default": 768,
+      "min": 512,
+      "max": 1536,
+      "label": "keyframe height"
+    },
+    "steps": {
+      "type": "int",
+      "default": 30,
+      "min": 1,
+      "max": 60,
+      "label": "keyframe diffusion steps"
+    },
+    "guidance_scale": {
+      "type": "float",
+      "default": 6.5,
+      "min": 0,
+      "max": 20,
+      "label": "keyframe guidance scale"
+    },
     "seed": {
       "type": "int",
       "default": -1,
@@ -53,12 +96,13 @@
     "order": 4,
     "locality": "local",
     "cost": "Free after hardware",
-    "blurb": "Renders on your own GPU -- no cloud, no per-render cost; quality scales with your card and chosen backend (12GB LTX floor, 16GB CogVideoX).",
+    "blurb": "Renders keyframes + motion on your own GPU -- no cloud, no per-render cost; quality scales with your card and chosen backend (12GB LTX floor, 16GB CogVideoX).",
     "limits": [
       "Runs whichever local backend you point it at: LTX (12GB floor) or CogVideoX (16GB floor); bigger cards add headroom",
-      "Short i2v clips (draft / standard / final tiers); resolution + cadence set by the backend",
-      "One clip at a time (a consumer card runs a single i2v job)"
+      "Keyframes (SDXL preview) and short i2v clips share the same card serially",
+      "One GPU job at a time (a consumer card runs a single preview or i2v job)"
     ]
   },
-  "cancelable": true
+  "cancelable": true,
+  "keyframe_label": "SDXL (local)"
 }

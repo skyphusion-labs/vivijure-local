@@ -7,6 +7,7 @@ import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { readBody } from "../http.js";
 import {
   discoverModules,
+  localGpuKeyframePreflightError,
   motionBackendPreflightError,
   motionConfigPreflightError,
   servingForHook,
@@ -155,6 +156,10 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
 
       const mapped = mapRenderOverridesToModuleConfigs(body.renderOverrides, tier, modules);
       const motionBackend = body.keyframesOnly ? undefined : (body.motion_backend ?? mapped.motion_backend);
+      if (!body.keyframesOnly) {
+        const kfErr = localGpuKeyframePreflightError(modules, motionBackend, mapped.keyframe_backend);
+        if (kfErr) throw badRequest(kfErr);
+      }
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
       const job = await startFilmJob(
@@ -279,6 +284,13 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         scatterOverrides.config?.[(scatterBackend ?? "").trim()],
       );
       if (scatterCfgErr) throw badRequest(scatterCfgErr);
+      const scatterMapped = mapRenderOverridesToModuleConfigs(b.renderOverrides, tier, scatterModules);
+      const scatterKfErr = localGpuKeyframePreflightError(
+        scatterModules,
+        scatterBackend,
+        scatterMapped.keyframe_backend,
+      );
+      if (scatterKfErr) throw badRequest(scatterKfErr);
 
       const scatterCast = await resolveCastLoras(oenv, b.castLoras ?? {});
       if (scatterCast.skipped.length) throw badRequest(untrainedCastMessage(scatterCast.skippedDetail));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildI2vBody, framesFor } from "../src/modules/local-gpu/i2v-core.js";
+import { buildPreviewBody, parseKeyframes } from "../src/modules/local-gpu/keyframe-core.js";
 
 describe("local-gpu i2v mapping", () => {
   it("keeps duration-derived frames for flexible doors", () => {
@@ -25,5 +26,31 @@ describe("local-gpu i2v mapping", () => {
       grid,
     );
     expect(body.input.config).toMatchObject({ quality: "standard", num_frames: 49, fps: 8 });
+  });
+});
+
+describe("local-gpu keyframe preview mapping (#153)", () => {
+  it("builds action:preview for the local door", () => {
+    const body = buildPreviewBody(
+      { project: "film", bundle_key: "bundles/film.tar.gz", shot_ids: ["shot_01"] },
+      { quality_tier: "draft", width: 1024, height: 576 },
+    );
+    expect(body.input).toMatchObject({
+      action: "preview",
+      project: "film",
+      bundle_key: "bundles/film.tar.gz",
+      quality_tier: "draft",
+      process_shot_ids: ["shot_01"],
+      render_overrides: { keyframe: { width: 1024, height: 576 } },
+    });
+  });
+
+  it("parses keyframe keys from door output", () => {
+    expect(
+      parseKeyframes({
+        project: "film",
+        keyframes: [{ shot_id: "shot_01", key: "renders/film/keyframes/shot_01.png" }],
+      }),
+    ).toEqual([{ shot_id: "shot_01", keyframe_key: "renders/film/keyframes/shot_01.png" }]);
   });
 });

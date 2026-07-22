@@ -1,15 +1,25 @@
 import { Hono } from "hono";
-import type { CancelRequest, InvokeRequest, MotionBackendInput, PollRequest } from "@skyphusion-labs/vivijure-core";
+import type {
+  CancelRequest,
+  InvokeRequest,
+  KeyframeInput,
+  MotionBackendInput,
+  PollRequest,
+} from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
-import { invokeLocalGpuMock, pollLocalGpuMock } from "../dev/gpu-mock-handlers.js";
+import { invokeKeyframeMock, invokeLocalGpuMock, pollLocalGpuMock } from "../dev/gpu-mock-handlers.js";
 import {
   cancelLocalGpu,
   doorDurationGrid,
   invokeLocalGpu,
+  invokeLocalKeyframe,
   localGpuConfigured,
   pollLocalGpu,
+  pollLocalKeyframe,
   type LocalGpuEnv,
 } from "./handlers.js";
+import { decodeKeyframePoll } from "./keyframe-core.js";
+import { decodePoll } from "./i2v-core.js";
 
 export function createLocalGpuModuleApp(
   manifest: Record<string, unknown>,
@@ -33,11 +43,18 @@ export function createLocalGpuModuleApp(
     } catch {
       return c.json({ ok: false, error: "invalid JSON body" });
     }
+    const env = await getEnv();
+    const useMock = !localGpuConfigured(env) && mockStore != null;
+
+    if (req.hook === "keyframe") {
+      if (useMock && mockStore) {
+        return c.json(await invokeKeyframeMock(mockStore, req as InvokeRequest<KeyframeInput>));
+      }
+      return c.json(await invokeLocalKeyframe(env, req as InvokeRequest<KeyframeInput>));
+    }
     if (req.hook !== "motion.backend") {
       return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
     }
-    const env = await getEnv();
-    const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock && mockStore) {
       return c.json(await invokeLocalGpuMock(mockStore, req as InvokeRequest<MotionBackendInput>));
     }
@@ -57,6 +74,13 @@ export function createLocalGpuModuleApp(
     const env = await getEnv();
     const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock) return c.json(await pollLocalGpuMock(body));
+
+    if (decodeKeyframePoll(body.poll)) {
+      return c.json(await pollLocalKeyframe(env, body));
+    }
+    if (!decodePoll(body.poll)) {
+      return c.json({ ok: false, error: "local-gpu: bad poll token" });
+    }
     return c.json(await pollLocalGpu(env, body));
   });
 
