@@ -275,6 +275,33 @@ npm run smoke:exit               # bundle -> render -> poll -> artifact
 CI runs the **`ci`** check (`typecheck`, `npm test`, `npm run conformance`) on every push. Live compose gates are
 operator-run today.
 
+### Film submit: `motion_config` shape
+
+`POST /api/projects/:id/render/film` (Studio MCP `submit_film`, smoke scripts, deploy automation)
+expects **flat** `motion_config` and `keyframe_config` maps. The motion module is selected by the
+top-level `motion_backend` field, not by nesting under the backend id.
+
+`finish_config`, `speech_config`, `film_finish_config`, and `master_config` **do** nest by module id;
+`motion_config` and `keyframe_config` do not. Mixing the two shapes is a common 400.
+
+```json
+// Wrong — 400 (schema rejects unknown key "local-gpu" inside motion_config)
+{
+  "motion_backend": "local-gpu",
+  "motion_config": { "local-gpu": { "quality": "draft" } }
+}
+
+// Correct
+{
+  "motion_backend": "local-gpu",
+  "motion_config": { "quality": "draft" }
+}
+```
+
+Verified on propagandhi 12GB door film smoke (agent `212d8ff5`): nested config failed submit;
+flat config succeeded (`film-0542ed5e`). Same rule applies to `npm run smoke:exit`,
+`npm run smoke:exhaustive`, and any MCP or API caller.
+
 ---
 
 ## Syncing from upstream
@@ -312,6 +339,7 @@ See [ROADMAP.md](ROADMAP.md).
 | Smoke timeout | Slow first render or stuck job | `docker compose logs -f studio`; re-run after healthy |
 | local-gpu hits wrong door after 12GB↔16GB swap | Stale `LOCAL_BACKEND_URL` in `platform_secrets` or container env | Update `.env`, `sync:secrets:compose`, `--force-recreate studio module-local-gpu` (see above) |
 | keyframe RunPod quota / workersMax restore failed | `RUNPOD_WORKERS_MAX=4` on local panel EP | Set `RUNPOD_WORKERS_MAX=3` in `.env`; recreate RunPod module sidecars |
+| Film submit 400 on `motion_config` | Nested config keyed by backend id (e.g. `{ "local-gpu": { ... } }`) | Flat map + top-level `motion_backend` (see **Film submit: motion_config shape** above) |
 
 ---
 
