@@ -75,12 +75,13 @@ export function createLocalGpuModuleApp(
     const useMock = !localGpuConfigured(env) && mockStore != null;
     if (useMock) return c.json(await pollLocalGpuMock(body));
 
-    if (decodeKeyframePoll(body.poll)) {
-      return c.json(await pollLocalKeyframe(env, body));
+    const kfSt = decodeKeyframePoll(body.poll);
+    const motionSt = decodePoll(body.poll);
+    if (kfSt && motionSt) {
+      return c.json({ ok: false, error: "local-gpu: ambiguous poll token" });
     }
-    if (!decodePoll(body.poll)) {
-      return c.json({ ok: false, error: "local-gpu: bad poll token" });
-    }
+    if (kfSt) return c.json(await pollLocalKeyframe(env, body));
+    if (!motionSt) return c.json({ ok: false, error: "local-gpu: bad poll token" });
     return c.json(await pollLocalGpu(env, body));
   });
 

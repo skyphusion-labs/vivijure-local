@@ -1,5 +1,7 @@
 import type { KeyframeInput } from "@skyphusion-labs/vivijure-core";
 
+import { isSafeJobId } from "./i2v-core.js";
+
 const TIERS = ["draft", "standard", "final"] as const;
 type Tier = (typeof TIERS)[number];
 
@@ -92,8 +94,18 @@ export function encodeKeyframePoll(s: KeyframePollState): string {
 
 export function decodeKeyframePoll(token: string): KeyframePollState | null {
   try {
-    const o = JSON.parse(Buffer.from(token, "base64").toString("utf8")) as KeyframePollState;
-    if (o && typeof o.jobId === "string" && typeof o.project === "string" && o.kind === "keyframe") {
+    const o = JSON.parse(Buffer.from(token, "base64").toString("utf8")) as KeyframePollState & {
+      shotId?: unknown;
+    };
+    // kind:"keyframe" discriminator keeps motion poll tokens from being treated as keyframe polls.
+    if (
+      o &&
+      typeof o.jobId === "string" &&
+      isSafeJobId(o.jobId) &&
+      typeof o.project === "string" &&
+      o.kind === "keyframe" &&
+      typeof o.shotId !== "string"
+    ) {
       return o;
     }
   } catch {

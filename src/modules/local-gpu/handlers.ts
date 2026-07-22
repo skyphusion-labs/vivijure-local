@@ -15,7 +15,9 @@ import {
   classifyGoneState,
   decodePoll,
   encodePoll,
+  isSafeJobId,
   jobGone,
+  normalizeBackendUrl,
   readDurationGrid,
   readOutput,
 } from "./i2v-core.js";
@@ -33,13 +35,15 @@ export interface LocalGpuEnv {
 }
 
 export function localGpuConfigured(env: LocalGpuEnv): boolean {
-  return Boolean(env.LOCAL_BACKEND_URL?.trim());
+  return Boolean(normalizeBackendUrl(env.LOCAL_BACKEND_URL ?? ""));
 }
 
-function backendCfg(env: LocalGpuEnv): { baseUrl: string; token: string } {
+function backendCfg(env: LocalGpuEnv): { baseUrl: string; token: string; urlError?: string } {
+  const baseUrl = normalizeBackendUrl(env.LOCAL_BACKEND_URL ?? "");
   return {
-    baseUrl: (env.LOCAL_BACKEND_URL ?? "").replace(/\/+$/, ""),
+    baseUrl: baseUrl ?? "",
     token: env.LOCAL_BACKEND_TOKEN?.trim() ?? "",
+    urlError: baseUrl ? undefined : "local-gpu: LOCAL_BACKEND_URL must be an absolute http(s) URL",
   };
 }
 
@@ -70,8 +74,8 @@ export async function invokeLocalGpu(
   if (!input?.prompt || !input.shot_id) {
     return { ok: false, error: "motion.backend: input needs shot_id and prompt" };
   }
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
     const grid = await doorDurationGrid(env);
     const r = await fetch(`${baseUrl}/run`, {
@@ -81,7 +85,7 @@ export async function invokeLocalGpu(
     });
     if (!r.ok) return { ok: false, error: `local-gpu /run -> ${r.status}` };
     const jobId = ((await r.json()) as { id?: string }).id;
-    if (!jobId) return { ok: false, error: "local-gpu /run returned no job id" };
+    if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu /run returned no job id" };
     return {
       ok: true,
       pending: true,
@@ -104,13 +108,15 @@ export async function pollLocalGpu(
 ): Promise<PollResponse<MotionBackendOutput>> {
   const st = decodePoll(body.poll);
   if (!st) return { ok: false, error: "local-gpu: bad poll token" };
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
 
   let httpStatus = 0;
   let s: { status?: string; output?: unknown; error?: unknown };
   try {
-    const resp = await fetch(`${baseUrl}/status/${st.jobId}`, { headers: authHeaders(token) });
+    const resp = await fetch(`${baseUrl}/status/${encodeURIComponent(st.jobId)}`, {
+      headers: authHeaders(token),
+    });
     httpStatus = resp.status;
     s = (await resp.json()) as typeof s;
   } catch {
@@ -134,12 +140,13 @@ export async function pollLocalGpu(
 export async function cancelLocalGpu(env: LocalGpuEnv, body: CancelRequest): Promise<CancelResponse> {
   const motion = decodePoll(body.poll);
   const kf = decodeKeyframePoll(body.poll);
+  if (motion && kf) return { ok: false, error: "local-gpu: ambiguous poll token" };
   const jobId = motion?.jobId ?? kf?.jobId;
-  if (!jobId) return { ok: false, error: "local-gpu: bad poll token" };
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu: bad poll token" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
-    const resp = await fetch(`${baseUrl}/cancel/${jobId}`, {
+    const resp = await fetch(`${baseUrl}/cancel/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: authHeaders(token),
     });
@@ -158,8 +165,8 @@ export async function invokeLocalKeyframe(
   if (!input?.project || !input.bundle_key) {
     return { ok: false, error: "keyframe: input needs project and bundle_key" };
   }
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
   try {
     const r = await fetch(`${baseUrl}/run`, {
       method: "POST",
@@ -168,7 +175,7 @@ export async function invokeLocalKeyframe(
     });
     if (!r.ok) return { ok: false, error: `local-gpu keyframe /run -> ${r.status}` };
     const jobId = ((await r.json()) as { id?: string }).id;
-    if (!jobId) return { ok: false, error: "local-gpu keyframe /run returned no job id" };
+    if (!jobId || !isSafeJobId(jobId)) return { ok: false, error: "local-gpu keyframe /run returned no job id" };
     return {
       ok: true,
       pending: true,
@@ -186,13 +193,15 @@ export async function pollLocalKeyframe(
 ): Promise<PollResponse<KeyframeOutput>> {
   const st = decodeKeyframePoll(body.poll);
   if (!st) return { ok: false, error: "local-gpu: bad keyframe poll token" };
-  const { baseUrl, token } = backendCfg(env);
-  if (!baseUrl) return { ok: false, error: "local-gpu: LOCAL_BACKEND_URL not configured" };
+  const { baseUrl, token, urlError } = backendCfg(env);
+  if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
 
   let httpStatus = 0;
   let s: { status?: string; output?: unknown; error?: unknown };
   try {
-    const resp = await fetch(`${baseUrl}/status/${st.jobId}`, { headers: authHeaders(token) });
+    const resp = await fetch(`${baseUrl}/status/${encodeURIComponent(st.jobId)}`, {
+      headers: authHeaders(token),
+    });
     httpStatus = resp.status;
     s = (await resp.json()) as typeof s;
   } catch {
