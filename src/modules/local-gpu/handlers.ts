@@ -91,7 +91,6 @@ export async function invokeLocalGpu(
       pending: true,
       poll: encodePoll({
         jobId,
-        project: req.context.project,
         shotId: input.shot_id,
         submittedAt: Date.now(),
       }),

@@ -73,7 +73,7 @@ export function readOutput(shotId: string, output: unknown): MotionBackendOutput
 
 export interface PollState {
   jobId: string;
-  project: string;
+  project?: string;
   shotId: string;
   submittedAt?: number;
 }
@@ -101,12 +101,17 @@ export function normalizeBackendUrl(raw: string): string | null {
   }
   if (u.protocol !== "http:" && u.protocol !== "https:") return null;
   if (u.username || u.password) return null;
+  const hostname = u.hostname.toLowerCase().replace(/\.$/, "");
+  if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return null;
+  if (hostname === "169.254.169.254" || hostname.startsWith("169.254.")) return null;
   if (u.pathname.includes("..")) return null;
   return `${u.protocol}//${u.host}${u.pathname === "/" ? "" : u.pathname}`.replace(/\/+$/, "");
 }
 
 export function encodePoll(s: PollState): string {
-  return Buffer.from(JSON.stringify(s), "utf8").toString("base64");
+  const payload: PollState = { jobId: s.jobId, shotId: s.shotId };
+  if (typeof s.submittedAt === "number") payload.submittedAt = s.submittedAt;
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
 }
 
 export function decodePoll(token: string): PollState | null {
@@ -119,11 +124,16 @@ export function decodePoll(token: string): PollState | null {
       o &&
       typeof o.jobId === "string" &&
       isSafeJobId(o.jobId) &&
-      typeof o.project === "string" &&
+      (typeof o.project === "undefined" || typeof o.project === "string") &&
       typeof o.shotId === "string" &&
-      o.kind !== "keyframe"
+      typeof o.kind === "undefined"
     ) {
-      return o;
+      return {
+        jobId: o.jobId,
+        project: typeof o.project === "string" ? o.project : undefined,
+        shotId: o.shotId,
+        submittedAt: typeof o.submittedAt === "number" ? o.submittedAt : undefined,
+      };
     }
   } catch {
     /* bad token */

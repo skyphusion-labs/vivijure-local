@@ -77,14 +77,20 @@ describe("local-gpu poll token + URL hardening (#153 audit)", () => {
 
   it("normalizes http(s) backend URLs and rejects schemes/userinfo", () => {
     expect(normalizeBackendUrl("https://door.local:8080/")).toBe("https://door.local:8080");
+    expect(normalizeBackendUrl("http://10.0.0.2:8000")).toBe("http://10.0.0.2:8000");
+    expect(normalizeBackendUrl("http://192.168.1.10:8000")).toBe("http://192.168.1.10:8000");
+    expect(normalizeBackendUrl("http://172.16.0.10:8000")).toBe("http://172.16.0.10:8000");
+    expect(normalizeBackendUrl("http://vivijure-local-16gb:8000")).toBe("http://vivijure-local-16gb:8000");
     expect(normalizeBackendUrl("ftp://door.local")).toBeNull();
     expect(normalizeBackendUrl("https://user:pass@door.local")).toBeNull();
+    expect(normalizeBackendUrl("http://169.254.169.254/latest/meta-data")).toBeNull();
+    expect(normalizeBackendUrl("http://169.254.170.2/creds")).toBeNull();
+    expect(normalizeBackendUrl("http://metadata.google.internal/computeMetadata/v1")).toBeNull();
   });
 
   it("scopes motion vs keyframe poll tokens", () => {
     const motion = encodePoll({
       jobId: "abc123",
-      project: "film",
       shotId: "shot_01",
       submittedAt: 1,
     });
@@ -98,5 +104,34 @@ describe("local-gpu poll token + URL hardening (#153 audit)", () => {
     expect(decodeKeyframePoll(motion)).toBeNull();
     expect(decodeKeyframePoll(keyframe)?.kind).toBe("keyframe");
     expect(decodePoll(keyframe)).toBeNull();
+    const unknownKind = Buffer.from(
+      JSON.stringify({ jobId: "abc123", shotId: "shot_01", kind: "motion" }),
+      "utf8",
+    ).toString("base64");
+    expect(decodePoll(unknownKind)).toBeNull();
+  });
+
+  it("omits project from motion poll tokens while still accepting legacy project-bearing tokens", () => {
+    const motion = encodePoll({
+      jobId: "abc123",
+      project: "film",
+      shotId: "shot_01",
+      submittedAt: 1,
+    });
+    expect(JSON.parse(Buffer.from(motion, "base64").toString("utf8"))).toEqual({
+      jobId: "abc123",
+      shotId: "shot_01",
+      submittedAt: 1,
+    });
+    const legacy = Buffer.from(
+      JSON.stringify({ jobId: "abc123", project: "film", shotId: "shot_01", submittedAt: 1 }),
+      "utf8",
+    ).toString("base64");
+    expect(decodePoll(legacy)).toEqual({
+      jobId: "abc123",
+      project: "film",
+      shotId: "shot_01",
+      submittedAt: 1,
+    });
   });
 });
