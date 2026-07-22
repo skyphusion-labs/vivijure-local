@@ -19,3 +19,23 @@ export function mintMinioAccessKey(prefix = "vj"): string {
 export function mintMinioSecretKey(): string {
   return randomBytes(32).toString("hex");
 }
+
+/** True when COMPOSE_PROFILES (comma-separated) includes the public `edge` profile. */
+export function composeProfilesIncludeEdge(profiles: string | undefined): boolean {
+  return (profiles ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .includes("edge");
+}
+
+/**
+ * Public edge terminates TLS for MinIO. Refuse default/placeholder root creds so
+ * `COMPOSE_PROFILES=edge` cannot expose world-rw minioadmin.
+ */
+export function edgeProfileRefusesMinioPlaceholder(
+  profiles: string | undefined,
+  access: string | undefined,
+  secret: string | undefined,
+): boolean {
+  return composeProfilesIncludeEdge(profiles) && isMinioCredsPlaceholder(access, secret);
+}
