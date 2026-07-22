@@ -22,6 +22,8 @@ export const ARTIFACT_PREFIXES = [
   "character-refs/",
   "characters/",
   "clips/",
+  // Isolated public-demo prefix (AUTH_MODE=demo gate allows only demo/ + renders/demo/).
+  "demo/",
   "loras/",
   "out/",
   "renders/",

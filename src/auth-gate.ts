@@ -170,6 +170,19 @@ export const DEMO_WRITE_ROUTES: ReadonlySet<string> = new Set(["/api/demo/render
  *  UI never needs them, so deny at the GATE (defence-in-depth: covers both routes and any future
  *  handler under these paths, not one per-route check that can be forgotten). Note: `/api/modules` (the
  *  registry catalog the demo UI renders from) stays allowed; only `/api/modules/:name/config` is denied. */
+/** Artifact keys the public demo may serve via /api/artifact (isolated demo prefix only). */
+export function isDemoAllowedArtifactKey(rawKey: string): boolean {
+  let key: string;
+  try {
+    key = decodeURIComponent(rawKey);
+  } catch {
+    return false;
+  }
+  // Curator/demo-box writes land under demo/ or renders/demo/ (project=demo). Operator
+  // cast/, bundles/, uploads/, and other renders/ stay private.
+  return key.startsWith("demo/") || key.startsWith("renders/demo/");
+}
+
 export function isDemoDeniedRead(pathname: string): boolean {
   if (pathname === "/api/settings" || pathname.startsWith("/api/settings/")) return true;
   if (/^\/api\/modules\/[^/]+\/config$/.test(pathname)) return true;
@@ -181,6 +194,10 @@ export function isDemoDeniedRead(pathname: string): boolean {
   if (/^\/api\/cast\/[^/]+\/refs-job\/[^/]+$/.test(pathname)) return true;
   // Cast .vvcast export includes portraits, refs, and trained LoRA weights — operator-only.
   if (/^\/api\/cast\/export\/[^/]+$/.test(pathname)) return true;
+  // Byte serve: deny operator storage; allow only the isolated demo prefix.
+  if (pathname.startsWith("/api/artifact/")) {
+    return !isDemoAllowedArtifactKey(pathname.slice("/api/artifact/".length));
+  }
   return false;
 }
 
