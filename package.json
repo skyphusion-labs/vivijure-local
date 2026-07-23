@@ -1,6 +1,6 @@
 {
   "name": "vivijure-local",
-  "version": "1.1.14",
+  "version": "1.1.15",
   "description": "Vivijure Local: run the AGPL AI film studio control panel on a home PC or any cloud server (Node, SQLite, S3/MinIO). Same API as vivijure-cf; no Cloudflare required.",
   "license": "AGPL-3.0-only",
   "homepage": "https://github.com/skyphusion-labs/vivijure-local",
@@ -66,7 +66,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
     "@hono/node-server": "^2.0.10",
-    "@skyphusion-labs/vivijure-core": "^1.2.7",
+    "@skyphusion-labs/vivijure-core": "^1.2.8",
     "@skyphusion-labs/vivijure-mcp": "^1.0.0",
     "dotenv": "^17.4.2",
     "hono": "^4.12.31"
