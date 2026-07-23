@@ -4,6 +4,16 @@ vivijure-local is one codebase with **compose profiles** and **env vars** that s
 modules and storage backends are active. The default stack is the **demo path**: mocks for
 GPU modules, MinIO for artifacts, no optional finish satellites.
 
+## Modular opt-in principle
+
+Modules are **opt-in** at the compose/env layer: unset `MODULE_*_URL` means the module is not in
+the registry and the orchestrator skips its hook entirely. If a module **is** registered (URL set)
+but its backend is missing or misconfigured, the shot **fails honestly** (`ok: false`); finish
+handlers never fake a step with passthrough output when creds or GPU dispatch are unavailable.
+
+Default homelab/minimal panel: no finish GPU module URLs, no `satellites` profile, per-clip finish
+chain skipped; CPU `video-finish` assembles raw clips into the film.
+
 ## Default (demo)
 
 ```bash
@@ -15,7 +25,7 @@ docker compose up -d --build
 |-------|---------|
 | Keyframe | `module-keyframe` mock sidecar |
 | Motion | `module-local-gpu` mock sidecar |
-| Finish GPU (RIFE, lip-sync) | **not started** (no `MODULE_FINISH_*` URLs) |
+| Finish GPU (RIFE, lip-sync, upscale) | **not started** (`profiles: [satellites]`; no `MODULE_FINISH_*` URLs) |
 | Object store | MinIO (`S3_*` in compose) |
 | Planner | `PLANNER_AI_MOCK=true` in compose |
 
@@ -23,9 +33,10 @@ The demo path skips the finish GPU chain and assembles raw clips (see exit smoke
 
 ## Profile: `satellites` (finish GPU sidecars)
 
-Finish modules (RIFE, lip-sync, upscale) run as HTTP **module sidecars** on the compose network.
-The studio always reaches them via `MODULE_FINISH_*_URL`; where GPU work runs depends on
-`FINISH_BACKEND` (see [FINISH_BACKEND.md](FINISH_BACKEND.md)):
+Finish modules (RIFE, lip-sync, upscale) run as HTTP **module sidecars** on the compose network,
+gated behind the compose **`satellites`** profile. The studio reaches them only when
+`MODULE_FINISH_*_URL` / `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` are set; where GPU work runs
+depends on `FINISH_BACKEND` (see [FINISH_BACKEND.md](FINISH_BACKEND.md)):
 
 | `FINISH_BACKEND` | GPU execution |
 |------------------|---------------|
@@ -47,6 +58,11 @@ docker compose --profile satellites up -d --build
 ```
 
 Without the `MODULE_*` URLs, the studio ignores those modules even if the containers run.
+Misconfigured finish sidecars (RunPod creds missing, `LOCAL_FINISH_*_URL` unset in local mode)
+fail the shot; they do not passthrough.
+
+Opt-in local RIFE on-box (homelab overlay, separate from RunPod sidecars): see
+[PR #185](https://github.com/skyphusion-labs/vivijure-local/pull/185) and `docs/FINISH_BACKEND.md`.
 
 ## Profile: own GPU (host motion backend)
 

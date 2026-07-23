@@ -7,12 +7,20 @@ Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/15
 
 After musetalk jitter smoke lands, **drop RunPod as the default finish path on vivijure-local homelab**.
 
+**Modular architecture:** finish GPU modules are opt-in. Absent from the registry (no `MODULE_*_URL`)
+= not in the per-clip finish chain; CPU `video-finish` assembles after motion. Present but
+misconfigured (missing RunPod creds, unset `LOCAL_FINISH_*_URL` in local mode) = **fail the shot**,
+never passthrough fake output.
+
 | Panel | Finish GPU default | RunPod role |
 |-------|-------------------|-------------|
 | **vivijure-local** (propagandhi / homelab) | Local GPU door + **local finish sidecars** (HTTP on-box or VLAN) | Optional escape hatch (`FINISH_BACKEND=runpod`) |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | Unchanged |
 
-Homelab default stack: **door + local finish only**. CF panel keeps exercising RunPod finish (RIFE, MuseTalk, upscale, audio-upscale) for regression and promotion.
+Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
+profile). Opt into finish sidecars with `COMPOSE_PROFILES=satellites` plus `MODULE_FINISH_*_URL`
+in `.env`, or the local RIFE overlay in PR #185. CF panel keeps exercising RunPod finish (RIFE,
+MuseTalk, upscale, audio-upscale) for regression and promotion.
 
 ## Current behavior (pre-cutover)
 
@@ -57,7 +65,10 @@ Mirror the **`local-gpu` module pattern** for finish:
 | `FINISH_LIPSYNC_BACKEND` | Optional per-module override |
 | `FINISH_UPSCALE_BACKEND` | Optional per-module override |
 
-When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **fail-loud** (not silent RunPod fallback). Homelabbers who want RunPod set `FINISH_BACKEND=runpod` and the existing `*_RUNPOD_ENDPOINT_ID` vars.
+When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **fail-loud**
+(`ok: false`, not silent RunPod fallback or passthrough). Homelabbers who want RunPod set
+`FINISH_BACKEND=runpod`, enable the `satellites` profile, set `MODULE_FINISH_*_URL`, and the
+existing `*_RUNPOD_ENDPOINT_ID` vars.
 
 ## Minimal code change set (implementation PR, post-musetalk)
 
