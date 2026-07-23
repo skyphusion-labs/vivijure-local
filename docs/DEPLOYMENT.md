@@ -282,6 +282,23 @@ Finish GPU satellites are optional: default compose skips them (`satellites` pro
 The demo path assembles raw clips after motion; homelab production wires finish sidecars only when
 opted in (see [install-profiles.md](install-profiles.md)).
 
+### Cast LoRA train (homelab vs CF prod)
+
+Wan cast LoRA training (`POST /api/cast/:id/train-lora`) is **CF prod only**. vivijure-cf binds
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID` to the dedicated Wan train endpoint; when wired, `/train-lora`
+defaults to Wan (`model_family:"wan"`). Homelab **does not** set `RUNPOD_WAN_TRAIN_ENDPOINT_ID`
+(Conrad ruling 2026-07-23).
+
+| Host | Wan train | Local `/train-lora` default |
+|------|-----------|-----------------------------|
+| vivijure-cf (prod) | `RUNPOD_WAN_TRAIN_ENDPOINT_ID` → dedicated EP | Wan when endpoint wired |
+| vivijure-local (homelab) | **Not wired** | SDXL on render endpoint (`RUNPOD_ENDPOINT_ID`) |
+
+Escape hatches on homelab: pass `model_family:"sdxl"` explicitly, or train cast LoRAs on CF prod.
+
+After removing a stale Wan train key from `.env`, run `npm run sync:secrets:compose` so
+`platform_secrets` purges `RUNPOD_WAN_TRAIN_ENDPOINT_ID`, then force-recreate `studio`.
+
 ---
 
 ## Host-native dev (no studio container)
