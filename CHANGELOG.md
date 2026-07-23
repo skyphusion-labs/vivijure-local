@@ -7,6 +7,20 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.1.14 -- 2026-07-23
+
+PATCH: homelab panel closeout (#180). Default compose is CPU + local-gpu only; finish GPU and
+cloud modules are profile-gated; `platform_secrets` sync purges stale cloud URLs without wiping
+homelab defaults.
+
+- **fix(secrets):** purge unset `MODULE_*` URLs from `platform_secrets` (#187)
+- **feat(compose):** trim default homelab stack to 12 CPU modules + local-gpu (#188)
+- **fix(compose):** gate speech-upscale behind `cloud` profile (#189)
+- **fix(secrets):** never purge homelab local-gpu module URLs (#190)
+- **feat(compose):** unload finish modules by default; fail-loud RunPod when unset (#186)
+
+Roll propagandhi with `panel-minimal` overlay + `sync:secrets:compose` after GHCR publish.
+
 ## v1.1.13 -- 2026-07-22
 
 PATCH: **FINISH_BACKEND** local sidecar routing (#180 / #182). Homelab finish modules can call
