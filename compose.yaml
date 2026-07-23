@@ -82,6 +82,14 @@ x-runpod-module: &runpod-module
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
     # Wan cast LoRA train: local RunPod EP only (see fleet CR-2026-07-21-vivijure-wan-train-local-ep). Never prod zqb7…
     RUNPOD_WAN_TRAIN_ENDPOINT_ID: ${RUNPOD_WAN_TRAIN_ENDPOINT_ID:-}
+    FINISH_BACKEND: ${FINISH_BACKEND:-runpod}
+    FINISH_RIFE_BACKEND: ${FINISH_RIFE_BACKEND:-}
+    FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
+    FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
+    LOCAL_FINISH_RIFE_URL: ${LOCAL_FINISH_RIFE_URL:-}
+    LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
+    LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
+    LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
     # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3 (Conrad: quota headroom on uf4iwoen5r48zx); satellites override below)
     RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
     S3_ENDPOINT: http://minio:9000
@@ -212,7 +220,7 @@ services:
 
   module-finish-rife:
     <<: *runpod-module
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9110", "finish-rife"]
+    command: ["npx", "tsx", "scripts/finish-module-server.ts", "9110", "finish-rife"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9110/module.json"]
@@ -221,7 +229,7 @@ services:
     <<: *runpod-module
     environment:
       RUNPOD_WORKERS_MAX: "2"
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9111", "finish-lipsync"]
+    command: ["npx", "tsx", "scripts/finish-module-server.ts", "9111", "finish-lipsync"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9111/module.json"]
@@ -230,7 +238,7 @@ services:
     <<: *runpod-module
     environment:
       RUNPOD_WORKERS_MAX: "2"
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9112", "finish-upscale"]
+    command: ["npx", "tsx", "scripts/finish-module-server.ts", "9112", "finish-upscale"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9112/module.json"]
