@@ -26,13 +26,14 @@ Canonical API contract: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphu
    bindings and VPC links; here they are Docker services and `MODULE_*_URL` fetchers.
 
 ```
-docker compose
+docker compose (default homelab minimal)
   |-- studio (:8790)     SQLite + Hono API + public/ UI
   |-- minio (:9000)      renders/, bundles/, job docs
-  |-- video-finish ...   ffmpeg assembly, titles, subtitles (VPC from modules)
-  |-- module-keyframe    GPU mock (or replace with real keyframe module URL)
-  |-- module-local-gpu   GPU mock (or vivijure-local-12gb/16gb door; RunPod optional)
-  `-- module-beat-sync, module-audio-master, module-film-titles, module-subtitle
+  |-- video-finish       ffmpeg assemble/mux (CPU film.finish path)
+  |-- audio-master       music-upscale + loudness (CPU)
+  |-- module-plan-enhance, module-cast-image, module-image-generate
+  |-- module-keyframe, module-local-gpu, module-audio-master, module-subtitle, module-notify-email
+  `-- optional profiles: media, cloud, satellites (see install-profiles.md)
 ```
 
 Technical adapter detail: [ARCHITECTURE.md](ARCHITECTURE.md). Route checklist: [PARITY.md](PARITY.md).
@@ -89,11 +90,11 @@ still has the `change-me-local-dev-only` placeholder.
 |------|---------|
 | 8790 | Studio API + UI |
 | 9000 / 9001 | MinIO API / console |
-| 8780 | video-finish |
-| 8781 | image-prep |
-| 8782 | audio-beat-sync |
-| 8783 | audio-mix |
-| 8784 | audio-master |
+| 8780 | video-finish (default) |
+| 8784 | audio-master (default) |
+| 8781 | image-prep (`COMPOSE_PROFILES=media`) |
+| 8782 | audio-beat-sync (`COMPOSE_PROFILES=media`) |
+| 8783 | audio-mix (`COMPOSE_PROFILES=media`) |
 
 Module sidecars listen on the Docker network only (e.g. `module-keyframe:9101`). The studio
 container reaches them by hostname; use `npm run conformance:compose` to gate them from inside
