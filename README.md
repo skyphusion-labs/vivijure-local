@@ -1,31 +1,47 @@
 # Vivijure Local
 
-**Run the Vivijure film studio control panel on a home computer or any cloud server** -- Node,
-SQLite, and S3-compatible storage, **no Cloudflare account**. Same modular film-studio API and UI
-as the Cloudflare host ([`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf)), a
-different runtime. Verified end to end on the homelab stack (bundle -> render -> finished artifact).
+**Self-hosted Vivijure Studio for homelab and hobbyist builders** -- Node, SQLite, and
+S3-compatible storage, **no Cloudflare account**. Full **capability parity** with
+[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf): same modular film-studio API,
+same `vivijure-module/2` contract, same `public/` UI, different runtime. Default intent is
+**local renders** on your own GPU (local GPU door + local finish sidecars); RunPod is an optional
+escape hatch, not the homelab default ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
+[FINISH_BACKEND.md](docs/FINISH_BACKEND.md)).
 
-Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). Prefer
-Cloudflare Workers instead? Use [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
+For **production** workloads (Cloudflare Workers, R2, AI Gateway, RunPod render testbed), use
+[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
 
-**Dual-panel parity:** self-host and hosted ship the same studio features in the same release; see
-fleet memory `vivijure-hosted-parity-absolute.md`.
-Drive either host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
+Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). Drive either
+host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
 Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
 Provider-neutral host for [Vivijure Studio](https://vivijure.com): same reference API
-([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)), same
-`public/` UI, different runtime. GPU render backends (`vivijure-backend`, `vivijure-local-12gb`,
-`vivijure-local-16gb`) are unchanged; this repo swaps only the **control panel host**.
+([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)).
+GPU render backends (`vivijure-local-12gb`, `vivijure-local-16gb`, finish sidecars) plug in via
+module URLs; this repo is the **control panel host** only.
+
+## Local vs Cloudflare (`vivijure-cf`)
+
+| | **vivijure-local** (this repo) | **vivijure-cf** (production) |
+|---|---|---|
+| **Who** | Homelab / hobbyist self-host | Cloudflare-hosted studio |
+| **Runtime** | Node + Docker + MinIO | Workers + D1 + R2 |
+| **Contract** | Full parity (`CONTRACT.md`, module registry) | Same |
+| **GPU default** | Local GPU door + local finish sidecars | RunPod (`vivijure-backend` + finish satellites) |
+| **RunPod** | Optional (`FINISH_BACKEND=runpod`, cloud module URLs) | Canonical render/finish testbed |
+| **When to pick** | Your box, LAN you control, own GPU | Production, free-tier CF stack, no homelab ops |
+
+Route checklist: [docs/PARITY.md](docs/PARITY.md). Homelab operator path: [docs/quickstart.md](docs/quickstart.md).
+CF path: [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md).
 
 ## Who this is for
 
-Homelab builders who want to run the Vivijure studio contract on their own box without a Cloudflare
-account: the module registry, the render orchestrator, and the parity smoke tests, all on
-Node/Docker. It uses the same **single-operator** trust model as the Cloudflare host -- keep it on a
-network you control (see [docs/SECURITY.md](docs/SECURITY.md)).
+Homelab and hobbyist builders who want the full Vivijure studio on their own box: module registry,
+render orchestrator, local GPU door, and local finish sidecars, all on Node/Docker without a
+Cloudflare account. Same **single-operator** trust model as the CF host; keep it on a network you
+control (see [docs/SECURITY.md](docs/SECURITY.md)).
 
-**Run on Cloudflare instead:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) · **This repo (self-host):** [docs/quickstart.md](docs/quickstart.md)
+**Production / Cloudflare:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) · **Homelab path:** [docs/quickstart.md](docs/quickstart.md)
 
 **Vivijure Studio:** https://vivijure.com · **Live demo:** https://demo.vivijure.com · **Skyphusion Labs:** https://skyphusion.org
 
@@ -79,6 +95,7 @@ flowchart LR
 | [docs/SECURITY.md](docs/SECURITY.md) | Token auth, single-operator model, exposure |
 | [docs/EDGE.md](docs/EDGE.md) | Public HTTPS with Caddy + Let's Encrypt (studio + MinIO wildcard) |
 | [docs/constellation.md](docs/constellation.md) | How this repo fits the Vivijure map |
+| [docs/FINISH_BACKEND.md](docs/FINISH_BACKEND.md) | Homelab local finish vs RunPod ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180)) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Platform adapters and module transport |
 | [docs/PARITY.md](docs/PARITY.md) | API route checklist vs the studio host |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones; [PHASE3.md](docs/PHASE3.md) shared-core extraction |

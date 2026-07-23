@@ -230,6 +230,48 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "FINISH_BACKEND",
+    label: "Finish GPU backend mode",
+    blurb:
+      "local (homelab default after local#180) or runpod (escape hatch). Sidecars proxy to LOCAL_FINISH_*_URL " +
+      "or RunPod endpoint IDs. See docs/FINISH_BACKEND.md.",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "LOCAL_FINISH_RIFE_URL",
+    label: "Local finish RIFE URL",
+    blurb: "HTTP base for finish-rife when FINISH_BACKEND=local (finish_clip on homelab GPU).",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "LOCAL_FINISH_LIPSYNC_URL",
+    label: "Local finish lipsync URL",
+    blurb: "HTTP base for finish-lipsync when FINISH_BACKEND=local (MuseTalk on homelab GPU).",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "LOCAL_FINISH_UPSCALE_URL",
+    label: "Local finish upscale URL",
+    blurb: "HTTP base for finish-upscale when FINISH_BACKEND=local (video upscale on homelab GPU).",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "LOCAL_FINISH_TOKEN",
+    label: "Local finish backend token",
+    blurb: "Optional bearer token for LOCAL_FINISH_*_URL services.",
+    category: "providers",
+    sensitive: true,
+    applies_on: "immediate",
+  },
+  {
     key: "PLANNER_AI_MOCK",
     label: "Offline planner mock",
     blurb: "Set true to run storyboard planning without cloud AI (homelab offline dev).",

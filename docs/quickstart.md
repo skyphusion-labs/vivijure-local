@@ -5,10 +5,11 @@ Cloudflare account, no Workers bindings. When you finish this page you will have
 the planner UI, MinIO object storage, CPU media containers, and module sidecars (including GPU
 mocks) on your machine.
 
-> **Homelab host, still evolving.** `vivijure-local` runs the Vivijure studio contract on Node +
-> SQLite + object storage, verified end to end. It is a single-operator host under active
-> development toward the shared `vivijure-core`, so the compose layout and platform adapters may
-> still change. Prefer Cloudflare Workers? See
+> **Homelab / hobbyist host.** `vivijure-local` ships **full parity** with
+> [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) on the same module contract.
+> Default GPU path is **local renders** (local GPU door + local finish sidecars); RunPod is optional
+> ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
+> [FINISH_BACKEND.md](FINISH_BACKEND.md)). For production workloads, use
 > [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
 
 New here? The one-page picture of how the parts fit together is in [constellation.md](constellation.md).
@@ -102,14 +103,19 @@ npm run conformance:compose
 
 ## Growing later
 
-- **Public HTTPS** (studio + MinIO for RunPod / remote GPUs): [EDGE.md](EDGE.md)
+- **Real GPU motion (default homelab path):** run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
+  or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) on your host;
+  set `LOCAL_BACKEND_URL` and recreate `module-local-gpu`. See [DEPLOYMENT.md](DEPLOYMENT.md).
+- **Local finish sidecars:** `FINISH_BACKEND=local` + `LOCAL_FINISH_*_URL` (planned default after
+  [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180); see [FINISH_BACKEND.md](FINISH_BACKEND.md)).
+- **Public HTTPS** (studio + MinIO for remote GPU fetch): [EDGE.md](EDGE.md)
   (`npm run install:edge`, then `COMPOSE_PROFILES=edge npm run compose:up`).
 - **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).
 - **Structured logs** (`docker compose logs studio`, `ev` JSON lines): [observability.md](observability.md).
-- **Real GPU motion:** point `MODULE_LOCAL_GPU_URL` at `vivijure-local-12gb` / `-16gb` on your host,
-  or at `vivijure-backend` on RunPod. See [DEPLOYMENT.md](DEPLOYMENT.md).
-- **Prefer Cloudflare Workers?** The CF-hosted studio is
-  [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) ([quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)).
+- **RunPod escape hatch:** `FINISH_BACKEND=runpod` or cloud `MODULE_*_URL` overrides when you want
+  `vivijure-backend` instead of on-box GPU. Not the homelab default.
+- **Production / Cloudflare:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf)
+  ([quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)).
 - **Full operator reference:** [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## If something goes wrong

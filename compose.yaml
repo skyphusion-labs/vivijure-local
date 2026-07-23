@@ -17,6 +17,8 @@
 # GPU motion modules proxy to RunPod or LOCAL_BACKEND_URL; control plane never runs GPU work.
 # Keyframe falls back to mock PNGs when RUNPOD_* is unset; local-gpu falls back to mock when
 # LOCAL_BACKEND_URL is unset (offline homelab default).
+# Finish GPU: today module-finish-* sidecars use RunPod; post local#180 homelab defaults to
+# FINISH_BACKEND=local + LOCAL_FINISH_*_URL (see docs/FINISH_BACKEND.md). RunPod stays optional.
 
 name: vivijure-local
 
