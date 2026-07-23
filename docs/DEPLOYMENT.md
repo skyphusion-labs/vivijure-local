@@ -197,16 +197,20 @@ cutover, finish sidecars default to local URLs; keep `RUNPOD_WORKERS_MAX=3` in `
 
 ### Finish GPU backend (homelab vs RunPod)
 
-Finish GPU sidecars (`module-finish-{rife,lipsync,upscale}`) are **opt-in**: compose gates them
-behind `profiles: [satellites]` and leaves `MODULE_FINISH_*_URL` empty by default so discovery
-skips the per-clip finish chain. Minimal homelab assembles via CPU `video-finish` only.
+Finish GPU sidecars (`module-finish-{lipsync,upscale}`) are **opt-in**: compose gates them behind
+`profiles: [satellites]` and leaves `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` empty by default so
+discovery skips the per-clip finish chain. Minimal homelab assembles via CPU `video-finish` only.
 
-When registered, sidecars proxy to **RunPod** (`FINISH_BACKEND=runpod`) or **local GPU HTTP**
-(`FINISH_BACKEND=local` + `LOCAL_FINISH_*_URL`). A registered module with missing creds or backend
-URL **fails the shot** (`ok: false`); finish handlers do not passthrough fake output.
+**RIFE is not supported on vivijure-local.** There is no `module-finish-rife` sidecar, no
+`LOCAL_FINISH_RIFE_URL`, and no local finish-rife-serve overlay. RIFE runs on the RunPod backend
+worker for vivijure-cf/production only (Conrad ruling 2026-07-22).
 
-See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, rollout order, and smoke matrix trim.
-Local RIFE on-box overlay: PR #185 (separate opt-in path).
+When registered, lipsync/upscale sidecars proxy to **RunPod** (`FINISH_BACKEND=runpod`) or **local
+GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL`). A
+registered module with missing creds or backend URL **fails the shot** (`ok: false`); finish
+handlers do not passthrough fake output.
+
+See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, propagandhi teardown notes, and smoke matrix.
 
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 

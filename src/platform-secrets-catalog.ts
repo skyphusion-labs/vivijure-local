@@ -234,15 +234,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     label: "Finish GPU backend mode",
     blurb:
       "local (homelab default after local#180) or runpod (escape hatch). Sidecars proxy to LOCAL_FINISH_*_URL " +
-      "or RunPod endpoint IDs. See docs/FINISH_BACKEND.md.",
-    category: "providers",
-    sensitive: false,
-    applies_on: "immediate",
-  },
-  {
-    key: "LOCAL_FINISH_RIFE_URL",
-    label: "Local finish RIFE URL",
-    blurb: "HTTP base for finish-rife when FINISH_BACKEND=local (finish_clip on homelab GPU).",
+      "or RunPod endpoint IDs for lipsync/upscale only. RIFE is RunPod/CF-only. See docs/FINISH_BACKEND.md.",
     category: "providers",
     sensitive: false,
     applies_on: "immediate",
@@ -307,14 +299,6 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     key: "MODULE_OWN_GPU_URL",
     label: "Own GPU module URL",
     blurb: "RunPod-backed own-gpu motion module sidecar URL.",
-    category: "modules",
-    sensitive: false,
-    applies_on: "immediate",
-  },
-  {
-    key: "MODULE_FINISH_RIFE_URL",
-    label: "finish-rife module URL",
-    blurb: "RIFE interpolation finish module sidecar.",
     category: "modules",
     sensitive: false,
     applies_on: "immediate",

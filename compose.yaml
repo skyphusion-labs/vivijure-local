@@ -84,10 +84,8 @@ x-runpod-module: &runpod-module
     # Wan cast LoRA train: local RunPod EP only (see fleet CR-2026-07-21-vivijure-wan-train-local-ep). Never prod zqb7…
     RUNPOD_WAN_TRAIN_ENDPOINT_ID: ${RUNPOD_WAN_TRAIN_ENDPOINT_ID:-}
     FINISH_BACKEND: ${FINISH_BACKEND:-runpod}
-    FINISH_RIFE_BACKEND: ${FINISH_RIFE_BACKEND:-}
     FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
     FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
-    LOCAL_FINISH_RIFE_URL: ${LOCAL_FINISH_RIFE_URL:-}
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
@@ -218,14 +216,6 @@ services:
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9103/module.json"]
-
-  module-finish-rife:
-    <<: *runpod-module
-    profiles: [satellites]
-    command: ["npx", "tsx", "scripts/finish-module-server.ts", "9110", "finish-rife"]
-    healthcheck:
-      <<: *module-health-url
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9110/module.json"]
 
   module-finish-lipsync:
     <<: *runpod-module
@@ -519,7 +509,6 @@ services:
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
       MODULE_OWN_GPU_URL: http://module-own-gpu:9103
-      MODULE_FINISH_RIFE_URL: ${MODULE_FINISH_RIFE_URL:-}
       MODULE_LIPSYNC_URL: ${MODULE_LIPSYNC_URL:-}
       MODULE_UPSCALE_URL: ${MODULE_UPSCALE_URL:-}
       MODULE_SEEDANCE_URL: http://module-seedance:9150
