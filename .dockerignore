@@ -2,6 +2,10 @@ node_modules
 data
 .git
 .env
+.studio-token
+*.db
+*.sqlite
+*.sqlite3
 dev/module-fleet.pids
 dev/module-fleet.env
 .sync-staging
