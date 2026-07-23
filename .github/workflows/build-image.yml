@@ -24,6 +24,7 @@ on:
       - package.json
       - package-lock.json
       - .github/workflows/build-image.yml
+      - docs/FINISH_BACKEND.md
 
 permissions:
   contents: read
@@ -190,6 +191,54 @@ jobs:
         with:
           context: vivijure-local/reverse-proxy
           file: vivijure-local/reverse-proxy/Dockerfile
+          push: ${{ steps.meta.outputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  finish-rife-serve:
+    needs: assert-on-main
+    name: finish-rife-serve
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tags
+        id: meta
+        run: |
+          image="${REGISTRY}/vivijure-local-finish-rife"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            {
+              echo "tags<<EOF"
+              echo "${image}:${version}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${image}:ci" >> "$GITHUB_OUTPUT"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build finish-rife-serve overlay
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
+        with:
+          context: ./vivijure-local/containers/finish-rife-serve
+          file: ./vivijure-local/containers/finish-rife-serve/Dockerfile
+          build-args: BACKEND_IMAGE=ghcr.io/skyphusion-labs/vivijure-backend:1.0.6
           push: ${{ steps.meta.outputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha

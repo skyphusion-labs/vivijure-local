@@ -83,9 +83,15 @@ When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **f
 | `system/stacks/propagandhi/RUNBOOK-vivijure-local-topology.md` | §10: local finish sidecars, not RunPod chain |
 | New stack dir (TBD) | Compose for on-box GPU finish services (musetalk, upscale, rife) on propagandhi GEX44 |
 
-### Satellite repos (may be needed)
+### Homelab GPU HTTP services (who owns serve mode)
 
-RunPod handler images (`vivijure-musetalk`, `vivijure-upscale`, `vivijure-backend` finish path) may need a **long-running HTTP server mode** for homelab sidecars (today they are RunPod-only). Scope that in the implementation PR after musetalk smoke; do not block doc prep.
+| Finish step | GPU work lives in | Homelab HTTP serve overlay |
+|-------------|-------------------|----------------------------|
+| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **`vivijure-local/containers/finish-rife-serve`** (FROM pinned backend image; no backend repo changes) |
+| Lip-sync | `vivijure-musetalk` | `vivijure-musetalk` `Dockerfile.serve` |
+| Video upscale | `vivijure-upscale` | `vivijure-upscale` `Dockerfile.serve` |
+
+**Do not merge homelab serve scaffolding into `vivijure-backend`.** The backend stays RunPod-first; local panel adds thin HTTP wrappers in vivijure-local (RIFE) or the finish satellite repos (lipsync, upscale). Propagandhi stack: `fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu/`.
 
 ## Smoke / verify matrix trim
 
