@@ -7,39 +7,9 @@ import "dotenv/config";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listPlatformSecrets, upsertPlatformSecret } from "../src/platform-secrets-db.js";
+import { listPlatformSecrets } from "../src/platform-secrets-db.js";
+import { syncPlatformSecretsFromEnv } from "../src/platform-secrets-sync.js";
 import { migrateDatabase, openDatabase } from "../src/platform/sqlite.js";
-
-const TUNNEL_KEYS = [
-  "PUBLIC_BASE_URL",
-  "S3_PRESIGN_ENDPOINT",
-  "S3_FETCH_ALLOW_HOSTS",
-  "S3_ALLOW_HTTP_FETCH",
-  "S3_ACCESS_KEY_ID",
-  "S3_SECRET_ACCESS_KEY",
-  "CLOUDFLARE_ACCOUNT_ID",
-  "GATEWAY_ID",
-  "CF_AIG_TOKEN",
-  "PLANNER_AI_MOCK",
-  "LOCAL_BACKEND_URL",
-  "LOCAL_BACKEND_TOKEN",
-  "DEMO_RENDER_ENABLED",
-  "AUTH_MODE",
-  "RUNPOD_API_KEY",
-  "RUNPOD_ENDPOINT_ID",
-  "BACKEND_RUNPOD_ENDPOINT_ID",
-  "KEYFRAME_RUNPOD_ENDPOINT_ID",
-  "VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID",
-  "MUSETALK_RUNPOD_ENDPOINT_ID",
-  "AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID",
-  "RUNPOD_WAN_TRAIN_ENDPOINT_ID",
-  "FINISH_BACKEND",
-  "FINISH_LIPSYNC_BACKEND",
-  "FINISH_UPSCALE_BACKEND",
-  "LOCAL_FINISH_LIPSYNC_URL",
-  "LOCAL_FINISH_UPSCALE_URL",
-  "LOCAL_FINISH_TOKEN",
-] as const;
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(__dirname, "..");
@@ -50,29 +20,18 @@ migrateDatabase(dbPath, join(repoRoot, "migrations"));
 const db = openDatabase(dbPath);
 const existing = await listPlatformSecrets(db);
 
-const updated: string[] = [];
-const skipped: string[] = [];
-
-for (const key of TUNNEL_KEYS) {
-  const value = (process.env[key] ?? "").trim();
-  if (!value) {
-    skipped.push(`${key} (unset in env)`);
-    continue;
-  }
-  const prior = existing.get(key);
-  await upsertPlatformSecret(db, key, value);
-  // #44: never interpolate `prior` -- TUNNEL_KEYS holds S3_SECRET_ACCESS_KEY / CF_AIG_TOKEN /
-  // RUNPOD_API_KEY / LOCAL_BACKEND_TOKEN, and this runs right after a rotation, so `(was <old>)` would
-  // print the just-rotated-away secret to stdout -> scrollback + `docker compose logs`. Log the fact of
-  // change only.
-  updated.push(prior && prior !== value ? `${key} (changed)` : key);
-}
+const { updated, cleared, skipped } = await syncPlatformSecretsFromEnv(db, process.env, existing);
 
 if (updated.length) {
   console.log("platform_secrets updated:", updated.join(", "));
+}
+if (cleared.length) {
+  console.log("platform_secrets cleared (unset in env):", cleared.join(", "));
+}
+if (updated.length || cleared.length) {
   console.log(
     "force-recreate consumers (DB wins over compose env): docker compose up -d --force-recreate studio module-local-gpu",
   );
 } else {
-  console.log("nothing to update;", skipped.join("; ") || "all tunnel keys unset in env");
+  console.log("nothing to update;", skipped.join("; ") || "all sync keys unset in env");
 }
