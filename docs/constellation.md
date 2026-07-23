@@ -68,15 +68,16 @@ flowchart TD
 
 ## Two hosts, one contract
 
-| Host | When to use it |
-|---|---|
-| **vivijure-cf** (Cloudflare) | Cloudflare-hosted studio. Free-tier Workers, R2, AI Gateway. See [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md). |
-| **vivijure-local** (this repo) | Self-hosted homelab host. No Cloudflare account required. Runs the same JSON API and module contract on your own box; verified end to end. |
+Full **capability parity**: same JSON API, same module registry, same `vivijure-module/2`
+contract. Different runtime and different **default GPU path**.
 
-Both hosts speak the same `vivijure-module/2` contract. Canonical ICD:
-[vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).
+| Host | Intent | GPU default | When to use it |
+|---|---|---|---|
+| **vivijure-cf** (Cloudflare) | Production studio | RunPod render + finish satellites | Workers, R2, AI Gateway; canonical cloud testbed. [CF quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md). |
+| **vivijure-local** (this repo) | Homelab / hobbyist | Local GPU door + local finish sidecars | Self-host on your box; no Cloudflare account. RunPod optional ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180), [FINISH_BACKEND.md](FINISH_BACKEND.md)). |
 
-Route-level parity tracking lives in [PARITY.md](PARITY.md).
+Canonical ICD: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).
+Route-level parity: [PARITY.md](PARITY.md).
 
 ---
 

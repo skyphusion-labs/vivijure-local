@@ -1,15 +1,17 @@
 # Deploying vivijure-local (homelab)
 
-This is the operator reference for the Node/Docker host of Vivijure Studio. It covers
-prerequisites, environment variables, compose services, GPU backends, verification gates, and
-how this path differs from upstream Cloudflare deploy.
+Operator reference for the **homelab / hobbyist** Node/Docker host of Vivijure Studio. Full
+**capability parity** with [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) on the
+same module contract; default GPU path is **local renders** (local GPU door + local finish
+sidecars). For production workloads, deploy [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf)
+instead.
 
 Canonical API contract: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).
 
-> **Single-operator homelab host, still evolving.** Verified end to end on the homelab stack.
-> Layout, env vars, and internal adapters may still change as we extract `vivijure-core`. Run it on
-> a network you control (single-operator trust model, see [SECURITY.md](SECURITY.md)); it is not a
-> multi-tenant deployment.
+> **Single-operator homelab host.** Verified end to end on the homelab stack. Run it on a network
+> you control (see [SECURITY.md](SECURITY.md)); it is not a multi-tenant deployment. RunPod is an
+> optional escape hatch, not the homelab default ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
+> [FINISH_BACKEND.md](FINISH_BACKEND.md)).
 
 ---
 
@@ -29,7 +31,7 @@ docker compose
   |-- minio (:9000)      renders/, bundles/, job docs
   |-- video-finish ...   ffmpeg assembly, titles, subtitles (VPC from modules)
   |-- module-keyframe    GPU mock (or replace with real keyframe module URL)
-  |-- module-local-gpu   GPU mock (or point at vivijure-local-12gb / RunPod)
+  |-- module-local-gpu   GPU mock (or vivijure-local-12gb/16gb door; RunPod optional)
   `-- module-beat-sync, module-audio-master, module-film-titles, module-subtitle
 ```
 
@@ -187,10 +189,11 @@ previous door).
 
 **Local keyframes (#153):** `local-gpu` is dual-hook (keyframe + motion). Picking
 `motion_backend: local-gpu` couples keyframes onto the same door's `action: preview` (SDXL on the
-homelab card) — no RunPod `vivijure-backend` for the keyframe phase. Redeploy/recreate
+homelab card); no RunPod `vivijure-backend` for the keyframe phase. Redeploy/recreate
 `module-local-gpu` (and the 12gb/16gb door image) after upgrading so the manifest advertises the
-`keyframe` hook and the door accepts `preview`. Keep `RUNPOD_WORKERS_MAX=3` in `.env` for any
-remaining RunPod modules (finish chain / non-local films; compose default; do not use 4).
+`keyframe` hook and the door accepts `preview`. After [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180)
+cutover, finish sidecars default to local URLs; keep `RUNPOD_WORKERS_MAX=3` in `.env` only when
+`FINISH_BACKEND=runpod` (do not use 4).
 
 ### Finish GPU backend (homelab vs RunPod)
 
@@ -251,11 +254,13 @@ or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16g
 Set `MODULE_LOCAL_GPU_URL` to the sidecar URL the backend exposes (from the studio container use
 `http://host.docker.internal:<port>` on Docker Desktop).
 
-**Cloud GPU:** point module URLs at deployed `vivijure-backend` module workers or RunPod endpoints
-using the same `MODULE_*_URL` mechanism.
+**RunPod escape hatch (optional):** set `FINISH_BACKEND=runpod` and `*_RUNPOD_ENDPOINT_ID`, or point
+`MODULE_*_URL` at deployed `vivijure-backend` workers. Not the homelab default; see
+[FINISH_BACKEND.md](FINISH_BACKEND.md).
 
-Finish GPU satellites (`finish-rife`, `finish-lipsync`) are optional; the demo compose omits their
-URLs so the pipeline skips straight to assemble after motion.
+Finish GPU satellites (`finish-rife`, `finish-lipsync`) are optional in the demo compose; the mock
+path skips straight to assemble after motion. Homelab production path wires local finish sidecars
+instead of RunPod.
 
 ---
 
@@ -358,15 +363,14 @@ See [ROADMAP.md](ROADMAP.md).
 
 ---
 
-## Prefer Cloudflare Workers?
+## Production: use vivijure-cf
 
-The Cloudflare-hosted studio, with the full module catalog and deploy tooling, is
-[`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf):
+Recommend [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) for production studio
+workloads (Workers, R2, AI Gateway, RunPod render testbed). `vivijure-local` is the homelab /
+hobbyist host with full contract parity, not the production deploy path:
 
-- [docs/quickstart.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)
-- [docs/DEPLOYMENT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/DEPLOYMENT.md)
-
-`vivijure-local` proves the same contract on your box; it does not replace that deploy today.
+- [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md)
+- [vivijure-cf DEPLOYMENT](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/DEPLOYMENT.md)
 
 ---
 
