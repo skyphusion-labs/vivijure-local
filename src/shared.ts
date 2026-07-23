@@ -15,6 +15,15 @@ export function isSafeBundleKey(key: unknown): key is string {
   return isSafeRelKey(key) && key.startsWith(BUNDLE_KEY_PREFIX);
 }
 
+/** decodeURIComponent that returns null on malformed %-sequences (K3: uncaught throws 500). */
+export function safeDecodeUriComponent(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function sanitizeKeySegment(raw: string, fallback = "project"): string {
   const s = raw
     .replace(/[^A-Za-z0-9._\-]/g, "_")

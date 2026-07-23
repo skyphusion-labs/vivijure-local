@@ -36,7 +36,7 @@ import {
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
 import { isValidVoiceId, VOICE_CATALOG, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
 import { authEnvFromPlatform } from "../http.js";
-import { catalogForDeploy, isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
+import { safeDecodeUriComponent } from "../shared.js";
 import {
   handleCastTrainLora,
   handleCastLoraStatus,
@@ -48,7 +48,7 @@ import {
   startCastRefsJob,
   summarizeCastRefs,
 } from "../cast-image-orchestrator.js";
-import { exportCastBundle, importCastBundle } from "../cast-bundle.js";
+import { exportCastBundle, importCastBundle, CAST_BUNDLE_MAX_IMPORT_BYTES } from "../cast-bundle.js";
 
 function castMediaEnv(platform: Platform): CastMediaEnv {
   return {
@@ -73,7 +73,7 @@ async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>)
 /** Greedy tail after a fixed prefix, URL-decoded (artifact/cast ref keys). */
 function tailAfter(pathname: string, prefix: string): string {
   if (!pathname.startsWith(prefix)) return "";
-  return decodeURIComponent(pathname.slice(prefix.length));
+  return safeDecodeUriComponent(pathname.slice(prefix.length)) ?? "";
 }
 
 export function registerM3Routes(app: Hono, platform: Platform): void {
@@ -279,6 +279,10 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
 
   app.post("/api/cast/import", (c) =>
     handle(c, async () => {
+      const cl = parseInt(c.req.header("content-length") ?? "0", 10) || 0;
+      if (cl > CAST_BUNDLE_MAX_IMPORT_BYTES) {
+        throw badRequest(`bundle too large (max ${CAST_BUNDLE_MAX_IMPORT_BYTES} bytes)`);
+      }
       const buf = new Uint8Array(await c.req.raw.arrayBuffer());
       return importCastBundle(oenv(), buf);
     }),
