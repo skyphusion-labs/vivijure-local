@@ -1,5 +1,6 @@
 import {
-  PLATFORM_MODULE_URL_SYNC_KEYS,
+  PLATFORM_MODULE_URL_COMPOSE_DEFAULTS,
+  PLATFORM_MODULE_URL_PURGEABLE_KEYS,
   PLATFORM_SECRET_FIELDS,
 } from "./platform-secrets-catalog.js";
 import { deletePlatformSecret, upsertPlatformSecret } from "./platform-secrets-db.js";
@@ -68,7 +69,18 @@ export async function syncPlatformSecretsFromEnv(
     updated.push(prior && prior !== value ? `${key} (changed)` : key);
   }
 
-  for (const key of PLATFORM_MODULE_URL_SYNC_KEYS) {
+  for (const key of PLATFORM_MODULE_URL_COMPOSE_DEFAULTS) {
+    const value = envValue(env, key);
+    if (!value) {
+      skipped.push(`${key} (unset in env; compose default not overwritten)`);
+      continue;
+    }
+    const prior = existing.get(key);
+    await upsertPlatformSecret(db, key, value);
+    updated.push(prior && prior !== value ? `${key} (changed)` : key);
+  }
+
+  for (const key of PLATFORM_MODULE_URL_PURGEABLE_KEYS) {
     const value = envValue(env, key);
     if (value) {
       const prior = existing.get(key);
