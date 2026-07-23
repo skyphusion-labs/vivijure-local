@@ -197,14 +197,20 @@ cutover, finish sidecars default to local URLs; keep `RUNPOD_WORKERS_MAX=3` in `
 
 ### Finish GPU backend (homelab vs RunPod)
 
-Today, `module-finish-{rife,lipsync,upscale}` sidecars proxy to **RunPod** when
-`RUNPOD_API_KEY` + endpoint IDs are set. After musetalk smoke and [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
-homelab default flips to **`FINISH_BACKEND=local`**: sidecars call `LOCAL_FINISH_*_URL` HTTP
-services on the GPU box instead of local-panel RunPod endpoints. CF panel keeps RunPod finish as
-the canonical testbed.
+Finish GPU sidecars (`module-finish-{lipsync,upscale}`) are **opt-in**: compose gates them behind
+`profiles: [satellites]` and leaves `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` empty by default so
+discovery skips the per-clip finish chain. Minimal homelab assembles via CPU `video-finish` only.
 
-See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, rollout order, and smoke matrix trim.
-Escape hatch: `FINISH_BACKEND=runpod` plus the existing `*_RUNPOD_ENDPOINT_ID` vars.
+**RIFE is not supported on vivijure-local.** There is no `module-finish-rife` sidecar, no
+`LOCAL_FINISH_RIFE_URL`, and no local finish-rife-serve overlay. RIFE runs on the RunPod backend
+worker for vivijure-cf/production only (Conrad ruling 2026-07-22).
+
+When registered, lipsync/upscale sidecars proxy to **RunPod** (`FINISH_BACKEND=runpod`) or **local
+GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL`). A
+registered module with missing creds or backend URL **fails the shot** (`ok: false`); finish
+handlers do not passthrough fake output.
+
+See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, propagandhi teardown notes, and smoke matrix.
 
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
@@ -258,9 +264,9 @@ Set `MODULE_LOCAL_GPU_URL` to the sidecar URL the backend exposes (from the stud
 `MODULE_*_URL` at deployed `vivijure-backend` workers. Not the homelab default; see
 [FINISH_BACKEND.md](FINISH_BACKEND.md).
 
-Finish GPU satellites (`finish-rife`, `finish-lipsync`) are optional in the demo compose; the mock
-path skips straight to assemble after motion. Homelab production path wires local finish sidecars
-instead of RunPod.
+Finish GPU satellites are optional: default compose skips them (`satellites` profile + env URLs).
+The demo path assembles raw clips after motion; homelab production wires finish sidecars only when
+opted in (see [install-profiles.md](install-profiles.md)).
 
 ---
 

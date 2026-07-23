@@ -17,8 +17,9 @@
 # GPU motion modules proxy to RunPod or LOCAL_BACKEND_URL; control plane never runs GPU work.
 # Keyframe falls back to mock PNGs when RUNPOD_* is unset; local-gpu falls back to mock when
 # LOCAL_BACKEND_URL is unset (offline homelab default).
-# Finish GPU: today module-finish-* sidecars use RunPod; post local#180 homelab defaults to
-# FINISH_BACKEND=local + LOCAL_FINISH_*_URL (see docs/FINISH_BACKEND.md). RunPod stays optional.
+# Finish GPU sidecars are opt-in: COMPOSE_PROFILES=satellites + MODULE_FINISH_*_URL in .env
+# (see docs/install-profiles.md). Default stack skips per-clip finish; CPU video-finish assembles.
+# FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU (docs/FINISH_BACKEND.md); RunPod escape hatch.
 
 name: vivijure-local
 
@@ -83,10 +84,8 @@ x-runpod-module: &runpod-module
     # Wan cast LoRA train: local RunPod EP only (see fleet CR-2026-07-21-vivijure-wan-train-local-ep). Never prod zqb7…
     RUNPOD_WAN_TRAIN_ENDPOINT_ID: ${RUNPOD_WAN_TRAIN_ENDPOINT_ID:-}
     FINISH_BACKEND: ${FINISH_BACKEND:-runpod}
-    FINISH_RIFE_BACKEND: ${FINISH_RIFE_BACKEND:-}
     FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
     FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
-    LOCAL_FINISH_RIFE_URL: ${LOCAL_FINISH_RIFE_URL:-}
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
@@ -218,15 +217,9 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9103/module.json"]
 
-  module-finish-rife:
-    <<: *runpod-module
-    command: ["npx", "tsx", "scripts/finish-module-server.ts", "9110", "finish-rife"]
-    healthcheck:
-      <<: *module-health-url
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9110/module.json"]
-
   module-finish-lipsync:
     <<: *runpod-module
+    profiles: [satellites]
     environment:
       RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/finish-module-server.ts", "9111", "finish-lipsync"]
@@ -236,6 +229,7 @@ services:
 
   module-finish-upscale:
     <<: *runpod-module
+    profiles: [satellites]
     environment:
       RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/finish-module-server.ts", "9112", "finish-upscale"]
@@ -515,9 +509,8 @@ services:
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
       MODULE_OWN_GPU_URL: http://module-own-gpu:9103
-      MODULE_FINISH_RIFE_URL: http://module-finish-rife:9110
-      MODULE_LIPSYNC_URL: http://module-finish-lipsync:9111
-      MODULE_UPSCALE_URL: http://module-finish-upscale:9112
+      MODULE_LIPSYNC_URL: ${MODULE_LIPSYNC_URL:-}
+      MODULE_UPSCALE_URL: ${MODULE_UPSCALE_URL:-}
       MODULE_SEEDANCE_URL: http://module-seedance:9150
       MODULE_KLING_URL: http://module-kling:9151
       MODULE_GOOGLE_VEO_URL: http://module-google-veo:9152
@@ -562,12 +555,6 @@ services:
       module-local-gpu:
         condition: service_healthy
       module-own-gpu:
-        condition: service_started
-      module-finish-rife:
-        condition: service_started
-      module-finish-lipsync:
-        condition: service_started
-      module-finish-upscale:
         condition: service_started
       module-seedance:
         condition: service_started

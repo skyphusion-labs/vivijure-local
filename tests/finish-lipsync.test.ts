@@ -47,7 +47,7 @@ describe("finish-lipsync core", () => {
 });
 
 describe("finish-lipsync invoke", () => {
-  it("no-ops silently when a shot has no dialogue audio_key", async () => {
+  it("no-ops when a shot has no dialogue audio_key", async () => {
     const r = await invokeRunpodModule(
       { RUNPOD_API_KEY: "k", MUSETALK_RUNPOD_ENDPOINT_ID: "ep" },
       "finish-lipsync",
@@ -71,5 +71,44 @@ describe("finish-lipsync invoke", () => {
       expect(out.applied).toEqual(["noop:no-dialogue"]);
       expect(out.clip_key).toBe("renders/p/clips/shot_01.mp4");
     }
+  });
+
+  it("fail-loud when RunPod creds are missing", async () => {
+    const r = await invokeRunpodModule({}, "finish-lipsync", {
+      hook: "finish",
+      input: {
+        shot_id: "shot_01",
+        clip_key: "renders/p/clips/shot_01.mp4",
+        audio_key: "renders/p/audio/shot_01.wav",
+        src_fps: 24,
+        frames: 48,
+        width: 512,
+        height: 512,
+      },
+      config: {},
+      context: { project: "p", job_id: "film-1" },
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/not configured/i);
+  });
+});
+
+describe("finish-rife invoke", () => {
+  it("fail-loud when RunPod creds are missing", async () => {
+    const r = await invokeRunpodModule({}, "finish-rife", {
+      hook: "finish",
+      input: {
+        shot_id: "shot_01",
+        clip_key: "renders/p/clips/shot_01.mp4",
+        src_fps: 24,
+        frames: 48,
+        width: 512,
+        height: 512,
+      },
+      config: { interpolate: true },
+      context: { project: "p", job_id: "film-1" },
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/not configured/i);
   });
 });

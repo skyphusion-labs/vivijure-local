@@ -4,6 +4,16 @@ vivijure-local is one codebase with **compose profiles** and **env vars** that s
 modules and storage backends are active. The default stack is the **demo path**: mocks for
 GPU modules, MinIO for artifacts, no optional finish satellites.
 
+## Modular opt-in principle
+
+Modules are **opt-in** at the compose/env layer: unset `MODULE_*_URL` means the module is not in
+the registry and the orchestrator skips its hook entirely. If a module **is** registered (URL set)
+but its backend is missing or misconfigured, the shot **fails honestly** (`ok: false`); finish
+handlers never fake a step with passthrough output when creds or GPU dispatch are unavailable.
+
+Default homelab/minimal panel: no finish GPU module URLs, no `satellites` profile, per-clip finish
+chain skipped; CPU `video-finish` assembles raw clips into the film.
+
 ## Default (demo)
 
 ```bash
@@ -15,31 +25,33 @@ docker compose up -d --build
 |-------|---------|
 | Keyframe | `module-keyframe` mock sidecar |
 | Motion | `module-local-gpu` mock sidecar |
-| Finish GPU (RIFE, lip-sync) | **not started** (no `MODULE_FINISH_*` URLs) |
+| Finish GPU (lip-sync, upscale) | **not started** (`profiles: [satellites]`; no `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL`) |
+| RIFE interpolation | **not supported** on vivijure-local (RunPod / vivijure-cf only) |
 | Object store | MinIO (`S3_*` in compose) |
 | Planner | `PLANNER_AI_MOCK=true` in compose |
 
 The demo path skips the finish GPU chain and assembles raw clips (see exit smoke).
 
-## Profile: `satellites` (finish GPU sidecars)
+## Profile: `satellites` (finish GPU sidecars, lipsync/upscale only)
 
-Finish modules (RIFE, lip-sync, upscale) run as HTTP **module sidecars** on the compose network.
-The studio always reaches them via `MODULE_FINISH_*_URL`; where GPU work runs depends on
-`FINISH_BACKEND` (see [FINISH_BACKEND.md](FINISH_BACKEND.md)):
+Finish modules (lip-sync, upscale) run as HTTP **module sidecars** on the compose network, gated
+behind the compose **`satellites`** profile. **RIFE is not supported** on vivijure-local; it runs
+only on the RunPod backend worker for vivijure-cf/production.
+
+The studio reaches finish sidecars only when `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` are set;
+where GPU work runs depends on `FINISH_BACKEND` (see [FINISH_BACKEND.md](FINISH_BACKEND.md)):
 
 | `FINISH_BACKEND` | GPU execution |
 |------------------|---------------|
-| `local` (homelab default after local#180) | `LOCAL_FINISH_*_URL` on your GPU box |
+| `local` (homelab default after local#180) | `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL` on your GPU box |
 | `runpod` (escape hatch) | RunPod serverless via `*_RUNPOD_ENDPOINT_ID` |
 
 ```bash
 # In .env (studio reads these when set)
-MODULE_FINISH_RIFE_URL=http://module-finish-rife:9110
 MODULE_FINISH_LIPSYNC_URL=http://module-finish-lipsync:9111
 MODULE_UPSCALE_URL=http://module-finish-upscale:9112
 # Post local#180:
 # FINISH_BACKEND=local
-# LOCAL_FINISH_RIFE_URL=http://finish-rife:8010
 # LOCAL_FINISH_LIPSYNC_URL=http://finish-lipsync:8011
 # LOCAL_FINISH_UPSCALE_URL=http://finish-upscale:8012
 
@@ -47,6 +59,8 @@ docker compose --profile satellites up -d --build
 ```
 
 Without the `MODULE_*` URLs, the studio ignores those modules even if the containers run.
+Misconfigured finish sidecars (RunPod creds missing, `LOCAL_FINISH_*_URL` unset in local mode)
+fail the shot; they do not passthrough.
 
 ## Profile: own GPU (host motion backend)
 

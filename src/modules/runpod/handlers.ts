@@ -227,7 +227,7 @@ async function invokeFinish(
   }
   const creds = await runpodCreds(env, moduleName);
   if (!creds) {
-    return { ok: true, output: passthroughOutput(input, "no-runpod-secrets") };
+    return { ok: false, error: `${moduleName}: RUNPOD_API_KEY / endpoint id not configured` };
   }
   const rec = await reconcileWorkersMaxOrError(moduleName, creds.apiKey, creds.endpointId, resolveWorkersMax(env));
   if (!rec.ok) return { ok: false, error: rec.error };
@@ -243,11 +243,11 @@ async function invokeFinish(
       body: JSON.stringify(runBody),
     });
     if (!r.ok) {
-      return { ok: true, output: passthroughOutput(input, "runpod-run-failed", { detail: `HTTP ${r.status}` }) };
+      return { ok: false, error: `${moduleName}: RunPod /run -> ${r.status}` };
     }
     const jobId = ((await r.json()) as { id?: string }).id;
     if (!jobId) {
-      return { ok: true, output: passthroughOutput(input, "runpod-run-no-id") };
+      return { ok: false, error: `${moduleName}: RunPod /run returned no job id` };
     }
     return {
       ok: true,
@@ -262,7 +262,7 @@ async function invokeFinish(
       }),
     };
   } catch (e) {
-    return { ok: true, output: passthroughOutput(input, "runpod-submit-error", { detail: (e as Error).message }) };
+    return { ok: false, error: `${moduleName}: RunPod submit failed: ${(e as Error).message}` };
   }
 }
 
@@ -303,17 +303,8 @@ async function pollFinish(
         ? root.detail
         : typeof root.error === "string" && root.error.length > 0
           ? root.error
-          : undefined;
-    const clipKey = st.clipKey ?? "";
-    if (!clipKey) return { ok: false, error: "finish-lipsync: backend soft-degrade but poll token missing clip_key" };
-    return {
-      ok: true,
-      output: passthroughOutput(
-        { shot_id: st.shotId, clip_key: clipKey, src_fps: st.srcFps, frames: st.frames, width: 0, height: 0 },
-        "backend-soft-degrade",
-        { detail: reason?.slice(0, 120) },
-      ),
-    };
+          : "backend returned ok:false";
+    return { ok: false, error: `finish-lipsync: ${reason.slice(0, 200)}` };
   }
   const output = parseFinishOutput(st.shotId, s.output, st.srcFps, st.frames);
   if (!output) return { ok: false, error: `${moduleName} completed but returned no clip_key` };
