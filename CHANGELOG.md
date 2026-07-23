@@ -7,6 +7,18 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.1.13 -- 2026-07-22
+
+PATCH: **FINISH_BACKEND** local sidecar routing (#180 / #182). Homelab finish modules can call
+local GPU HTTP (`LOCAL_FINISH_*_URL`) instead of RunPod; default remains `runpod` until env cutover.
+
+- **feat(finish):** `finish-module-server.ts`, `resolveFinishBackend()`, local-finish handlers;
+  fail-loud when `FINISH_BACKEND=local` and URLs unset (#182)
+- **docs:** `docs/FINISH_BACKEND.md`, env catalog + compose wiring prep (#181)
+
+Phase 2 (propagandhi `FINISH_BACKEND=local`) blocked until GEX44 finish HTTP stack lands; do not
+roll propagandhi on this tag alone.
+
 ## v1.1.12 -- 2026-07-22
 
 PATCH: dual-panel with vivijure-cf **v1.7.11** -- local-GPU film keyframes (#153). Pins
