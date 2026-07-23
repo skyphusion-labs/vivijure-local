@@ -14,12 +14,13 @@
 # MinIO S3 API:  http://127.0.0.1:9000  (in-network); public HTTPS via Caddy + S3_PRESIGN_ENDPOINT
 #               COMPOSE_PROFILES=edge requires non-placeholder S3_* (npm run install:edge mints them).
 #
-# GPU motion modules proxy to RunPod or LOCAL_BACKEND_URL; control plane never runs GPU work.
-# Keyframe falls back to mock PNGs when RUNPOD_* is unset; local-gpu falls back to mock when
-# LOCAL_BACKEND_URL is unset (offline homelab default).
-# Finish GPU sidecars are opt-in: COMPOSE_PROFILES=satellites + MODULE_FINISH_*_URL in .env
-# (see docs/install-profiles.md). Default stack skips per-clip finish; CPU video-finish assembles.
-# FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU (docs/FINISH_BACKEND.md); RunPod escape hatch.
+# Default homelab stack (Conrad ruling 2026-07-22): all CPU modules + homelab motion (local-gpu).
+# CPU sidecars, VPC shims, and score/chain modules run by default; only RunPod/cloud GPU is gated.
+# Optional profiles (see docs/install-profiles.md):
+#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, narration-gen
+#   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
+# Keyframe mock when RUNPOD_* unset; local-gpu mock when LOCAL_BACKEND_URL unset (offline default).
+# FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
 
 name: vivijure-local
 
@@ -103,6 +104,9 @@ x-module-health-url: &module-health-url
   timeout: 3s
   retries: 6
   start_period: 20s
+
+x-profile-cloud: &profile-cloud
+  profiles: [cloud]
 
 x-ai-gateway-env: &ai-gateway-env
   CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
@@ -211,7 +215,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-own-gpu:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9103", "own-gpu"]
     healthcheck:
       <<: *module-health-url
@@ -238,56 +242,56 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9112/module.json"]
 
   module-seedance:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9150", "seedance"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9150/module.json"]
 
   module-kling:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9151", "kling"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9151/module.json"]
 
   module-google-veo:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9152", "google-veo"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9152/module.json"]
 
   module-minimax-hailuo:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9153", "minimax-hailuo"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9153/module.json"]
 
   module-vidu-q3:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9154", "vidu-q3"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9154/module.json"]
 
   module-alibaba-wan:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9155", "alibaba-wan"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9155/module.json"]
 
   module-alibaba-wan-lora:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9156", "alibaba-wan-lora"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9156/module.json"]
 
   module-cloud-keyframe:
-    <<: *module-sidecar
+    <<: [*module-sidecar, *profile-cloud]
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/cloud-keyframe-module-server.ts", "9157"]
@@ -323,7 +327,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-narration-gen:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/score-module-server.ts", "9159", "narration-gen"]
     healthcheck:
       <<: *module-health-url
@@ -508,19 +512,19 @@ services:
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       MODULE_KEYFRAME_URL: http://module-keyframe:9101
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
-      MODULE_OWN_GPU_URL: http://module-own-gpu:9103
+      MODULE_OWN_GPU_URL: ${MODULE_OWN_GPU_URL:-}
       MODULE_LIPSYNC_URL: ${MODULE_LIPSYNC_URL:-}
       MODULE_UPSCALE_URL: ${MODULE_UPSCALE_URL:-}
-      MODULE_SEEDANCE_URL: http://module-seedance:9150
-      MODULE_KLING_URL: http://module-kling:9151
-      MODULE_GOOGLE_VEO_URL: http://module-google-veo:9152
-      MODULE_MINIMAX_HAILUO_URL: http://module-minimax-hailuo:9153
-      MODULE_VIDU_Q3_URL: http://module-vidu-q3:9154
-      MODULE_ALIBABA_WAN_URL: http://module-alibaba-wan:9155
-      MODULE_ALIBABA_WAN_LORA_URL: http://module-alibaba-wan-lora:9156
-      MODULE_CLOUD_KEYFRAME_URL: http://module-cloud-keyframe:9157
+      MODULE_SEEDANCE_URL: ${MODULE_SEEDANCE_URL:-}
+      MODULE_KLING_URL: ${MODULE_KLING_URL:-}
+      MODULE_GOOGLE_VEO_URL: ${MODULE_GOOGLE_VEO_URL:-}
+      MODULE_MINIMAX_HAILUO_URL: ${MODULE_MINIMAX_HAILUO_URL:-}
+      MODULE_VIDU_Q3_URL: ${MODULE_VIDU_Q3_URL:-}
+      MODULE_ALIBABA_WAN_URL: ${MODULE_ALIBABA_WAN_URL:-}
+      MODULE_ALIBABA_WAN_LORA_URL: ${MODULE_ALIBABA_WAN_LORA_URL:-}
+      MODULE_CLOUD_KEYFRAME_URL: ${MODULE_CLOUD_KEYFRAME_URL:-}
       MODULE_MUSIC_GEN_URL: http://module-music-gen:9158
-      MODULE_NARRATION_GEN_URL: http://module-narration-gen:9159
+      MODULE_NARRATION_GEN_URL: ${MODULE_NARRATION_GEN_URL:-}
       MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130
@@ -554,43 +558,23 @@ services:
         condition: service_healthy
       module-local-gpu:
         condition: service_healthy
-      module-own-gpu:
-        condition: service_started
-      module-seedance:
-        condition: service_started
-      module-kling:
-        condition: service_started
-      module-google-veo:
-        condition: service_started
-      module-minimax-hailuo:
-        condition: service_started
-      module-vidu-q3:
-        condition: service_started
-      module-alibaba-wan:
-        condition: service_started
-      module-alibaba-wan-lora:
-        condition: service_started
-      module-cloud-keyframe:
-        condition: service_started
-      module-music-gen:
-        condition: service_started
-      module-narration-gen:
-        condition: service_started
-      module-beat-sync:
-        condition: service_started
-      module-audio-master:
-        condition: service_started
-      module-film-titles:
-        condition: service_started
-      module-subtitle:
-        condition: service_started
       module-plan-enhance:
         condition: service_healthy
       module-cast-image:
         condition: service_healthy
       module-image-generate:
         condition: service_healthy
+      module-audio-master:
+        condition: service_healthy
+      module-beat-sync:
+        condition: service_healthy
+      module-film-titles:
+        condition: service_healthy
+      module-subtitle:
+        condition: service_healthy
       module-dialogue-gen:
+        condition: service_healthy
+      module-music-gen:
         condition: service_healthy
       module-speech-upscale:
         condition: service_healthy

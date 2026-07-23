@@ -44,7 +44,7 @@ export const PLATFORM_SECRET_CATEGORIES: { id: SecretCategory; label: string; bl
   {
     id: "media",
     label: "Media CPU services",
-    blurb: "Video finish, image prep, and audio stack sidecars (compose wires these by default).",
+    blurb: "Default homelab: video-finish + audio-master only. Optional profile media adds image prep, beat/mix.",
   },
 ];
 

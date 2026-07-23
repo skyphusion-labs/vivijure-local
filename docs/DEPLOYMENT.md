@@ -26,13 +26,16 @@ Canonical API contract: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphu
    bindings and VPC links; here they are Docker services and `MODULE_*_URL` fetchers.
 
 ```
-docker compose
+docker compose (default homelab)
   |-- studio (:8790)     SQLite + Hono API + public/ UI
   |-- minio (:9000)      renders/, bundles/, job docs
-  |-- video-finish ...   ffmpeg assembly, titles, subtitles (VPC from modules)
-  |-- module-keyframe    GPU mock (or replace with real keyframe module URL)
-  |-- module-local-gpu   GPU mock (or vivijure-local-12gb/16gb door; RunPod optional)
-  `-- module-beat-sync, module-audio-master, module-film-titles, module-subtitle
+  |-- video-finish       ffmpeg assemble/mux (CPU film.finish path)
+  |-- image-prep, audio-beat-sync, audio-mix, audio-master   CPU media VPC shims
+  |-- module-plan-enhance, module-cast-image, module-image-generate
+  |-- module-keyframe, module-local-gpu
+  |-- module-audio-master, module-beat-sync, module-film-titles, module-subtitle
+  |-- module-dialogue-gen, module-music-gen, module-speech-upscale, module-notify-email
+  `-- optional profiles: cloud, satellites (see install-profiles.md)
 ```
 
 Technical adapter detail: [ARCHITECTURE.md](ARCHITECTURE.md). Route checklist: [PARITY.md](PARITY.md).
@@ -89,11 +92,11 @@ still has the `change-me-local-dev-only` placeholder.
 |------|---------|
 | 8790 | Studio API + UI |
 | 9000 / 9001 | MinIO API / console |
-| 8780 | video-finish |
-| 8781 | image-prep |
-| 8782 | audio-beat-sync |
-| 8783 | audio-mix |
-| 8784 | audio-master |
+| 8780 | video-finish (default) |
+| 8781 | image-prep (default) |
+| 8782 | audio-beat-sync (default) |
+| 8783 | audio-mix (default) |
+| 8784 | audio-master (default) |
 
 Module sidecars listen on the Docker network only (e.g. `module-keyframe:9101`). The studio
 container reaches them by hostname; use `npm run conformance:compose` to gate them from inside
@@ -216,8 +219,9 @@ Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
 ### Module sidecars
 
-Compose sets `MODULE_KEYFRAME_URL`, `MODULE_LOCAL_GPU_URL`, and CPU module URLs automatically.
-Override in `.env` to point at host-native sidecars or remote RunPod modules.
+Compose wires all CPU module URLs in-network by default. Override in `.env` to point at host-native
+sidecars or remote RunPod modules. Cloud i2v, own-gpu, narration-gen, and finish GPU URLs stay empty
+until you enable `COMPOSE_PROFILES=cloud` or `satellites`.
 
 | Variable | Compose default |
 |----------|-----------------|
@@ -227,6 +231,16 @@ Override in `.env` to point at host-native sidecars or remote RunPod modules.
 | `MODULE_AUDIO_MASTER_URL` | `http://module-audio-master:9121` |
 | `MODULE_FILM_TITLES_URL` | `http://module-film-titles:9130` |
 | `MODULE_SUBTITLE_URL` | `http://module-subtitle:9131` |
+| `MODULE_PLANENHANCE_URL` | `http://module-plan-enhance:9140` |
+| `MODULE_CAST_IMAGE_URL` | `http://module-cast-image:9141` |
+| `MODULE_DIALOGUE_URL` | `http://module-dialogue-gen:9142` |
+| `MODULE_SPEECH_UPSCALE_URL` | `http://module-speech-upscale:9143` |
+| `MODULE_IMAGE_GENERATE_URL` | `http://module-image-generate:9145` |
+| `MODULE_MUSIC_GEN_URL` | `http://module-music-gen:9158` |
+| `MODULE_NOTIFY_EMAIL_URL` | `http://module-notify-email:9144` |
+| `MODULE_OWN_GPU_URL` | *(empty; `cloud` profile)* |
+| `MODULE_*` cloud i2v / narration | *(empty; `cloud` profile)* |
+| `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` | *(empty; `satellites` profile)* |
 
 ### CPU VPC shims (studio -> containers)
 
