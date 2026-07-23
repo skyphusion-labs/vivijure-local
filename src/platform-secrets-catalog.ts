@@ -203,17 +203,6 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
-    key: "RUNPOD_WAN_TRAIN_ENDPOINT_ID",
-    label: "RunPod endpoint ID (Wan cast LoRA train, local only)",
-    blurb:
-      "Dedicated local Wan train EP (cf#29). Must point at a RunPod endpoint whose template R2_* " +
-      "targets this studio's MinIO, NOT prod CF R2. Value from fleet-chezmoi CR-2026-07-21-vivijure-wan-train-local-ep " +
-      "after approved apply. Never set prod zqb7tougbqfkqa here. Fail-closed when unset.",
-    category: "providers",
-    sensitive: false,
-    applies_on: "immediate",
-  },
-  {
     key: "LOCAL_BACKEND_URL",
     label: "Local GPU backend URL",
     blurb: "Base URL for the homelab vivijure-local-backend (local-gpu module proxies here).",
@@ -497,6 +486,9 @@ export const PLATFORM_MODULE_URL_KEYS: readonly string[] = PLATFORM_SECRET_FIELD
 /** Retired local RIFE keys: purge from platform_secrets when absent from env. */
 export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINISH_RIFE_URL"] as const;
 
+/** Retired homelab Wan train key (CF prod only; Conrad ruling 2026-07-23). Purge when absent from env. */
+export const PLATFORM_LEGACY_WAN_TRAIN_KEYS = ["RUNPOD_WAN_TRAIN_ENDPOINT_ID"] as const;
+
 /** Homelab compose defaults: hardcoded in compose.yaml, upsert when set, never purge when unset. */
 export const PLATFORM_MODULE_URL_COMPOSE_DEFAULTS = [
   "MODULE_KEYFRAME_URL",
@@ -519,6 +511,7 @@ export const PLATFORM_MODULE_URL_PURGEABLE_KEYS: readonly string[] = [
     (k) => !(PLATFORM_MODULE_URL_COMPOSE_DEFAULTS as readonly string[]).includes(k),
   ),
   ...PLATFORM_LEGACY_RIFE_KEYS,
+  ...PLATFORM_LEGACY_WAN_TRAIN_KEYS,
 ];
 
 /** All MODULE_* URL keys handled by sync:secrets. */

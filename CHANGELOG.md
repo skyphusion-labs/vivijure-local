@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+PATCH: homelab does not wire Wan cast LoRA train (Conrad ruling 2026-07-23). Remove
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID` from compose, Settings catalog, and `.env.example`; sync purges stale
+DB rows. Local `/train-lora` falls back to SDXL on the render endpoint; Wan train stays CF prod only.
+
 ## v1.1.15 -- 2026-07-23
 
 PATCH: Wan cast train default (cf#29 Phase E). Bumps `@skyphusion-labs/vivijure-core` to `^1.2.8`.

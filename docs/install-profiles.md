@@ -13,7 +13,9 @@ but its backend is missing or misconfigured, the shot **fails honestly** (`ok: f
 handlers never fake a step with passthrough output when creds or GPU dispatch are unavailable.
 
 Default homelab: all CPU module URLs wired in compose; finish GPU and cloud i2v URLs left empty
-until you opt in with profiles + `.env`.
+until you opt in with profiles + `.env`. **Wan cast LoRA train is not homelab-scoped:** do not set
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` uses SDXL on the render endpoint (train on CF
+prod for Wan).
 
 ## Default (homelab)
 

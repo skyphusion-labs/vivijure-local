@@ -81,6 +81,18 @@ describe("syncPlatformSecretsFromEnv", () => {
     expect(after.get("MODULE_UPSCALE_URL")).toBe("http://module-finish-upscale:9112");
   });
 
+  it("purges retired RUNPOD_WAN_TRAIN_ENDPOINT_ID when unset in env", async () => {
+    const db = openDatabase(dbPath);
+    await upsertPlatformSecret(db, "RUNPOD_WAN_TRAIN_ENDPOINT_ID", "8kjcn5sz6k8p1n");
+
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {}, existing);
+
+    expect(result.cleared).toContain("RUNPOD_WAN_TRAIN_ENDPOINT_ID");
+    const after = await listPlatformSecrets(db);
+    expect(after.has("RUNPOD_WAN_TRAIN_ENDPOINT_ID")).toBe(false);
+  });
+
   it("skips unset tunnel keys without deleting them", async () => {
     const db = openDatabase(dbPath);
     await upsertPlatformSecret(db, "PUBLIC_BASE_URL", "https://example.test");
