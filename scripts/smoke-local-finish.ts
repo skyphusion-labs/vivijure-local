@@ -1,9 +1,8 @@
 #!/usr/bin/env tsx
 /** Silent local-gpu + local-finish smoke (local#180). */
-const BASE = (process.env.STUDIO_URL || "http://127.0.0.1:8790").replace(/\/$/, "");
-const TOKEN = process.env.STUDIO_API_TOKEN || "change-me-local-dev-only";
+import { api, fail, type SmokeStoryboard } from "./smoke-lib.js";
 
-const STORYBOARD = {
+const STORYBOARD: SmokeStoryboard = {
   title: "local_finish_smoke",
   full_prompt: "Silent two-shot finish smoke.",
   duration_seconds: 8,
@@ -11,28 +10,12 @@ const STORYBOARD = {
   style_prefix: "cinematic",
   style_category: "None",
   style_preset: "None",
-  use_characters: [] as string[],
+  use_characters: [],
   scenes: [
     { id: "shot_01", prompt: "calm ocean horizon", target_seconds: 4 },
     { id: "shot_02", prompt: "gentle beach waves", target_seconds: 4 },
   ],
 };
-
-async function api(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${TOKEN}`,
-      "content-type": "application/json",
-      ...(init.headers as Record<string, string> | undefined),
-    },
-  });
-}
-
-function fail(msg: string): never {
-  console.error(`smoke: FAIL -- ${msg}`);
-  process.exit(1);
-}
 
 async function main(): Promise<void> {
   const bundleRes = await api("/api/storyboard/bundle", {
