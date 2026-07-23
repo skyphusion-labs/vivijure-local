@@ -1,7 +1,7 @@
 // Artifact upload + byte-range serve (ported from vivijure/src/index.ts).
 
 import { notFound, badRequest } from "./errors.js";
-import { isSafeRelKey, parseByteRange } from "./shared.js";
+import { isSafeRelKey, parseByteRange, safeDecodeUriComponent } from "./shared.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
 
 export const UPLOAD_EXT: Record<string, string> = {
@@ -73,7 +73,8 @@ export async function handleUpload(req: Request, store: ArtifactStore): Promise<
 }
 
 export async function handleServeArtifact(req: Request, store: ArtifactStore, rawKey: string): Promise<Response> {
-  const key = decodeURIComponent(rawKey);
+  const key = safeDecodeUriComponent(rawKey);
+  if (key === null) throw badRequest("invalid artifact key encoding");
   assertArtifactKey(key);
 
   const isHead = req.method === "HEAD";
