@@ -192,6 +192,17 @@ homelab card) — no RunPod `vivijure-backend` for the keyframe phase. Redeploy/
 `keyframe` hook and the door accepts `preview`. Keep `RUNPOD_WORKERS_MAX=3` in `.env` for any
 remaining RunPod modules (finish chain / non-local films; compose default; do not use 4).
 
+### Finish GPU backend (homelab vs RunPod)
+
+Today, `module-finish-{rife,lipsync,upscale}` sidecars proxy to **RunPod** when
+`RUNPOD_API_KEY` + endpoint IDs are set. After musetalk smoke and [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
+homelab default flips to **`FINISH_BACKEND=local`**: sidecars call `LOCAL_FINISH_*_URL` HTTP
+services on the GPU box instead of local-panel RunPod endpoints. CF panel keeps RunPod finish as
+the canonical testbed.
+
+See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, rollout order, and smoke matrix trim.
+Escape hatch: `FINISH_BACKEND=runpod` plus the existing `*_RUNPOD_ENDPOINT_ID` vars.
+
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
 ### Module sidecars
