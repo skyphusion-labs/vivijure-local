@@ -489,6 +489,30 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   },
 ];
 
+/** Module sidecar URLs synced from compose/.env (upsert when set, purge from DB when unset). */
+export const PLATFORM_MODULE_URL_KEYS: readonly string[] = PLATFORM_SECRET_FIELDS.filter(
+  (f) => f.category === "modules",
+).map((f) => f.key);
+
+/** Compose-only module URL keys not listed in the Settings catalog. */
+export const PLATFORM_MODULE_URL_COMPOSE_KEYS = [
+  "MODULE_BEAT_SYNC_URL",
+  "MODULE_AUDIO_MASTER_URL",
+  "MODULE_FILM_TITLES_URL",
+  "MODULE_SUBTITLE_URL",
+  "MODULE_IMAGE_GENERATE_URL",
+] as const;
+
+/** Retired local RIFE keys: purge from platform_secrets when absent from env. */
+export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINISH_RIFE_URL"] as const;
+
+/** All optional MODULE_* URL keys handled by sync:secrets (set -> upsert, unset -> delete). */
+export const PLATFORM_MODULE_URL_SYNC_KEYS: readonly string[] = [
+  ...PLATFORM_MODULE_URL_KEYS,
+  ...PLATFORM_MODULE_URL_COMPOSE_KEYS,
+  ...PLATFORM_LEGACY_RIFE_KEYS,
+];
+
 /** Install/bootstrap keys: never writable from the Settings GUI (install script / compose only). */
 export const PLATFORM_SECRET_INSTALL_ONLY = new Set(["STUDIO_API_TOKEN", "DATABASE_PATH", "PORT"]);
 
