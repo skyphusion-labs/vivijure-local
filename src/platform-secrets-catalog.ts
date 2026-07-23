@@ -418,7 +418,7 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "MODULE_SPEECH_UPSCALE_URL",
     label: "speech module URL",
-    blurb: "HTTP sidecar for dialogue audio polish (speech hook).",
+    blurb: "RunPod speech-upscale sidecar (vivijure-audio-upscale); cloud profile only.",
     category: "modules",
     sensitive: false,
     applies_on: "immediate",
