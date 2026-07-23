@@ -14,11 +14,10 @@
 # MinIO S3 API:  http://127.0.0.1:9000  (in-network); public HTTPS via Caddy + S3_PRESIGN_ENDPOINT
 #               COMPOSE_PROFILES=edge requires non-placeholder S3_* (npm run install:edge mints them).
 #
-# Default homelab stack (Conrad ruling 2026-07-22): plan.enhance (LLM), cast.image, image.generate,
-# keyframe, local-gpu, audio-master (music-upscale), video-finish (film assemble), subtitle, notify-email.
+# Default homelab stack (Conrad ruling 2026-07-22): all CPU modules + homelab motion (local-gpu).
+# CPU sidecars, VPC shims, and score/chain modules run by default; only RunPod/cloud GPU is gated.
 # Optional profiles (see docs/install-profiles.md):
-#   media      -- image-prep, audio beat/mix, film-titles, subtitle sidecars
-#   cloud      -- RunPod/cloud i2v, cloud-keyframe, dialogue, speech-upscale, score chain
+#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, narration-gen
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
 # Keyframe mock when RUNPOD_* unset; local-gpu mock when LOCAL_BACKEND_URL unset (offline default).
 # FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
@@ -106,9 +105,6 @@ x-module-health-url: &module-health-url
   retries: 6
   start_period: 20s
 
-x-profile-media: &profile-media
-  profiles: [media]
-
 x-profile-cloud: &profile-cloud
   profiles: [cloud]
 
@@ -160,7 +156,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
   image-prep:
-    <<: [*cpu-service, *profile-media]
+    <<: *cpu-service
     image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-image-prep:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8781:8000"
@@ -169,7 +165,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
   audio-beat-sync:
-    <<: [*cpu-service, *profile-media]
+    <<: *cpu-service
     image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-audio-beat-sync:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8782:8000"
@@ -178,7 +174,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
   audio-mix:
-    <<: [*cpu-service, *profile-media]
+    <<: *cpu-service
     image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-audio-mix:${VJ_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:8783:8000"
@@ -313,7 +309,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-music-gen:
-    <<: [*module-sidecar, *profile-cloud]
+    <<: *module-sidecar
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/score-module-server.ts", "9158", "music-gen"]
@@ -338,7 +334,7 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9159/module.json"]
 
   module-beat-sync:
-    <<: [*cpu-module, *profile-media]
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9120", "beat-sync"]
     healthcheck:
       <<: *module-health-url
@@ -358,7 +354,7 @@ services:
       AUDIO_MASTER_URL: http://audio-master:8000
 
   module-film-titles:
-    <<: [*cpu-module, *profile-media]
+    <<: *cpu-module
     command: ["npx", "tsx", "scripts/cpu-module-server.ts", "9130", "film-titles"]
     healthcheck:
       <<: *module-health-url
@@ -430,7 +426,7 @@ services:
       <<: *ai-gateway-env
 
   module-dialogue-gen:
-    <<: [*module-sidecar, *profile-cloud]
+    <<: *module-sidecar
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9142", "dialogue-gen"]
@@ -448,7 +444,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-speech-upscale:
-    <<: [*module-sidecar, *profile-cloud]
+    <<: *module-sidecar
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9143", "speech-upscale"]
@@ -501,9 +497,9 @@ services:
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
       VIDEO_FINISH_URL: http://video-finish:8000
-      IMAGE_PREP_URL: ${IMAGE_PREP_URL:-}
-      AUDIO_BEAT_SYNC_URL: ${AUDIO_BEAT_SYNC_URL:-}
-      AUDIO_MIX_URL: ${AUDIO_MIX_URL:-}
+      IMAGE_PREP_URL: http://image-prep:8000
+      AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
+      AUDIO_MIX_URL: http://audio-mix:8000
       AUDIO_MASTER_URL: http://audio-master:8000
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
       RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
@@ -527,17 +523,17 @@ services:
       MODULE_ALIBABA_WAN_URL: ${MODULE_ALIBABA_WAN_URL:-}
       MODULE_ALIBABA_WAN_LORA_URL: ${MODULE_ALIBABA_WAN_LORA_URL:-}
       MODULE_CLOUD_KEYFRAME_URL: ${MODULE_CLOUD_KEYFRAME_URL:-}
-      MODULE_MUSIC_GEN_URL: ${MODULE_MUSIC_GEN_URL:-}
+      MODULE_MUSIC_GEN_URL: http://module-music-gen:9158
       MODULE_NARRATION_GEN_URL: ${MODULE_NARRATION_GEN_URL:-}
-      MODULE_BEAT_SYNC_URL: ${MODULE_BEAT_SYNC_URL:-}
+      MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
-      MODULE_FILM_TITLES_URL: ${MODULE_FILM_TITLES_URL:-}
+      MODULE_FILM_TITLES_URL: http://module-film-titles:9130
       MODULE_SUBTITLE_URL: http://module-subtitle:9131
       MODULE_PLANENHANCE_URL: http://module-plan-enhance:9140
       MODULE_CAST_IMAGE_URL: http://module-cast-image:9141
-      MODULE_DIALOGUE_URL: ${MODULE_DIALOGUE_URL:-}
+      MODULE_DIALOGUE_URL: http://module-dialogue-gen:9142
       MODULE_IMAGE_GENERATE_URL: http://module-image-generate:9145
-      MODULE_SPEECH_UPSCALE_URL: ${MODULE_SPEECH_UPSCALE_URL:-}
+      MODULE_SPEECH_UPSCALE_URL: http://module-speech-upscale:9143
       MODULE_NOTIFY_EMAIL_URL: http://module-notify-email:9144
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -549,6 +545,12 @@ services:
       minio-init:
         condition: service_completed_successfully
       video-finish:
+        condition: service_healthy
+      image-prep:
+        condition: service_healthy
+      audio-beat-sync:
+        condition: service_healthy
+      audio-mix:
         condition: service_healthy
       audio-master:
         condition: service_healthy
@@ -564,7 +566,17 @@ services:
         condition: service_healthy
       module-audio-master:
         condition: service_healthy
+      module-beat-sync:
+        condition: service_healthy
+      module-film-titles:
+        condition: service_healthy
       module-subtitle:
+        condition: service_healthy
+      module-dialogue-gen:
+        condition: service_healthy
+      module-music-gen:
+        condition: service_healthy
+      module-speech-upscale:
         condition: service_healthy
       module-notify-email:
         condition: service_healthy

@@ -1,9 +1,9 @@
 # Install profiles
 
 vivijure-local is one codebase with **compose profiles** and **env vars** that select which
-modules and storage backends are active. The default stack is the **homelab minimal path** (Conrad
-ruling 2026-07-22): nine modules plus CPU assemble/master/subtitle, MinIO, no optional finish GPU or cloud
-i2v sidecars.
+modules and storage backends are active. The default stack is **all CPU modules + homelab motion**
+(Conrad ruling 2026-07-22): every CPU sidecar and VPC shim runs without a profile; only RunPod/cloud
+GPU modules are gated behind `cloud` or `satellites`.
 
 ## Modular opt-in principle
 
@@ -12,61 +12,61 @@ the registry and the orchestrator skips its hook entirely. If a module **is** re
 but its backend is missing or misconfigured, the shot **fails honestly** (`ok: false`); finish
 handlers never fake a step with passthrough output when creds or GPU dispatch are unavailable.
 
-Default homelab/minimal panel: no finish GPU module URLs, no `satellites` profile, per-clip finish
-chain skipped; CPU `video-finish` assembles raw clips into the film.
+Default homelab: all CPU module URLs wired in compose; finish GPU and cloud i2v URLs left empty
+until you opt in with profiles + `.env`.
 
-## Default (homelab minimal)
+## Default (homelab)
 
 ```bash
 npm run install:studio
 docker compose up -d
 ```
 
-| Module / service | Compose name | `MODULE_*` / CPU URL |
-|------------------|--------------|----------------------|
+### Module sidecars (default)
+
+| Module | Compose name | `MODULE_*` URL (compose default) |
+|--------|--------------|----------------------------------|
 | LLM (plan.enhance) | `module-plan-enhance` | `MODULE_PLANENHANCE_URL` |
 | cast.image | `module-cast-image` | `MODULE_CAST_IMAGE_URL` |
 | image.generate | `module-image-generate` | `MODULE_IMAGE_GENERATE_URL` |
 | keyframe | `module-keyframe` | `MODULE_KEYFRAME_URL` |
 | local-gpu (motion) | `module-local-gpu` | `MODULE_LOCAL_GPU_URL` |
-| music-upscale (master) | `audio-master` + `module-audio-master` | `AUDIO_MASTER_URL`, `MODULE_AUDIO_MASTER_URL` |
-| film.finish (assemble) | `video-finish` | `VIDEO_FINISH_URL` |
+| music-upscale (master) | `module-audio-master` | `MODULE_AUDIO_MASTER_URL` |
 | subtitle | `module-subtitle` | `MODULE_SUBTITLE_URL` |
 | notify-email | `module-notify-email` | `MODULE_NOTIFY_EMAIL_URL` |
+| beat-sync | `module-beat-sync` | `MODULE_BEAT_SYNC_URL` |
+| film-titles | `module-film-titles` | `MODULE_FILM_TITLES_URL` |
+| dialogue-gen | `module-dialogue-gen` | `MODULE_DIALOGUE_URL` |
+| music-gen | `module-music-gen` | `MODULE_MUSIC_GEN_URL` |
+| speech-upscale | `module-speech-upscale` | `MODULE_SPEECH_UPSCALE_URL` |
+
+### CPU VPC shims (default)
+
+| Service | Port | Studio env |
+|---------|------|------------|
+| film.finish (assemble) | 8780 | `VIDEO_FINISH_URL` |
+| image-prep | 8781 | `IMAGE_PREP_URL` |
+| audio-beat-sync | 8782 | `AUDIO_BEAT_SYNC_URL` |
+| audio-mix | 8783 | `AUDIO_MIX_URL` |
+| music-upscale (audio-master) | 8784 | `AUDIO_MASTER_URL` |
 
 | Piece | Default |
 |-------|---------|
 | Keyframe | `module-keyframe` mock sidecar (or RunPod when creds set) |
 | Motion | `module-local-gpu` mock sidecar (or `LOCAL_BACKEND_URL` GPU door) |
+| Dialogue / music-gen | AI Gateway sidecars (mock/offline when gateway creds unset) |
+| speech-upscale | Local mock when `AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID` unset; RunPod when configured |
 | Finish GPU (lip-sync, upscale) | **not started** (`profiles: [satellites]`; no `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL`) |
-| Cloud i2v / dialogue / speech | **not started** (`profiles: [cloud]`; `MODULE_*` unset) |
-| Extra CPU media (prep, beat/mix, title cards) | **not started** (`profiles: [media]`) |
+| Cloud i2v / own-gpu / narration-gen | **not started** (`profiles: [cloud]`; `MODULE_*` unset) |
 | RIFE interpolation | **not supported** on vivijure-local (RunPod / vivijure-cf only) |
 | Object store | MinIO (`S3_*` in compose) |
 | Planner | `PLANNER_AI_MOCK=true` in compose (set `false` + AI Gateway creds for real planning) |
 
-The minimal path skips the finish GPU chain and assembles raw clips (see exit smoke).
+Without finish GPU sidecars, the default path assembles raw clips via CPU `video-finish` (see exit smoke).
 
-## Profile: `media` (extra CPU media)
+## Profile: `cloud` (RunPod / cloud GPU modules)
 
-Optional portrait prep, beat sync, audio mix, and film title-card polish. Subtitle stays in the
-default stack; only title cards are gated here. Enable the profile **and** set the matching URLs
-in `.env` (or use a compose override).
-
-```bash
-# .env excerpt (in-network hostnames)
-IMAGE_PREP_URL=http://image-prep:8000
-AUDIO_BEAT_SYNC_URL=http://audio-beat-sync:8000
-AUDIO_MIX_URL=http://audio-mix:8000
-MODULE_BEAT_SYNC_URL=http://module-beat-sync:9120
-MODULE_FILM_TITLES_URL=http://module-film-titles:9130
-
-COMPOSE_PROFILES=media docker compose up -d
-```
-
-## Profile: `cloud` (RunPod / cloud modules)
-
-Cloud motion backends, cloud keyframe, dialogue TTS, speech upscale, and score-chain modules.
+Cloud motion backends, cloud keyframe, narration-gen (RunPod), and all cloud i2v providers.
 Requires RunPod and/or AI Gateway creds as appropriate. Set each `MODULE_*_URL` you want registered.
 
 ```bash
@@ -74,12 +74,17 @@ Requires RunPod and/or AI Gateway creds as appropriate. Set each `MODULE_*_URL` 
 MODULE_OWN_GPU_URL=http://module-own-gpu:9103
 MODULE_SEEDANCE_URL=http://module-seedance:9150
 MODULE_CLOUD_KEYFRAME_URL=http://module-cloud-keyframe:9157
-MODULE_DIALOGUE_URL=http://module-dialogue-gen:9142
-MODULE_SPEECH_UPSCALE_URL=http://module-speech-upscale:9143
+MODULE_NARRATION_GEN_URL=http://module-narration-gen:9159
 # ... other cloud MODULE_* as needed
 
 COMPOSE_PROFILES=cloud docker compose up -d
 ```
+
+**Not in default (cloud profile only):** `own-gpu`, cloud i2v (`seedance`, `kling`, `google-veo`,
+`minimax-hailuo`, `vidu-q3`, `alibaba-wan`, `alibaba-wan-lora`), `cloud-keyframe`, `narration-gen`.
+
+`speech-upscale` stays in the default stack as a CPU sidecar; it dispatches to RunPod
+(`AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID`) only when that endpoint is configured.
 
 ## Profile: `satellites` (finish GPU sidecars, lipsync/upscale only)
 
@@ -117,10 +122,10 @@ Some fleet overlays refer to `COMPOSE_PROFILES=full` as shorthand for enabling a
 profiles. Equivalent to:
 
 ```bash
-COMPOSE_PROFILES=media,cloud,satellites docker compose up -d
+COMPOSE_PROFILES=cloud,satellites docker compose up -d
 ```
 
-(with the corresponding `MODULE_*` and CPU service URLs set in `.env`).
+(with the corresponding cloud `MODULE_*` URLs set in `.env`).
 
 ## Profile: own GPU (host motion backend)
 
@@ -163,6 +168,6 @@ curl -fsS http://127.0.0.1:8790/health
 curl -fsS -H "Authorization: Bearer $STUDIO_API_TOKEN" http://127.0.0.1:8790/api/modules | jq '.modules[].name'
 ```
 
-Default minimal install should list nine modules: `plan-enhance`, `cast-image`, `image-generate`,
-`keyframe`, `local-gpu`, `audio-master`, `subtitle`, `notify-email`, plus CPU `video-finish` wired
-directly (not a module sidecar).
+Default install should list thirteen module sidecars: `plan-enhance`, `cast-image`, `image-generate`,
+`keyframe`, `local-gpu`, `audio-master`, `subtitle`, `notify-email`, `beat-sync`, `film-titles`,
+`dialogue-gen`, `music-gen`, `speech-upscale`, plus CPU `video-finish` wired directly (not a module sidecar).
