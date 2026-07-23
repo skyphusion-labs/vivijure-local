@@ -20,7 +20,7 @@ describe("syncPlatformSecretsFromEnv", () => {
     if (dbPath) rmSync(join(dbPath, ".."), { recursive: true, force: true });
   });
 
-  it("purges stale MODULE_* URLs when unset in env", async () => {
+  it("purges stale optional MODULE_* URLs when unset in env", async () => {
     const db = openDatabase(dbPath);
     await upsertPlatformSecret(db, "MODULE_LIPSYNC_URL", "http://module-finish-lipsync:9110");
     await upsertPlatformSecret(db, "MODULE_FINISH_RIFE_URL", "http://module-finish-rife:9111");
@@ -42,7 +42,34 @@ describe("syncPlatformSecretsFromEnv", () => {
     expect(after.has("LOCAL_FINISH_RIFE_URL")).toBe(false);
   });
 
-  it("upserts MODULE_* URLs when set in env", async () => {
+  it("never purges homelab compose-default MODULE URLs when unset in env", async () => {
+    const db = openDatabase(dbPath);
+    await upsertPlatformSecret(db, "MODULE_KEYFRAME_URL", "http://module-keyframe:9101");
+    await upsertPlatformSecret(db, "MODULE_LOCAL_GPU_URL", "http://module-local-gpu:9102");
+
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {}, existing);
+
+    expect(result.cleared).not.toContain("MODULE_KEYFRAME_URL");
+    expect(result.cleared).not.toContain("MODULE_LOCAL_GPU_URL");
+    const after = await listPlatformSecrets(db);
+    expect(after.get("MODULE_KEYFRAME_URL")).toBe("http://module-keyframe:9101");
+    expect(after.get("MODULE_LOCAL_GPU_URL")).toBe("http://module-local-gpu:9102");
+  });
+
+  it("upserts compose-default MODULE URLs when set in env", async () => {
+    const db = openDatabase(dbPath);
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {
+      MODULE_LOCAL_GPU_URL: "http://module-local-gpu:9102",
+    }, existing);
+
+    expect(result.updated).toContain("MODULE_LOCAL_GPU_URL");
+    const after = await listPlatformSecrets(db);
+    expect(after.get("MODULE_LOCAL_GPU_URL")).toBe("http://module-local-gpu:9102");
+  });
+
+  it("upserts optional MODULE_* URLs when set in env", async () => {
     const db = openDatabase(dbPath);
     const existing = await listPlatformSecrets(db);
     const result = await syncPlatformSecretsFromEnv(db, {

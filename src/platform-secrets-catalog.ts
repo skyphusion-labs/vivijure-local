@@ -494,23 +494,37 @@ export const PLATFORM_MODULE_URL_KEYS: readonly string[] = PLATFORM_SECRET_FIELD
   (f) => f.category === "modules",
 ).map((f) => f.key);
 
-/** Compose-only module URL keys not listed in the Settings catalog. */
-export const PLATFORM_MODULE_URL_COMPOSE_KEYS = [
+/** Retired local RIFE keys: purge from platform_secrets when absent from env. */
+export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINISH_RIFE_URL"] as const;
+
+/** Homelab compose defaults: hardcoded in compose.yaml, upsert when set, never purge when unset. */
+export const PLATFORM_MODULE_URL_COMPOSE_DEFAULTS = [
+  "MODULE_KEYFRAME_URL",
+  "MODULE_LOCAL_GPU_URL",
   "MODULE_BEAT_SYNC_URL",
   "MODULE_AUDIO_MASTER_URL",
   "MODULE_FILM_TITLES_URL",
   "MODULE_SUBTITLE_URL",
   "MODULE_IMAGE_GENERATE_URL",
+  "MODULE_MUSIC_GEN_URL",
+  "MODULE_PLANENHANCE_URL",
+  "MODULE_CAST_IMAGE_URL",
+  "MODULE_DIALOGUE_URL",
+  "MODULE_NOTIFY_EMAIL_URL",
 ] as const;
 
-/** Retired local RIFE keys: purge from platform_secrets when absent from env. */
-export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINISH_RIFE_URL"] as const;
-
-/** All optional MODULE_* URL keys handled by sync:secrets (set -> upsert, unset -> delete). */
-export const PLATFORM_MODULE_URL_SYNC_KEYS: readonly string[] = [
-  ...PLATFORM_MODULE_URL_KEYS,
-  ...PLATFORM_MODULE_URL_COMPOSE_KEYS,
+/** Optional cloud / satellite module URLs: upsert when set, purge from DB when unset in env. */
+export const PLATFORM_MODULE_URL_PURGEABLE_KEYS: readonly string[] = [
+  ...PLATFORM_MODULE_URL_KEYS.filter(
+    (k) => !(PLATFORM_MODULE_URL_COMPOSE_DEFAULTS as readonly string[]).includes(k),
+  ),
   ...PLATFORM_LEGACY_RIFE_KEYS,
+];
+
+/** All MODULE_* URL keys handled by sync:secrets. */
+export const PLATFORM_MODULE_URL_SYNC_KEYS: readonly string[] = [
+  ...PLATFORM_MODULE_URL_COMPOSE_DEFAULTS,
+  ...PLATFORM_MODULE_URL_PURGEABLE_KEYS,
 ];
 
 /** Install/bootstrap keys: never writable from the Settings GUI (install script / compose only). */
