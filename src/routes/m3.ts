@@ -36,6 +36,7 @@ import {
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
 import { isValidVoiceId, VOICE_CATALOG, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
 import { authEnvFromPlatform } from "../http.js";
+import { catalogForDeploy, isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { safeDecodeUriComponent } from "../shared.js";
 import {
   handleCastTrainLora,
