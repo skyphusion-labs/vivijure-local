@@ -17,7 +17,7 @@
 # Default homelab stack (Conrad ruling 2026-07-22): all CPU modules + homelab motion (local-gpu).
 # CPU sidecars, VPC shims, and score/chain modules run by default; only RunPod/cloud GPU is gated.
 # Optional profiles (see docs/install-profiles.md):
-#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, narration-gen
+#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, narration-gen, speech-upscale (RunPod)
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
 # Keyframe mock when RUNPOD_* unset; local-gpu mock when LOCAL_BACKEND_URL unset (offline default).
 # FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
@@ -444,7 +444,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-speech-upscale:
-    <<: *module-sidecar
+    <<: [*module-sidecar, *profile-cloud]
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9143", "speech-upscale"]
@@ -533,7 +533,7 @@ services:
       MODULE_CAST_IMAGE_URL: http://module-cast-image:9141
       MODULE_DIALOGUE_URL: http://module-dialogue-gen:9142
       MODULE_IMAGE_GENERATE_URL: http://module-image-generate:9145
-      MODULE_SPEECH_UPSCALE_URL: http://module-speech-upscale:9143
+      MODULE_SPEECH_UPSCALE_URL: ${MODULE_SPEECH_UPSCALE_URL:-}
       MODULE_NOTIFY_EMAIL_URL: http://module-notify-email:9144
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -575,8 +575,6 @@ services:
       module-dialogue-gen:
         condition: service_healthy
       module-music-gen:
-        condition: service_healthy
-      module-speech-upscale:
         condition: service_healthy
       module-notify-email:
         condition: service_healthy
