@@ -34,7 +34,7 @@ docker compose (default homelab)
   |-- module-plan-enhance, module-cast-image, module-image-generate
   |-- module-keyframe, module-local-gpu
   |-- module-audio-master, module-beat-sync, module-film-titles, module-subtitle
-  |-- module-dialogue-gen, module-music-gen, module-speech-upscale, module-notify-email
+  |-- module-dialogue-gen, module-music-gen, module-notify-email
   `-- optional profiles: cloud, satellites (see install-profiles.md)
 ```
 
@@ -220,8 +220,8 @@ Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 ### Module sidecars
 
 Compose wires all CPU module URLs in-network by default. Override in `.env` to point at host-native
-sidecars or remote RunPod modules. Cloud i2v, own-gpu, narration-gen, and finish GPU URLs stay empty
-until you enable `COMPOSE_PROFILES=cloud` or `satellites`.
+sidecars or remote RunPod modules. Cloud i2v, own-gpu, narration-gen, speech-upscale (RunPod), and
+finish GPU URLs stay empty until you enable `COMPOSE_PROFILES=cloud` or `satellites`.
 
 | Variable | Compose default |
 |----------|-----------------|
@@ -234,10 +234,10 @@ until you enable `COMPOSE_PROFILES=cloud` or `satellites`.
 | `MODULE_PLANENHANCE_URL` | `http://module-plan-enhance:9140` |
 | `MODULE_CAST_IMAGE_URL` | `http://module-cast-image:9141` |
 | `MODULE_DIALOGUE_URL` | `http://module-dialogue-gen:9142` |
-| `MODULE_SPEECH_UPSCALE_URL` | `http://module-speech-upscale:9143` |
 | `MODULE_IMAGE_GENERATE_URL` | `http://module-image-generate:9145` |
 | `MODULE_MUSIC_GEN_URL` | `http://module-music-gen:9158` |
 | `MODULE_NOTIFY_EMAIL_URL` | `http://module-notify-email:9144` |
+| `MODULE_SPEECH_UPSCALE_URL` | *(empty; `cloud` profile -- RunPod `vivijure-audio-upscale`)* |
 | `MODULE_OWN_GPU_URL` | *(empty; `cloud` profile)* |
 | `MODULE_*` cloud i2v / narration | *(empty; `cloud` profile)* |
 | `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` | *(empty; `satellites` profile)* |

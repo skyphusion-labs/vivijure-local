@@ -38,7 +38,6 @@ docker compose up -d
 | film-titles | `module-film-titles` | `MODULE_FILM_TITLES_URL` |
 | dialogue-gen | `module-dialogue-gen` | `MODULE_DIALOGUE_URL` |
 | music-gen | `module-music-gen` | `MODULE_MUSIC_GEN_URL` |
-| speech-upscale | `module-speech-upscale` | `MODULE_SPEECH_UPSCALE_URL` |
 
 ### CPU VPC shims (default)
 
@@ -55,7 +54,7 @@ docker compose up -d
 | Keyframe | `module-keyframe` mock sidecar (or RunPod when creds set) |
 | Motion | `module-local-gpu` mock sidecar (or `LOCAL_BACKEND_URL` GPU door) |
 | Dialogue / music-gen | AI Gateway sidecars (mock/offline when gateway creds unset) |
-| speech-upscale | Local mock when `AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID` unset; RunPod when configured |
+| speech-upscale | **not started** (`profiles: [cloud]`; `MODULE_SPEECH_UPSCALE_URL` unset) |
 | Finish GPU (lip-sync, upscale) | **not started** (`profiles: [satellites]`; no `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL`) |
 | Cloud i2v / own-gpu / narration-gen | **not started** (`profiles: [cloud]`; `MODULE_*` unset) |
 | RIFE interpolation | **not supported** on vivijure-local (RunPod / vivijure-cf only) |
@@ -75,16 +74,19 @@ MODULE_OWN_GPU_URL=http://module-own-gpu:9103
 MODULE_SEEDANCE_URL=http://module-seedance:9150
 MODULE_CLOUD_KEYFRAME_URL=http://module-cloud-keyframe:9157
 MODULE_NARRATION_GEN_URL=http://module-narration-gen:9159
+MODULE_SPEECH_UPSCALE_URL=http://module-speech-upscale:9143
 # ... other cloud MODULE_* as needed
 
 COMPOSE_PROFILES=cloud docker compose up -d
 ```
 
 **Not in default (cloud profile only):** `own-gpu`, cloud i2v (`seedance`, `kling`, `google-veo`,
-`minimax-hailuo`, `vidu-q3`, `alibaba-wan`, `alibaba-wan-lora`), `cloud-keyframe`, `narration-gen`.
+`minimax-hailuo`, `vidu-q3`, `alibaba-wan`, `alibaba-wan-lora`), `cloud-keyframe`, `narration-gen`,
+`speech-upscale` (RunPod `vivijure-audio-upscale` via `AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID`).
 
-`speech-upscale` stays in the default stack as a CPU sidecar; it dispatches to RunPod
-(`AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID`) only when that endpoint is configured.
+Music mastering stays on the default CPU path: `audio-master` (VPC shim, port 8784) and
+`module-audio-master` (`MODULE_AUDIO_MASTER_URL`). Do not confuse that chain with `speech-upscale`,
+which polishes dialogue audio on RunPod only.
 
 ## Profile: `satellites` (finish GPU sidecars, lipsync/upscale only)
 
@@ -170,4 +172,4 @@ curl -fsS -H "Authorization: Bearer $STUDIO_API_TOKEN" http://127.0.0.1:8790/api
 
 Default install should list thirteen module sidecars: `plan-enhance`, `cast-image`, `image-generate`,
 `keyframe`, `local-gpu`, `audio-master`, `subtitle`, `notify-email`, `beat-sync`, `film-titles`,
-`dialogue-gen`, `music-gen`, `speech-upscale`, plus CPU `video-finish` wired directly (not a module sidecar).
+`dialogue-gen`, `music-gen`, plus CPU `video-finish` wired directly (not a module sidecar).
