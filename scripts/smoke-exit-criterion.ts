@@ -49,6 +49,7 @@ async function main(): Promise<void> {
       bundleKey: bundle.bundleKey,
       project: "exit_smoke",
       motion_backend: "local-gpu",
+      renderOverrides: { keyframe_backend: "local-gpu" },
       scenes,
       qualityTier: "draft",
     }),

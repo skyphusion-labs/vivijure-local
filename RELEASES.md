@@ -32,6 +32,7 @@ gh run list --workflow build-image.yml --limit 3
 
 | git tag | GHCR studio | source commit | published | notes |
 |---|---|---|---|---|
+| `v1.1.14` | 1.1.14 | (pending) | (pending) | Homelab panel closeout (#180): #186-190 compose + secrets; default CPU + local-gpu; no RIFE/speech-upscale in default. |
 | `v1.1.13` | 1.1.13 | (pending) | (pending) | **FINISH_BACKEND** local router (#180 / #182). Image only; propagandhi cutover waits on GEX44 finish HTTP stack. |
 | `v1.1.12` | 1.1.12 | 4747f2a | 2026-07-22 | **Dual-panel cf v1.7.11:** local-GPU keyframes (#153); core `^1.2.7`; door images `1.0.3`. |
 | `v1.1.11` | 1.1.11 | 91d85b2 | 2026-07-22 | **Dual-panel cf v1.7.10:** security grind (CSRF/demo/MinIO/cast MIME/speech project). |
