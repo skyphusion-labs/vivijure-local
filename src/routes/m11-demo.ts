@@ -23,11 +23,11 @@ import type { Platform } from "../platform/types.js";
 import { httpErrorResponse, notFound } from "../errors.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 import {
-  discoverModules,
   invokeModule,
   pollModule,
   resolveFetcher,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import type { MotionBackendInput, MotionBackendOutput } from "@skyphusion-labs/vivijure-core/modules/types";
 import { plannerEnvFromVars } from "../planner-env.js";
 import { runDemoAssistantChat } from "../demo-ai.js";
@@ -65,7 +65,7 @@ function demoChatCaps(vars: Record<string, string | undefined>): DemoChatCaps {
 async function demoRenderEnabled(platform: Platform): Promise<boolean> {
   if ((platform.vars.DEMO_RENDER_ENABLED || "").trim() !== "true") return false;
   const env = moduleEnvFromPlatform(platform);
-  await discoverModules(env, { cacheTtlMs: 60_000 });
+  await discoverConfiguredModules(env, { cacheTtlMs: 60_000 });
   return resolveFetcher(env, "MODULE_LOCAL_GPU") !== null;
 }
 

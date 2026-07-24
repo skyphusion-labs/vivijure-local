@@ -1,7 +1,7 @@
 // Settings routes: module install config + platform secrets (GUI-first operator surface).
 
 import type { Hono } from "hono";
-import { discoverModules } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import {
   hasInstallConfig,
   installFieldKeys,
@@ -45,7 +45,7 @@ export function registerSettingsRoutes(app: Hono, host: SettingsHost): void {
     handle(c, async () => {
       const name = c.req.param("name");
       const env = orchestratorContextFromPlatform(platform);
-      const modules = await discoverModules(moduleEnvFromPlatform(platform), { cacheTtlMs: 0 });
+      const modules = await discoverConfiguredModules(moduleEnvFromPlatform(platform), { cacheTtlMs: 0 });
       const mod = modules.find((m) => m.name === name);
       if (!mod) throw notFound(`module ${name} not installed`);
       if (!hasInstallConfig(mod.config_schema)) {
@@ -61,7 +61,7 @@ export function registerSettingsRoutes(app: Hono, host: SettingsHost): void {
       const name = c.req.param("name");
       const body = await readBody<Record<string, unknown>>(c.req.raw);
       const env = orchestratorContextFromPlatform(platform);
-      const modules = await discoverModules(moduleEnvFromPlatform(platform), { cacheTtlMs: 0 });
+      const modules = await discoverConfiguredModules(moduleEnvFromPlatform(platform), { cacheTtlMs: 0 });
       const mod = modules.find((m) => m.name === name);
       if (!mod) throw notFound(`module ${name} not installed`);
       if (!hasInstallConfig(mod.config_schema)) {

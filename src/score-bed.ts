@@ -1,7 +1,6 @@
 // Planner audio-bed / narration via installed `score` modules (registry-driven).
 
 import {
-  discoverModules,
   hookOutputViolation,
   invokeModule,
   pollModule,
@@ -9,6 +8,7 @@ import {
   servingForHook,
   validateConfig,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "./module-registry.js";
 import type {
   PlanEnhanceStoryboard,
   RegisteredModule,
@@ -93,7 +93,7 @@ export async function startScoreBedGenerate(
   | { ok: false; error: string }
 > {
   const kind: ScoreBedKind = args.kind === "narration" ? "narration" : "music";
-  const modules = await discoverModules(env);
+  const modules = await discoverConfiguredModules(env);
   const mod = resolveScoreModule(modules, kind, args.module?.trim() || undefined);
   if (!mod) {
     const wanted = args.module?.trim();
@@ -163,7 +163,7 @@ export async function pollScoreBedGenerate(
   const name = moduleName.trim();
   if (!name) return { status: "failed", job_error: "module name required" };
 
-  const modules = await discoverModules(env);
+  const modules = await discoverConfiguredModules(env);
   const mod = resolveScoreModuleByName(modules, name);
   if (!mod) return { status: "failed", job_error: `score module "${name}" not found` };
 
