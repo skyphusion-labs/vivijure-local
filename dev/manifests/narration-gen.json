@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "minimax-speech",
-      "label": "MiniMax Speech 02 HD (RunPod)"
+      "label": "Narration (Deepgram Aura on Cloudflare; MiniMax HD with RunPod)"
     }
   ],
   "config_schema": {
@@ -34,7 +34,7 @@
         "neutral"
       ],
       "default": "neutral",
-      "label": "emotion"
+      "label": "emotion (MiniMax HD only)"
     },
     "format": {
       "type": "enum",
@@ -51,21 +51,21 @@
       "default": 0,
       "min": -12,
       "max": 12,
-      "label": "pitch"
+      "label": "pitch (MiniMax HD only)"
     },
     "speed": {
       "type": "float",
       "default": 1,
       "min": 0.5,
       "max": 2,
-      "label": "speed"
+      "label": "speed (MiniMax HD only)"
     },
     "volume": {
       "type": "float",
       "default": 1,
       "min": 0,
       "max": 10,
-      "label": "volume"
+      "label": "volume (MiniMax HD only)"
     },
     "sample_rate": {
       "type": "enum",
