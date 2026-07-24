@@ -39,6 +39,24 @@ documents the no-RunPod recipe as the default rendering path.
 
 Roll propagandhi/fatmike with the updated compose after GHCR publish.
 
+## v1.1.16 -- 2026-07-23
+
+PATCH: security-day K3 hardening. **Ledger-gap backfill (cf#215 Lane D, 2026-07-25):** this tag was
+cut ad-hoc mid security-day with no `package.json` bump and no CHANGELOG heading of its own (the
+commits landed under `## Unreleased`, which is why v1.2.0's changelog separately notes one of them,
+#193, as "carried over from Unreleased" -- that entry is not duplicated here). `package.json`
+stayed at `1.1.15` for this tag; not retroactively edited now that it is already tagged and
+published. GHCR confirms `vivijure-local-studio:1.1.16` was built and published (build-image run
+2026-07-23T19:36:02Z, tag push, conclusion success). Cross-ref: fleet-chezmoi
+`docs/runlog/2026-07-23-vivijure-security-day-index.md` (canonical security-day index),
+`2026-07-23-vivijure-k3-hardening-closeout.md`, `2026-07-23-vivijure-k3-med-low-closeout.md`.
+
+- **chore(deps):** pin `@skyphusion-labs/vivijure-core` to `^1.2.10` (#194), then `^1.2.11` (#196)
+- **fix(docker):** exclude local secrets from the studio image build context (K3) (#195)
+- **docs(security):** K3 med/low false-positive runlog for homelab/operator findings (#197)
+- **docs(security):** K3 verify high-severity false-positive evidence (#198)
+- **fix(security):** cast import cap + safe URI decode (K3 verify) (#199)
+
 ## v1.1.15 -- 2026-07-23
 
 PATCH: Wan cast train default (cf#29 Phase E). Bumps `@skyphusion-labs/vivijure-core` to `^1.2.8`.
