@@ -8,6 +8,14 @@ import type {
 } from "@skyphusion-labs/vivijure-core";
 import { aiGatewayConfigured } from "../../platform/ai-gateway.js";
 import { aiRun } from "../../platform/ai-run.js";
+import {
+  AURA_MODEL,
+  buildAuraParams,
+  narrationAuraDegrade,
+  narrationFormat,
+  narrationMime,
+  type NarrationFormat,
+} from "./narration-aura.js";
 import type { RunpodModuleEnv } from "../runpod/env.js";
 import {
   authHeader,
@@ -202,24 +210,15 @@ export async function pollMusicGen(
   return { ok: true, pending: true };
 }
 
-export async function invokeNarrationGen(
+async function submitNarrationRunpod(
   env: ScoreModuleEnv,
   req: InvokeRequest<ScoreInput>,
+  text: string,
+  format: NarrationFormat,
+  filmKey: string,
+  jobId: string,
+  apiKey: string,
 ): Promise<InvokeResponse<ScoreOutput>> {
-  const filmKey = typeof req.input?.film_key === "string" ? req.input.film_key.trim() : "";
-  const jobId = typeof req.context?.job_id === "string" ? req.context.job_id.trim() : "";
-  if (!filmKey || !jobId) return { ok: false, error: "score: context.job_id and input.film_key required" };
-  const apiKey = env.RUNPOD_API_KEY?.trim();
-  if (!apiKey) return { ok: false, error: "narration-gen: RUNPOD_API_KEY not configured" };
-
-  let text: string;
-  try {
-    text = narrationText(req.input, req.config ?? {});
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
-
-  const format = req.config?.format === "wav" ? "wav" : req.config?.format === "flac" ? "flac" : "mp3";
   const base = runpodBase(NARRATION_ENDPOINT);
   try {
     const r = await fetch(`${base}/run`, {
@@ -240,17 +239,70 @@ export async function invokeNarrationGen(
     return {
       ok: true,
       pending: true,
-      poll: encodeNarrationPoll({
-        jobId: runpodJobId,
-        job_id: jobId,
-        film_key: filmKey,
-        format,
-        submittedAt: Date.now(),
-      }),
+      poll: encodeNarrationPoll({ jobId: runpodJobId, job_id: jobId, film_key: filmKey, format, submittedAt: Date.now() }),
     };
   } catch (e) {
     return { ok: false, error: `narration-gen submit failed: ${(e as Error).message}` };
   }
+}
+
+// The creds-free default tier: Deepgram Aura-1 over CF AI (aiRun returns the audio bytes directly).
+async function runNarrationAura(
+  env: ScoreModuleEnv,
+  req: InvokeRequest<ScoreInput>,
+  text: string,
+  format: NarrationFormat,
+  filmKey: string,
+  jobId: string,
+): Promise<InvokeResponse<ScoreOutput>> {
+  const voiceId = typeof req.config?.voice_id === "string" ? req.config.voice_id : undefined;
+  try {
+    const result = await aiRun(env, AURA_MODEL, buildAuraParams(text, voiceId, format));
+    const bytes =
+      result instanceof ArrayBuffer ? new Uint8Array(result) : result instanceof Uint8Array ? result : null;
+    if (!bytes || bytes.byteLength === 0) return { ok: false, error: "narration-gen (aura-1) returned no audio" };
+    const key = `out/narr-${jobId}.${format}`;
+    await putAudioBytes(env, key, bytes, narrationMime(format));
+    const degraded = narrationAuraDegrade(req.config);
+    return {
+      ok: true,
+      output: { film_key: filmKey, applied: ["narration:aura-1", `audio:${key}`], ...(degraded ? { degraded } : {}) },
+    };
+  } catch (e) {
+    return { ok: false, error: `narration-gen (aura-1) failed: ${(e as Error).message}` };
+  }
+}
+
+export async function invokeNarrationGen(
+  env: ScoreModuleEnv,
+  req: InvokeRequest<ScoreInput>,
+): Promise<InvokeResponse<ScoreOutput>> {
+  const filmKey = typeof req.input?.film_key === "string" ? req.input.film_key.trim() : "";
+  const jobId = typeof req.context?.job_id === "string" ? req.context.job_id.trim() : "";
+  if (!filmKey || !jobId) return { ok: false, error: "score: context.job_id and input.film_key required" };
+
+  let text: string;
+  try {
+    text = narrationText(req.input, req.config ?? {});
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+  const format = narrationFormat(req.config?.format);
+
+  // Tier select: RUNPOD_API_KEY present => the opt-in MiniMax HD tier; else the creds-free Aura-1 (CF
+  // AI) default; else neither engine configured => honest, non-fatal degrade (the film ships without
+  // narration rather than failing the score chain).
+  const apiKey = env.RUNPOD_API_KEY?.trim();
+  if (apiKey) return submitNarrationRunpod(env, req, text, format, filmKey, jobId, apiKey);
+  if (aiGatewayConfigured(env)) return runNarrationAura(env, req, text, format, filmKey, jobId);
+  return {
+    ok: true,
+    output: {
+      film_key: filmKey,
+      applied: ["narration:skipped"],
+      degraded: "no narration engine: set CF AI gateway (CLOUDFLARE_ACCOUNT_ID + CF_AIG_TOKEN) or RUNPOD_API_KEY",
+    },
+  };
 }
 
 export async function pollNarrationGen(
