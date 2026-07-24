@@ -6,6 +6,7 @@ import {
   invokeRunpodModule,
   isRunpodModuleName,
   pollRunpodModule,
+  runpodModuleConfigured,
   runpodModuleSupportsPoll,
   type RunpodModuleName,
 } from "./handlers.js";
@@ -22,7 +23,12 @@ export function createRunpodModuleApp(
   const app = new Hono();
   const label = String(manifest.name ?? moduleName);
 
-  app.get("/module.json", (c) => c.json(manifest));
+  // local#201: advertise whether this RunPod module has its creds. configured:false makes the panel
+  // hide it (see src/module-registry.ts), so an uncredentialed RunPod module is never a broken button.
+  app.get("/module.json", async (c) => {
+    const configured = runpodModuleConfigured(await getEnv(), name);
+    return c.json({ ...manifest, configured });
+  });
 
   app.post("/invoke", async (c) => {
     let req: InvokeRequest;

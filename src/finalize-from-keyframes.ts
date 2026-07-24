@@ -3,9 +3,9 @@
 import {
   cloudMotionModules,
   defaultGpuDoorModule,
-  discoverModules,
   servingForHook,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "./module-registry.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import {
   startFilmFromKeyframes,
@@ -144,7 +144,7 @@ export async function animateFromPreview(
   if (!scenes.length) return { ok: false, error: "no scenes match the selected keyframes", status: 400 };
 
   const tier = coerceQualityTier(args.parent.quality_tier) ?? "final";
-  const modules = await discoverModules(env);
+  const modules = await discoverConfiguredModules(env);
   const mapped = mapRenderOverridesToModuleConfigs(args.parent.render_overrides ?? undefined, tier, modules);
   const cloudAllowed = cloudMotionModules(modules).map((m) => m.name);
   const gpuDoor = defaultGpuDoorModule(modules)?.name;

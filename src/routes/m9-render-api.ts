@@ -24,12 +24,12 @@ import {
 } from "@skyphusion-labs/vivijure-core/render-orchestrator";
 import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
 import {
-  discoverModules,
   emitStructuredEvent,
   localGpuKeyframePreflightError,
   motionBackendPreflightError,
   motionConfigPreflightError,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import {
   noopExecutionContext,
   orchestratorContextFromPlatform,
@@ -228,7 +228,7 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       assertModuleConfigMap("master_config", a.master_config);
 
       const oenv = env();
-      const filmModules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      const filmModules = await discoverConfiguredModules(oenv, { cacheTtlMs: 60_000 });
       const filmMotionErr = motionBackendPreflightError(filmModules, a.motion_backend);
       if (filmMotionErr) throw badRequest(filmMotionErr);
       const filmCfgErr = motionConfigPreflightError(filmModules, a.motion_backend, a.motion_config);

@@ -3,9 +3,9 @@
 import type { Hono } from "hono";
 import {
   cloudMotionModules,
-  discoverModules,
   servingForHook,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import {
   filmJobToPollView,
@@ -82,7 +82,7 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
       const scene = scenes.find((s) => s.shot_id === shotId);
       if (!scene) throw badRequest(`shot ${shotId} not in bundle storyboard`);
 
-      const modules = await discoverModules(modEnv(), { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(modEnv(), { cacheTtlMs: 60_000 });
       if (servingForHook(modules, "keyframe").length === 0) {
         return json({ ok: false, error: "no keyframe module installed (bind MODULE_KEYFRAME)" }, 503);
       }
@@ -191,7 +191,7 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
         defaultCloudModel?: string;
         audioKey?: string;
       }>(c.req.raw);
-      const modules = await discoverModules(modEnv(), { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(modEnv(), { cacheTtlMs: 60_000 });
       const allowed = new Set(cloudMotionModules(modules).map((m) => m.name));
       const normalized = normalizeHybridBackends(b.backends, allowed);
       if (normalized.errors.length) throw badRequest(normalized.errors.join("; "));

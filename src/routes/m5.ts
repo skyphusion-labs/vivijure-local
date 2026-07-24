@@ -6,7 +6,6 @@ import { badRequest, forbidden, httpErrorResponse } from "../errors.js";
 import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { readBody } from "../http.js";
 import {
-  discoverModules,
   localGpuKeyframePreflightError,
   motionBackendPreflightError,
   motionConfigPreflightError,
@@ -14,6 +13,7 @@ import {
   emitStructuredEvent,
   defaultGpuDoorModule,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import {
   noopExecutionContext,
   orchestratorContextFromPlatform,
@@ -128,7 +128,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       const project = body.project ?? deriveProjectFromBundleKey(body.bundleKey);
       const oenv = env();
 
-      const modules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(oenv, { cacheTtlMs: 60_000 });
       if (servingForHook(modules, "keyframe").length === 0) {
         return c.json({ error: "no keyframe module installed (bind MODULE_KEYFRAME)" }, 503);
       }
@@ -273,7 +273,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       const tier = coerceQualityTier(b.qualityTier) ?? "final";
       const oenv = env();
 
-      const scatterModules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      const scatterModules = await discoverConfiguredModules(oenv, { cacheTtlMs: 60_000 });
       const scatterOverrides = parseModuleRenderOverrides(b.renderOverrides);
       const scatterBackend = b.motion_backend ?? scatterOverrides.motion_backend;
       const scatterMotionErr = motionBackendPreflightError(scatterModules, scatterBackend);
@@ -374,7 +374,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       const project = b.project ?? deriveProjectFromBundleKey(b.bundleKey);
       const tier = coerceQualityTier(b.qualityTier) ?? "final";
       const oenv = env();
-      const modules = await discoverModules(oenv, { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(oenv, { cacheTtlMs: 60_000 });
       if (servingForHook(modules, "motion.backend").length === 0) {
         return c.json({ error: "no motion.backend module installed" }, 503);
       }

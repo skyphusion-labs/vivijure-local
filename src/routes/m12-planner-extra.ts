@@ -4,10 +4,10 @@ import type { Hono } from "hono";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
 import {
-  discoverModules,
   resolveRenderPipeline,
   type RenderPipelineSelection,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import { serializeStoryboardYaml } from "@skyphusion-labs/vivijure-core/planner-yaml";
 import { validateStoryboard } from "@skyphusion-labs/vivijure-core/storyboard-validate";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
@@ -96,7 +96,7 @@ export function registerM12Routes(app: Hono, platform: Platform): void {
   app.post("/api/storyboard/render-plan", (c) =>
     handle(c, async () => {
       const a = await readBody<{ selection?: RenderPipelineSelection }>(c.req.raw);
-      const modules = await discoverModules(modEnv(), { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(modEnv(), { cacheTtlMs: 60_000 });
       return json({ ok: true, plan: resolveRenderPipeline(modules, a.selection ?? {}) });
     }),
   );
