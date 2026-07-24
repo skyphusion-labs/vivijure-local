@@ -5,7 +5,8 @@ import { assembleBundle, type AssembleBundleArgs } from "@skyphusion-labs/viviju
 import { listCast } from "@skyphusion-labs/vivijure-core/cast-db";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { json, readBody } from "../http.js";
-import { discoverModules, resolveClipDurationFloor, servingForHook } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
+import { resolveClipDurationFloor, servingForHook } from "@skyphusion-labs/vivijure-core";
 import {
   checkCastBindingsReady,
   checkDurationGrid,
@@ -50,7 +51,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
   const platform = host.platform;
   const planningHost = async (): Promise<PlanningHost> => {
     const modEnv = moduleEnvFromPlatform(platform);
-    const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+    const modules = await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 });
     return { modEnv, modules };
   };
 
@@ -88,7 +89,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
       if (bindings && Object.keys(bindings).length > 0) {
         const modEnv = moduleEnvFromPlatform(platform);
         const kfModules = servingForHook(
-          await discoverModules(modEnv, { cacheTtlMs: 60_000 }),
+          await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 }),
           "keyframe",
         );
         const keyframeLabel =
@@ -106,7 +107,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
         const quality = typeof envelope.quality === "string" ? envelope.quality : null;
         const modEnv = moduleEnvFromPlatform(platform);
         const motionModules = servingForHook(
-          await discoverModules(modEnv, { cacheTtlMs: 60_000 }),
+          await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 }),
           "motion.backend",
         );
         const mod = motionModules.find((m) => m.name === motionBackend);
@@ -176,7 +177,7 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
       }
       const modEnv = moduleEnvFromPlatform(platform);
       const envRec = modEnv as unknown as Record<string, unknown>;
-      const modules = await discoverModules(envRec, { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(envRec, { cacheTtlMs: 60_000 });
       const seed: PlanEnhanceInput = { storyboard: a.storyboard, brief: a.brief };
       const result = await dispatchChain<PlanEnhanceInput, PlanEnhanceOutput>(
         envRec,

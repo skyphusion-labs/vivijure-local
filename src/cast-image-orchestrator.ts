@@ -1,7 +1,6 @@
 // Cast-image orchestrator: drive the `cast.image` module to generate LoRA training refs.
 
 import {
-  discoverModules,
   invokeModule,
   pollModule,
   resolveFetcher,
@@ -9,6 +8,7 @@ import {
   validateConfig,
   hookOutputViolation,
 } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "./module-registry.js";
 import type { CastImageInput, CastImageOutput } from "@skyphusion-labs/vivijure-core/modules/types";
 import { presignR2Get } from "@skyphusion-labs/vivijure-core/presign";
 import {
@@ -126,7 +126,7 @@ export async function startCastRefsJob(
   }
 
   const envRec = env as unknown as Record<string, unknown>;
-  const modules = await discoverModules(envRec);
+  const modules = await discoverConfiguredModules(envRec);
   const module = resolvePickOne(modules, "cast.image", args.choice);
   if (!module) {
     job.phase = "failed";

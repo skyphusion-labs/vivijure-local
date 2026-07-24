@@ -1,7 +1,7 @@
 // M10 routes: POST /api/chat (text + image), GET /api/models (the CANONICAL full catalog).
 
 import type { Hono } from "hono";
-import { discoverModules } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "../module-registry.js";
 import { badRequest, httpErrorResponse } from "../errors.js";
 import { readBody } from "../http.js";
 import { chatComplete, type ChatCompleteArgs } from "../planner.js";
@@ -35,7 +35,7 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
       return c.json({ models: [] });
     }
     const modEnv = moduleEnvFromPlatform(platform);
-    const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+    const modules = await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 });
     // BOTH halves are projections now (cf#129 phase 2): the studio hardcodes no model names at all.
     return c.json({
       models: [...planningModelsFromModules(modules), ...imageModelsFromModules(modules)],
@@ -50,7 +50,7 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
       // Image or text? Ask the INSTALLED modules, not a hardcoded catalog: an id declared by an
       // image.generate module is an image request, everything else falls through to the text path.
       const modEnv = moduleEnvFromPlatform(platform);
-      const modules = await discoverModules(modEnv, { cacheTtlMs: 60_000 });
+      const modules = await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 });
       const imageTarget = resolveCatalogTarget(modules, "image.generate", body.model);
       if (imageTarget) {
         // platform.renders is the store /api/artifact SERVES. Passing the served store (not

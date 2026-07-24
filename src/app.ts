@@ -10,7 +10,8 @@ import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
 import { isDemoMode } from "./auth-gate.js";
-import { discoverModules, modulesResponse } from "@skyphusion-labs/vivijure-core";
+import { discoverConfiguredModules } from "./module-registry.js";
+import { modulesResponse } from "@skyphusion-labs/vivijure-core";
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { registerM3Routes } from "./routes/m3.js";
@@ -56,7 +57,7 @@ export function createApp(host: SettingsHost): Hono {
 
   app.get("/api/modules", async (c) => {
     const env = moduleEnvFromPlatform(platform);
-    const modules = await discoverModules(env, { cacheTtlMs: 60_000 });
+    const modules = await discoverConfiguredModules(env, { cacheTtlMs: 60_000 });
     return c.json(
       modulesResponse(modules, renderConfigProjection(), {
         dispatch: false,
