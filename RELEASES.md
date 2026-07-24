@@ -32,6 +32,7 @@ gh run list --workflow build-image.yml --limit 3
 
 | git tag | GHCR studio | source commit | published | notes |
 |---|---|---|---|---|
+| `v1.2.1` | 1.2.1 | (pending) | (pending) | PATCH, CI-only: finish-rife-serve bake timeout 45 -> 90 (the v1.2.0 tag run's rife bake was killed by its own job timeout twice, reading as "cancelled"); first publish of the vivijure-local-finish-rife-serve image, completing the v1.2.0 set. No runtime change. |
 | `v1.2.0` | 1.2.0 | (pending) | (pending) | Epic #200 (no-RunPod default): #201 broken-button fix, #202 creds-free narration tier, #203 no-RunPod docs, #209 narration default compose, #204 RIFE homelab serve adopt, #213/#214 honest Wan train-time copy, core ^1.2.13. |
 | `v1.1.16` | 1.1.16 | d70c624 | 2026-07-23 | **Ledger-gap backfill (cf#215 Lane D):** ad-hoc security-day tag, package.json never bumped past 1.1.15, no CHANGELOG heading cut at the time; backfilled 2026-07-25. K3 hardening: #194/#196 core pins, #195 dockerignore secrets, #197/#198 K3 FP runlogs, #199 cast import cap + safe URI decode. GHCR publish confirmed live (build-image run 2026-07-23T19:36:02Z). See CHANGELOG.md. |
 | `v1.1.15` | 1.1.15 | 3f52bdc | 2026-07-23 | **Backfilled (cf#215 Lane D, 2026-07-25):** ledger row only was missing; package.json and CHANGELOG.md were both correct at the time. Wan cast train default (cf#29 Phase E): core `^1.2.8`; Cast UI parity with cf via /train-lora, SDXL escape hatch sends model_family:"sdxl". GHCR publish confirmed live (build-image run 2026-07-23T04:28:31Z). |
