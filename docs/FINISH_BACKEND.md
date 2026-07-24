@@ -9,6 +9,12 @@ Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/15
 are unlikely to need it; vivijure-local does not ship a `finish-rife` module sidecar or
 `LOCAL_FINISH_RIFE_URL` wiring.
 
+**Update (2026-07-24, local#204):** local RIFE is now available OPT-IN, superseding the stance above
+for operators who want it. `containers/finish-rife-serve` wraps the pinned backend RIFE handler in a
+long-running HTTP server; point `LOCAL_FINISH_RIFE_URL` at it and set `FINISH_RIFE_BACKEND=local` to
+run RIFE on your own GPU. It stays OFF by default (the homelab default is still CPU `video-finish`
+assemble); nothing ships it in the default compose stack.
+
 **Local panel default:** motion (local-gpu door) → raw clips → CPU `video-finish` assemble. No
 per-clip finish GPU chain unless explicitly opted in for **lipsync and upscale only**.
 
@@ -19,7 +25,7 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not supported** (no module, no local serve) |
+| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Opt-in local** (`containers/finish-rife-serve` HTTP overlay) or RunPod |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
@@ -27,8 +33,8 @@ profile). Opt into lipsync/upscale sidecars with `COMPOSE_PROFILES=satellites` p
 `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` in `.env`. CF panel keeps exercising the full RunPod
 finish chain (RIFE, MuseTalk, upscale, audio-upscale) for regression and promotion.
 
-Closed paths (do not revive): PR #185 (local finish-rife-serve overlay), fleet-chezmoi #1009
-(propagandhi finish-rife image pin).
+Closed paths (do not revive): fleet-chezmoi #1009 (propagandhi finish-rife image pin). PR #185, the
+local finish-rife-serve overlay, was REVIVED as `containers/finish-rife-serve` (local#204).
 
 ## Current behavior (pre-cutover)
 
@@ -122,9 +128,19 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 
 | File | Change |
 |------|--------|
-| `system/stacks/propagandhi/vivijure-local/.env.propagandhi.example` | Drop `LOCAL_FINISH_RIFE_URL`; `FINISH_BACKEND=local` for lipsync/upscale only |
-| `system/stacks/propagandhi/vivijure-finish-gpu/` | Remove `finish-rife` service; lipsync/upscale only |
-| `system/stacks/propagandhi/RUNBOOK-vivijure-local-topology.md` | §10: CPU assemble default; no local RIFE |
+| `system/stacks/propagandhi/vivijure-local/.env.propagandhi.example` | `FINISH_BACKEND=local`, `LOCAL_FINISH_*` URLs; comment out local-panel RunPod finish EP IDs |
+| `system/stacks/propagandhi/RUNBOOK-vivijure-local-topology.md` | §10: local finish sidecars, not RunPod chain |
+| New stack dir (TBD) | Compose for on-box GPU finish services (musetalk, upscale, rife) on propagandhi GEX44 |
+
+### Homelab GPU HTTP services (who owns serve mode)
+
+| Finish step | GPU work lives in | Homelab HTTP serve overlay |
+|-------------|-------------------|----------------------------|
+| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **`vivijure-local/containers/finish-rife-serve`** (FROM pinned backend image; no backend repo changes) |
+| Lip-sync | `vivijure-musetalk` | `vivijure-musetalk` `Dockerfile.serve` |
+| Video upscale | `vivijure-upscale` | `vivijure-upscale` `Dockerfile.serve` |
+
+**Do not merge homelab serve scaffolding into `vivijure-backend`.** The backend stays RunPod-first; local panel adds thin HTTP wrappers in vivijure-local (RIFE) or the finish satellite repos (lipsync, upscale). Propagandhi stack: `fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu/`.
 
 ## Smoke / verify matrix trim
 
