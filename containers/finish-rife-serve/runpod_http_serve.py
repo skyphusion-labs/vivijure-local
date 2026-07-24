@@ -19,6 +19,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
 
 MAX_BODY_BYTES = 10 * 1024 * 1024
+MAX_QUEUE = 32
+_CLIP_KEY_PREFIX = "renders/"
 
 
 class JobStatus(str, Enum):
@@ -29,6 +31,10 @@ class JobStatus(str, Enum):
 
 
 class Cancelled(Exception):
+    pass
+
+
+class QueueFullError(Exception):
     pass
 
 
@@ -54,20 +60,34 @@ RunFn = Callable[[dict, Callable[[], bool]], dict]
 
 
 class JobRegistry:
-    def __init__(self, run_fn: RunFn, *, max_completed: int = 256) -> None:
+    def __init__(
+        self,
+        run_fn: RunFn,
+        *,
+        max_completed: int = 256,
+        max_queue: int = MAX_QUEUE,
+    ) -> None:
         self._run_fn = run_fn
         self._lock = threading.Lock()
         self._jobs: dict[str, Job] = {}
         self._queue: deque[str] = deque()
         self._completed_order: deque[str] = deque()
         self._max_completed = max_completed
+        self._max_queue = max_queue
         self._worker: threading.Thread | None = None
         self._wake = threading.Condition(self._lock)
         self._stop = False
 
     def submit(self, payload: dict) -> str:
-        job = Job(id=uuid.uuid4().hex, payload=payload)
         with self._lock:
+            active = sum(
+                1
+                for job in self._jobs.values()
+                if job.status in (JobStatus.IN_QUEUE, JobStatus.IN_PROGRESS)
+            )
+            if active >= self._max_queue:
+                raise QueueFullError()
+            job = Job(id=uuid.uuid4().hex, payload=payload)
             self._jobs[job.id] = job
             self._queue.append(job.id)
             self._ensure_worker_locked()
@@ -87,6 +107,7 @@ class JobRegistry:
                 try:
                     self._queue.remove(job_id)
                 except ValueError:
+                    # Expected race: the worker dequeued this job before cancel ran.
                     pass
                 job.status = JobStatus.FAILED
                 job.error = "canceled before start"
@@ -156,11 +177,60 @@ _STATUS_RE = re.compile(r"^/status/([A-Za-z0-9]+)$")
 _CANCEL_RE = re.compile(r"^/cancel/([A-Za-z0-9]+)$")
 
 
+def load_expected_token(token_env: str) -> str:
+    token = (os.environ.get(token_env) or "").strip()
+    if not token:
+        print(f"FATAL: {token_env} must be set to a non-empty secret", flush=True)
+        raise SystemExit(1)
+    return token
+
+
 def token_error(headers_token: str | None, expected: str) -> tuple[int, dict] | None:
-    if not expected:
+    if not expected.strip():
         return 503, {"ok": False, "error": "LOCAL_FINISH_TOKEN not configured: refusing open GPU endpoint"}
-    if not headers_token or not hmac.compare_digest(headers_token, expected):
+    provided = (headers_token or "").strip()
+    if not provided or not hmac.compare_digest(provided, expected):
         return 401, {"ok": False, "error": "unauthorized"}
+    return None
+
+
+def _check_r2_key(key: str, *, prefix: str, what: str) -> str | None:
+    k = str(key or "")
+    if (
+        not k
+        or k != k.strip()
+        or k.startswith("/")
+        or "\\" in k
+        or ".." in k.split("/")
+        or not k.startswith(prefix)
+    ):
+        return f"{what}: clip_key must be a relative renders/ key"
+    return None
+
+
+def _looks_like_url(value: object) -> bool:
+    return isinstance(value, str) and ("://" in value or value.startswith("file:"))
+
+
+def validate_run_payload(payload: object) -> str | None:
+    if not isinstance(payload, dict):
+        return "payload must be a JSON object"
+    if payload.get("selftest") is True:
+        return None
+    if payload.get("action") != "finish_clip":
+        return "unsupported action (finish-rife serve accepts finish_clip only)"
+    err = _check_r2_key(str(payload.get("clip_key") or ""), prefix=_CLIP_KEY_PREFIX, what="finish_clip")
+    if err:
+        return err
+    shot_id = payload.get("shot_id")
+    if not isinstance(shot_id, str) or not shot_id.strip():
+        return "finish_clip: shot_id is required"
+    cfg = payload.get("config")
+    if cfg is not None and not isinstance(cfg, dict):
+        return "finish_clip: config must be an object"
+    for field in ("clip_key", "project", "shot_id", "output_hash"):
+        if _looks_like_url(payload.get(field)):
+            return f"finish_clip: {field} must not be a URL"
     return None
 
 
@@ -176,16 +246,27 @@ def route(
     version: str = "serve-1",
 ) -> tuple[int, dict]:
     if method == "GET" and path == "/health":
-        return 200, {"ok": True, "service": service, "version": version, "mode": "local-finish-http"}
+        err = token_error(token, expected_token)
+        if err:
+            return err
+        return 200, {"ok": True}
 
     if method == "POST" and path == "/run":
         err = token_error(token, expected_token)
         if err:
             return err
         payload = (body or {}).get("input", body or {})
-        if (body or {}).get("selftest") or payload.get("selftest"):
-            return 200, {"ok": True, "selftest": True, "service": service}
-        job_id = registry.submit(payload)
+        if not isinstance(payload, dict):
+            return 400, {"ok": False, "error": "payload must be a JSON object"}
+        if (body or {}).get("selftest") is True or payload.get("selftest") is True:
+            return 200, {"ok": True, "selftest": True}
+        validation_err = validate_run_payload(payload)
+        if validation_err:
+            return 400, {"ok": False, "error": validation_err}
+        try:
+            job_id = registry.submit(payload)
+        except QueueFullError:
+            return 429, {"ok": False, "error": "queue full"}
         return 200, {"id": job_id}
 
     m = _STATUS_RE.match(path)
@@ -237,7 +318,7 @@ def run_serve(
 ) -> None:
     host = host or os.environ.get("HOST", "0.0.0.0")
     port = int(port or os.environ.get("PORT", "8010") or "8010")
-    expected_token = os.environ.get(token_env, "") or ""
+    expected_token = load_expected_token(token_env)
     registry = JobRegistry(wrap_runpod_handler(handler_fn))
 
     class Handler(BaseHTTPRequestHandler):
@@ -250,7 +331,7 @@ def run_serve(
             if length <= 0:
                 return None
             if length > MAX_BODY_BYTES:
-                raise ValueError(f"body too large: {length} bytes")
+                raise ValueError("body too large")
             try:
                 return json.loads(self.rfile.read(length) or b"{}")
             except Exception:
@@ -259,8 +340,8 @@ def run_serve(
         def _dispatch(self, method: str) -> None:
             try:
                 body = self._body() if method == "POST" else None
-            except ValueError as e:
-                status, payload = 413, {"ok": False, "error": str(e)}
+            except ValueError:
+                status, payload = 413, {"ok": False, "error": "request body too large"}
             else:
                 status, payload = route(
                     method,
@@ -274,7 +355,7 @@ def run_serve(
                 )
             data = json.dumps(payload).encode()
             self.send_response(status)
-            self.send_header("content-type", "application/json")
+            self.send_header("content-type", "application/json; charset=utf-8")
             self.send_header("content-length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -300,6 +381,7 @@ def run_serve(
     try:
         httpd.serve_forever()
     except (KeyboardInterrupt, SystemExit):
+        # Expected shutdown signals; cleanup runs in finally.
         pass
     finally:
         httpd.server_close()
