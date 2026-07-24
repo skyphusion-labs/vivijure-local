@@ -72,3 +72,21 @@ export async function gatewayJson(
   }
   return { raw: await resp.json(), logId };
 }
+
+/**
+ * Why this string is NOT byte-identical to vivijure-cf's (vivijure-cf#98).
+ *
+ * Parity means the same FEATURE with an honest answer on each host, not the same bytes. The leading
+ * sentence and the "ask whoever operates this studio" action are deliberately identical, because
+ * that half is about the reader. The parenthetical names the knobs, and the knobs genuinely differ:
+ * cf is a Worker with an `AI` binding and `GATEWAY_ID`; a self-host studio has no Workers binding at
+ * all and is configured with these three environment variables instead. Shipping cf's text here
+ * would tell a homelabber to set a binding that does not exist on their machine -- accurate-looking
+ * and useless, which is the failure this whole issue is about.
+ *
+ * Printed VERBATIM by the panel, so the text is the product. Change it here, never in the panel.
+ */
+export const PLANNER_UNAVAILABLE_REASON =
+  "Storyboard planning is unavailable on this studio because its AI Gateway is not configured. " +
+  "Ask whoever operates this studio to enable it (CLOUDFLARE_ACCOUNT_ID, GATEWAY_ID and CF_AIG_TOKEN).";
+

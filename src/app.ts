@@ -14,6 +14,7 @@ import { discoverConfiguredModules } from "./module-registry.js";
 import { modulesResponse } from "@skyphusion-labs/vivijure-core";
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
+import { aiGatewayConfigured, PLANNER_UNAVAILABLE_REASON } from "./platform/ai-gateway.js";
 import { registerM3Routes } from "./routes/m3.js";
 import { registerM4Routes } from "./routes/m4-renders.js";
 import { registerM5Routes } from "./routes/m5.js";
@@ -58,9 +59,16 @@ export function createApp(host: SettingsHost): Hono {
   app.get("/api/modules", async (c) => {
     const env = moduleEnvFromPlatform(platform);
     const modules = await discoverConfiguredModules(env, { cacheTtlMs: 60_000 });
+    // cf#98 parity: installed is not servable. A studio with the plan.enhance module installed but
+    // no AI Gateway configured would otherwise serve a full planning-model picker whose every option
+    // fails at hPlan -- the local#201 broken-button class. Absent key means available.
+    const hooksUnavailable = aiGatewayConfigured(env as Parameters<typeof aiGatewayConfigured>[0])
+      ? undefined
+      : { "plan.enhance": PLANNER_UNAVAILABLE_REASON };
     return c.json(
       modulesResponse(modules, renderConfigProjection(), {
         dispatch: false,
+        ...(hooksUnavailable ? { hooks_unavailable: hooksUnavailable } : {}),
         ...(isDemoMode(authEnv()) ? { readonly: true } : {}),
       }),
     );
