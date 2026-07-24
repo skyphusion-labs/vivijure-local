@@ -7,9 +7,37 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
-PATCH: homelab does not wire Wan cast LoRA train (Conrad ruling 2026-07-23). Remove
-`RUNPOD_WAN_TRAIN_ENDPOINT_ID` from compose, Settings catalog, and `.env.example`; sync purges stale
-DB rows. Local `/train-lora` falls back to SDXL on the render endpoint; Wan train stays CF prod only.
+## v1.2.0 -- 2026-07-24
+
+MINOR: **epic #200 -- vivijure-local runs without RunPod** lands as the primary path. RunPod
+becomes fully opt-in: an uncredentialed RunPod module no longer renders as a broken button,
+narration gets a creds-free default engine wired into the default compose stack, and the README
+documents the no-RunPod recipe as the default rendering path.
+
+- **fix(modules):** hide uncredentialed RunPod modules behind a `configured` flag + registry
+  filter, so a launched-but-unwired module never shows up as a broken button (#201)
+- **feat(score):** creds-free narration via Deepgram Aura-1 on Cloudflare AI; RunPod MiniMax
+  stays opt-in (#202)
+- **docs:** no-RunPod is the documented default rendering path; RunPod moves to an opt-in wiring
+  section (#203)
+- **feat(compose):** `narration-gen` joins the default stack now that its default engine is
+  creds-free, dropping the stale `cloud`-profile gate (#209)
+- **feat(homelab):** adopt the finish-rife serve overlay (RIFE on a homelab GPU via HTTP, opt-in,
+  off by default) + reconcile the finish-story docs (#204, epic #200). Original work by **Conrad
+  Rockenhaus** on `feat/finish-rife-serve-homelab`, re-authored to Rollins per house doctrine
+  (crew-box commits author as the crew member), carried via `Co-authored-by:` on both commits (#212)
+- **docs(cast):** honest Wan LoRA train-time copy; first corrected to the measured pre-fix
+  ~1h45m-2h (#213), then to ~35-45 min once a worker-side fix shipped and was output-verified on
+  the prod endpoint (#214)
+- **chore(deps):** pin `@skyphusion-labs/vivijure-core` to `^1.2.13`, picking up core#92 (the
+  stuck-training reconciler observability split): an OBSERVED-running train gets a 3h ceiling
+  covering the RunPod 2h endpoint timeout, instead of the SDXL-era 1h backstop (#210)
+- **fix(secrets):** homelab does not wire Wan cast LoRA train (Conrad ruling 2026-07-23); carried
+  over from Unreleased. Removes `RUNPOD_WAN_TRAIN_ENDPOINT_ID` from compose, Settings catalog, and
+  `.env.example`; sync purges stale DB rows. Local `/train-lora` falls back to SDXL on the render
+  endpoint; Wan train stays CF prod only (#193)
+
+Roll propagandhi/fatmike with the updated compose after GHCR publish.
 
 ## v1.1.15 -- 2026-07-23
 
