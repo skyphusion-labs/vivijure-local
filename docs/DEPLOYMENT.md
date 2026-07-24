@@ -220,8 +220,10 @@ Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 ### Module sidecars
 
 Compose wires all CPU module URLs in-network by default. Override in `.env` to point at host-native
-sidecars or remote RunPod modules. Cloud i2v, own-gpu, narration-gen, speech-upscale (RunPod), and
-finish GPU URLs stay empty until you enable `COMPOSE_PROFILES=cloud` or `satellites`.
+sidecars or remote RunPod modules. Cloud i2v, own-gpu, speech-upscale (RunPod), and finish GPU URLs
+stay empty until you enable `COMPOSE_PROFILES=cloud` or `satellites`. `narration-gen` needs no RunPod:
+its default engine is Deepgram Aura-1 on Cloudflare AI (the RunPod MiniMax HD tier activates only when
+`RUNPOD_API_KEY` is set); its sidecar currently rides the `cloud` profile.
 
 | Variable | Compose default |
 |----------|-----------------|
@@ -273,6 +275,13 @@ without a GPU.
 or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) on your host.
 Set `MODULE_LOCAL_GPU_URL` to the sidecar URL the backend exposes (from the studio container use
 `http://host.docker.internal:<port>` on Docker Desktop).
+
+**The no-RunPod render path (default):** a complete film needs no RunPod. Motion and keyframes render
+on the local GPU door (`LOCAL_BACKEND_URL`); the GPUless steps run on Cloudflare AI (`CF_AIG_TOKEN` +
+`CLOUDFLARE_ACCOUNT_ID`): cloud keyframe, `music-gen`, and `narration-gen` (Deepgram Aura-1 by default,
+no RunPod; MiniMax HD is the opt-in RunPod tier when `RUNPOD_API_KEY` is set). Finish assembles on the
+CPU `video-finish` container, with optional local lipsync / upscale sidecars. RunPod modules appear in
+the panel only once their credentials are set, so an unconfigured RunPod tier is never a broken button.
 
 **RunPod escape hatch (optional):** set `FINISH_BACKEND=runpod` and `*_RUNPOD_ENDPOINT_ID`, or point
 `MODULE_*_URL` at deployed `vivijure-backend` workers. Not the homelab default; see

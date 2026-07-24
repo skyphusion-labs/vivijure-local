@@ -34,6 +34,26 @@ module URLs; this repo is the **control panel host** only.
 Route checklist: [docs/PARITY.md](docs/PARITY.md). Homelab operator path: [docs/quickstart.md](docs/quickstart.md).
 CF path: [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md).
 
+## Rendering without RunPod (the default)
+
+You never need a RunPod account. A complete film renders with **zero RunPod credentials**:
+
+- **Motion and keyframes** render on your own GPU through the local door
+  ([`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb) /
+  [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)); set `LOCAL_BACKEND_URL`.
+- **The GPUless steps** (planner, cloud keyframe, music, narration) run on **Cloudflare AI**, billed
+  from your Cloudflare credit, no RunPod endpoint. Narration speaks through Deepgram Aura-1 by
+  default; MiniMax HD is the optional RunPod tier.
+- **Finish** runs on the CPU `video-finish` container (assemble and mux), plus optional local
+  lipsync / upscale sidecars.
+
+The instant demo needs nothing at all: compose ships mock keyframe and motion, so `npm run smoke:exit`
+renders end to end with no GPU and no cloud key.
+
+**Optional: wire RunPod** for higher-fidelity tiers (cloud i2v, MiniMax HD narration, RunPod finish).
+It is strictly opt-in: a RunPod module with no credentials stays hidden from the panel, never a broken
+button. Wiring guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Who this is for
 
 Homelab and hobbyist builders who want the full Vivijure studio on their own box: module registry,
