@@ -83,7 +83,10 @@ describe("syncPlatformSecretsFromEnv", () => {
 
   it("purges retired RUNPOD_WAN_TRAIN_ENDPOINT_ID when unset in env", async () => {
     const db = openDatabase(dbPath);
-    await upsertPlatformSecret(db, "RUNPOD_WAN_TRAIN_ENDPOINT_ID", "8kjcn5sz6k8p1n");
+    // Opaque placeholder on purpose: the real local train endpoint (cf#215 gate 2) is DELETED, and a
+    // tracked concrete endpoint id outlives the resource it names. The test only needs a value to
+    // store and then assert purged.
+    await upsertPlatformSecret(db, "RUNPOD_WAN_TRAIN_ENDPOINT_ID", "ep-retired-placeholder");
 
     const existing = await listPlatformSecrets(db);
     const result = await syncPlatformSecretsFromEnv(db, {}, existing);
