@@ -70,10 +70,13 @@ export function narrationAuraDegrade(config: Record<string, unknown> | undefined
 
 
 // ---- engine-honest manifest projection (local#202) ----------------------------------------------
-// The committed manifest identity ("MiniMax Speech 02 HD (RunPod)") is cf-canonical + drift-locked, so
-// the score app augments the RUNTIME /module.json instead (the local-finish/app.ts precedent): an
-// engine-honest picker label plus the active tier + the tier menu, additive fields a module never
-// reads (the panel / an operator does). The committed file is untouched, so upstream parity holds.
+// The committed manifest identity is cf-canonical + drift-locked (vivijure-cf#211/#219, 2026-07-25:
+// reworded to "Narration (Deepgram Aura on Cloudflare; MiniMax HD with RunPod)", the exact string
+// NARRATION_HONEST_LABEL sets below, so the picker-label half of this override is now a same-value
+// no-op). The score app still augments the RUNTIME /module.json (the local-finish/app.ts precedent):
+// the tier menu + active-tier fields below are additive, a module never reads them (the panel / an
+// operator does), and they still need a live env read the committed static file cannot do. The
+// committed file is untouched, so upstream parity holds.
 
 export type NarrationEngine = "minimax-runpod" | "aura-1" | "none";
 
