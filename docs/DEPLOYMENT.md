@@ -225,7 +225,7 @@ Compose wires all CPU module URLs in-network by default. Override in `.env` to p
 sidecars or remote RunPod modules. Cloud i2v, own-gpu, speech-upscale (RunPod), and finish GPU URLs
 stay empty until you enable `COMPOSE_PROFILES=cloud` or `satellites`. `narration-gen` needs no RunPod:
 its default engine is Deepgram Aura-1 on Cloudflare AI (the RunPod MiniMax HD tier activates only when
-`RUNPOD_API_KEY` is set); its sidecar currently rides the `cloud` profile.
+`RUNPOD_API_KEY` is set); its sidecar ships in the default stack (local#209).
 
 | Variable | Compose default |
 |----------|-----------------|
@@ -240,10 +240,11 @@ its default engine is Deepgram Aura-1 on Cloudflare AI (the RunPod MiniMax HD ti
 | `MODULE_DIALOGUE_URL` | `http://module-dialogue-gen:9142` |
 | `MODULE_IMAGE_GENERATE_URL` | `http://module-image-generate:9145` |
 | `MODULE_MUSIC_GEN_URL` | `http://module-music-gen:9158` |
+| `MODULE_NARRATION_GEN_URL` | `http://module-narration-gen:9159` |
 | `MODULE_NOTIFY_EMAIL_URL` | `http://module-notify-email:9144` |
 | `MODULE_SPEECH_UPSCALE_URL` | *(empty; `cloud` profile -- RunPod `vivijure-audio-upscale`)* |
 | `MODULE_OWN_GPU_URL` | *(empty; `cloud` profile)* |
-| `MODULE_*` cloud i2v / narration | *(empty; `cloud` profile)* |
+| `MODULE_*` cloud i2v | *(empty; `cloud` profile)* |
 | `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` | *(empty; `satellites` profile)* |
 
 ### CPU VPC shims (studio -> containers)

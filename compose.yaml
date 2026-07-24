@@ -17,7 +17,7 @@
 # Default homelab stack (Conrad ruling 2026-07-22): all CPU modules + homelab motion (local-gpu).
 # CPU sidecars, VPC shims, and score/chain modules run by default; only RunPod/cloud GPU is gated.
 # Optional profiles (see docs/install-profiles.md):
-#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, narration-gen, speech-upscale (RunPod)
+#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, speech-upscale (RunPod)
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
 # Keyframe mock when RUNPOD_* unset; local-gpu mock when LOCAL_BACKEND_URL unset (offline default).
 # FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
@@ -325,11 +325,26 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-narration-gen:
-    <<: [*runpod-module, *profile-cloud]
+    <<: *module-sidecar
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/score-module-server.ts", "9159", "narration-gen"]
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9159/module.json"]
+    environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
+      <<: *ai-gateway-env
+      # local#209: narration-gen joins the DEFAULT stack. Deepgram Aura-1 on CF AI is the creds-free
+      # default tier (local#202); RUNPOD_API_KEY activates the opt-in MiniMax HD tier. With neither set
+      # it degrades honestly (never a broken button), so it is safe in the out-of-box no-RunPod film.
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
 
   module-beat-sync:
     <<: *cpu-module
@@ -518,7 +533,7 @@ services:
       MODULE_ALIBABA_WAN_LORA_URL: ${MODULE_ALIBABA_WAN_LORA_URL:-}
       MODULE_CLOUD_KEYFRAME_URL: ${MODULE_CLOUD_KEYFRAME_URL:-}
       MODULE_MUSIC_GEN_URL: http://module-music-gen:9158
-      MODULE_NARRATION_GEN_URL: ${MODULE_NARRATION_GEN_URL:-}
+      MODULE_NARRATION_GEN_URL: http://module-narration-gen:9159
       MODULE_BEAT_SYNC_URL: http://module-beat-sync:9120
       MODULE_AUDIO_MASTER_URL: http://module-audio-master:9121
       MODULE_FILM_TITLES_URL: http://module-film-titles:9130
@@ -569,6 +584,8 @@ services:
       module-dialogue-gen:
         condition: service_healthy
       module-music-gen:
+        condition: service_healthy
+      module-narration-gen:
         condition: service_healthy
       module-notify-email:
         condition: service_healthy
