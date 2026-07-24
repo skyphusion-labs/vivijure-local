@@ -7,6 +7,20 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(planner): the host reports hooks it cannot serve (vivijure-cf#98 parity)
+
+- `GET /api/modules` emits `host.hooks_unavailable` (core 1.2.14) naming any hook this studio cannot
+  serve. First entry: `plan.enhance`, when the AI Gateway is not configured. Absent key means
+  available; the block is omitted when everything is serviceable.
+- **Parity is the feature with an honest answer per host, not identical bytes.** The reason string's
+  reader-facing half matches vivijure-cf exactly; its parenthetical names THIS host's knobs
+  (`CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`) because a self-host studio has no Workers
+  `AI` binding to set.
+- A PARTIAL gateway config reports unavailable too -- two of three is not configured.
+- Core pin `^1.2.14`.
+
+## Unreleased
+
 ## v1.2.0 -- 2026-07-24
 
 MINOR: **epic #200 -- vivijure-local runs without RunPod** lands as the primary path. RunPod

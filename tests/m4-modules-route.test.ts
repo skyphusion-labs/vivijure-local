@@ -88,7 +88,15 @@ describe("GET /api/modules", () => {
     expect(body.hooks.keyframe).toEqual(["keyframe"]);
     expect(body.render.default_tier).toBe("final");
     expect(body.render.quality_tiers.length).toBe(3);
-    expect(body.host).toEqual({ dispatch: false });
+    // Asserted by FIELD rather than deep-equal. `host` is additive by contract (a deploy may
+    // legitimately gain capabilities to report), so a whole-object equality here turns every future
+    // additive host field into a false failure in a test that is about module discovery.
+    expect(body.host?.dispatch).toBe(false);
+    // This fixture configures no AI Gateway, so cf#98 correctly reports plan.enhance unserviceable.
+    // Emitted even though no plan.enhance module is installed here, and that is deliberate: the
+    // question the field answers is "can this HOST serve the hook", and the answer is no either way.
+    // A user who wonders where planning went gets the actual reason instead of an empty picker.
+    expect(body.host?.hooks_unavailable?.["plan.enhance"]).toBeTruthy();
   });
 
   it("returns an empty catalog when no modules are bound", async () => {
