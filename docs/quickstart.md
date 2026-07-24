@@ -103,6 +103,10 @@ npm run conformance:compose
 
 ## Growing later
 
+- **A complete film without RunPod (the default path):** point `LOCAL_BACKEND_URL` at your GPU door
+  for motion and keyframes, add a Cloudflare AI gateway (`CF_AIG_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`) for
+  the GPUless steps (cloud keyframe, music, narration via Deepgram Aura-1), and finish on the CPU
+  `video-finish` container. RunPod stays strictly optional (below). See [DEPLOYMENT.md](DEPLOYMENT.md).
 - **Real GPU motion (default homelab path):** run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
   or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) on your host;
   set `LOCAL_BACKEND_URL` and recreate `module-local-gpu`. See [DEPLOYMENT.md](DEPLOYMENT.md).
