@@ -9,6 +9,12 @@ Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/15
 are unlikely to need it; vivijure-local does not ship a `finish-rife` module sidecar or
 `LOCAL_FINISH_RIFE_URL` wiring.
 
+**Update (2026-07-24, local#204):** local RIFE is now available OPT-IN, superseding the stance above
+for operators who want it. `containers/finish-rife-serve` wraps the pinned backend RIFE handler in a
+long-running HTTP server; point `LOCAL_FINISH_RIFE_URL` at it and set `FINISH_RIFE_BACKEND=local` to
+run RIFE on your own GPU. It stays OFF by default (the homelab default is still CPU `video-finish`
+assemble); nothing ships it in the default compose stack.
+
 **Local panel default:** motion (local-gpu door) → raw clips → CPU `video-finish` assemble. No
 per-clip finish GPU chain unless explicitly opted in for **lipsync and upscale only**.
 
@@ -19,7 +25,7 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not supported** (no module, no local serve) |
+| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Opt-in local** (`containers/finish-rife-serve` HTTP overlay) or RunPod |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
@@ -27,8 +33,8 @@ profile). Opt into lipsync/upscale sidecars with `COMPOSE_PROFILES=satellites` p
 `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` in `.env`. CF panel keeps exercising the full RunPod
 finish chain (RIFE, MuseTalk, upscale, audio-upscale) for regression and promotion.
 
-Closed paths (do not revive): PR #185 (local finish-rife-serve overlay), fleet-chezmoi #1009
-(propagandhi finish-rife image pin).
+Closed paths (do not revive): fleet-chezmoi #1009 (propagandhi finish-rife image pin). PR #185, the
+local finish-rife-serve overlay, was REVIVED as `containers/finish-rife-serve` (local#204).
 
 ## Current behavior (pre-cutover)
 
