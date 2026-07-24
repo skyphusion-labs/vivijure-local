@@ -88,7 +88,7 @@ x-runpod-module: &runpod-module
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
-    # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3 (Conrad: quota headroom on uf4iwoen5r48zx); satellites override below)
+    # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3, quota headroom on the backend render EP; id removed from tracked docs, scheduled for teardown per cf#215, see fleet-chezmoi runpod endpoints runbook; satellites override below)
     RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
     S3_ENDPOINT: http://minio:9000
     S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}

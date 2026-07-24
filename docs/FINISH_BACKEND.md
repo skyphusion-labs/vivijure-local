@@ -38,6 +38,12 @@ local finish-rife-serve overlay, was REVIVED as `containers/finish-rife-serve` (
 
 ## Current behavior (pre-cutover)
 
+> **Historical, pre-local#200.** vivijure-local shipped the bare no-RunPod architecture in v1.2.0
+> (epic local#200); the tables below describe the pre-cutover state and are kept for context. Concrete
+> RunPod endpoint ids that used to appear here have been retired from tracked docs (cf#215 EP teardown,
+> phase 1) -- the canonical id map, where still relevant, is
+> `fleet-chezmoi/docs/runbooks/vivijure-runpod-endpoints.md`, never this repo.
+
 Two-layer model today on propagandhi (legacy, being trimmed):
 
 1. **Studio → module sidecar** (local HTTP): `MODULE_LIPSYNC_URL`, `MODULE_UPSCALE_URL` (and
@@ -50,10 +56,10 @@ historically RIFE):
 
 | Module | RunPod EP (local panel) | Image |
 |--------|-------------------------|-------|
-| `finish-lipsync` | `odz1x4bduwlqws` | `vivijure-musetalk` |
-| `finish-upscale` | `dp3ofo30qcb988` | `vivijure-upscale` |
-| `speech-upscale` | `hc9xccajqidda4` | `vivijure-audio-upscale` |
-| `finish-rife` | `uf4iwoen5r48zx` (backend) | `vivijure-backend` — **CF/production only; not local panel** |
+| `finish-lipsync` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-musetalk` |
+| `finish-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-upscale` |
+| `speech-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-audio-upscale` |
+| `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` — **CF/production only; not local panel** |
 
 CPU assemble (`video-finish`, `audio-*`, `image-prep`) runs locally in compose. Motion i2v defaults
 to **`LOCAL_BACKEND_URL`** (16gb door on propagandhi).
@@ -159,10 +165,10 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 
 | Endpoint | Typical `workersMax` | Freed when local finish is default |
 |----------|---------------------|-------------------------------------|
-| Backend (`uf4iwoen5r48zx`) | 3 (keyframe + own-gpu pressure) | RIFE already off local path; keyframe off local path after #153 |
-| MuseTalk (`odz1x4bduwlqws`) | 2 | Full endpoint idle for local panel |
-| Video upscale (`dp3ofo30qcb988`) | 2 | Full endpoint idle for local panel |
-| Audio upscale (`hc9xccajqidda4`) | 2 | Optional: move to local or keep for speech-upscale only |
+| Backend (render) | 3 (keyframe + own-gpu pressure) | RIFE already off local path; keyframe off local path after #153 |
+| MuseTalk | 2 | Full endpoint idle for local panel |
+| Video upscale | 2 | Full endpoint idle for local panel |
+| Audio upscale | 2 | Optional: move to local or keep for speech-upscale only |
 
 Conservative estimate: **4–7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
