@@ -76,17 +76,29 @@ export async function gatewayJson(
 /**
  * Why this string is NOT byte-identical to vivijure-cf's (vivijure-cf#98).
  *
- * Parity means the same FEATURE with an honest answer on each host, not the same bytes. The leading
- * sentence and the "ask whoever operates this studio" action are deliberately identical, because
- * that half is about the reader. The parenthetical names the knobs, and the knobs genuinely differ:
- * cf is a Worker with an `AI` binding and `GATEWAY_ID`; a self-host studio has no Workers binding at
- * all and is configured with these three environment variables instead. Shipping cf's text here
- * would tell a homelabber to set a binding that does not exist on their machine -- accurate-looking
- * and useless, which is the failure this whole issue is about.
+ * Parity means the same FEATURE with an honest answer on each host, not the same bytes. Two things
+ * differ, and both differ for the same reason: THE READER IS A DIFFERENT PERSON.
+ *
+ * 1. The knobs. cf is a Worker with an `AI` binding and `GATEWAY_ID`; a self-host studio has no
+ *    Workers binding at all and is configured with these three environment variables. Shipping cf's
+ *    text here would tell a homelabber to set something that does not exist on their machine.
+ *
+ * 2. The ACTION. cf says "ask whoever operates this studio", because a hosted tenant is overwhelmingly
+ *    NOT the operator and cannot fix it themselves. On a self-host door the modal reader IS the
+ *    operator -- their box, their .env, their compose file -- so that phrasing tells them to go ask
+ *    themselves. This version gives the instruction directly. (Caught by Joan on review; the first
+ *    draft kept the two strings parallel, which optimized for symmetry over the reader, and "write
+ *    for the reader" was the whole point of the rewrite that produced the cf string in the first
+ *    place. It still reads correctly to a non-operator on a shared LAN studio, who learns the studio
+ *    needs configuring either way.)
+ *
+ * The two strings DIVERGING is correct and is NOT a parity violation: `public/` is the shared
+ * surface, these live in `src/` per host. Unifying them into one identical string would be the
+ * actual defect.
  *
  * Printed VERBATIM by the panel, so the text is the product. Change it here, never in the panel.
  */
 export const PLANNER_UNAVAILABLE_REASON =
   "Storyboard planning is unavailable on this studio because its AI Gateway is not configured. " +
-  "Ask whoever operates this studio to enable it (CLOUDFLARE_ACCOUNT_ID, GATEWAY_ID and CF_AIG_TOKEN).";
+  "Set CLOUDFLARE_ACCOUNT_ID, GATEWAY_ID and CF_AIG_TOKEN to enable it.";
 

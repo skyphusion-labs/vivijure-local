@@ -88,12 +88,18 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
     expect(host?.hooks_unavailable?.["plan.enhance"]).toBe(PLANNER_UNAVAILABLE_REASON);
   });
 
-  it("the reason names THIS host's knobs, not the Worker binding", async () => {
-    // Parity is the feature with an honest answer per host, not identical bytes. Telling a
-    // self-hoster to set an `AI` binding would name something their machine does not have.
+  it("the reason addresses THIS host's reader, with THIS host's knobs", async () => {
+    // Parity is the feature with an honest answer per host, not identical bytes, and BOTH halves
+    // differ for the same reason: the reader is a different person.
+    //
+    // Knobs: telling a self-hoster to set an `AI` binding names something their machine lacks.
     expect(PLANNER_UNAVAILABLE_REASON).toMatch(/CF_AIG_TOKEN/);
     expect(PLANNER_UNAVAILABLE_REASON).not.toMatch(/\bAI binding\b/);
-    // ...while the reader-facing half stays identical across hosts.
-    expect(PLANNER_UNAVAILABLE_REASON).toMatch(/Ask whoever operates this studio/);
+    // Action: on a self-host door the reader IS the operator, so the instruction is given directly.
+    // "Ask whoever operates this studio" is correct on the HOSTED door and tells a homelabber to go
+    // ask themselves, so it is pinned ABSENT here rather than merely unasserted.
+    expect(PLANNER_UNAVAILABLE_REASON).toMatch(/^Storyboard planning is unavailable/);
+    expect(PLANNER_UNAVAILABLE_REASON).toMatch(/Set CLOUDFLARE_ACCOUNT_ID/);
+    expect(PLANNER_UNAVAILABLE_REASON).not.toMatch(/Ask whoever/);
   });
 });
