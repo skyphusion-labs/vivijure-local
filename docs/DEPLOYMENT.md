@@ -155,12 +155,21 @@ a running studio reads; `npm run sync:secrets:compose` upserts `.env` into the D
 and `module-local-gpu` containers still hold **process env from their last create** until
 force-recreate.
 
-Use `sync:secrets:compose` after every `.env` change, then **always** force-recreate the consumers:
+**ORDER MATTERS: force-recreate FIRST, then sync.** `sync-minio-tunnel-secrets.ts` upserts
+`platform_secrets` from the **studio container process env**, NOT from the `.env` file on disk.
+Its `import "dotenv/config"` does not help: dotenv never overrides an already-set variable, and
+the studio container was created with the OLD value. So running the sync before the recreate
+writes the STALE value straight back into the DB, where it then wins over compose env forever.
 
 ```bash
-npm run sync:secrets:compose
+# 1. recreate so the containers pick up the new .env into their process env
 docker compose up -d --force-recreate studio module-local-gpu
+# 2. THEN sync, so the DB captures the new value
+npm run sync:secrets:compose
 ```
+
+Module sidecars re-read `platform_secrets` per invoke (`loadModuleRuntimeEnv`), so no second
+recreate is needed after the sync.
 
 **local-gpu (homelab):** set `LOCAL_BACKEND_URL` to the reachable GPU backend URL and
 `LOCAL_BACKEND_TOKEN` to the backend bearer token, then run the sync + recreate sequence above.
@@ -183,9 +192,23 @@ point at the previous door):
 1. Update studio `.env`:
    - 12GB: `LOCAL_BACKEND_URL=http://vivijure-local-12gb:8000`
    - 16GB: `LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000`
-   - Set `LOCAL_BACKEND_TOKEN` to match the active door's bearer token.
-2. `npm run sync:secrets:compose`
-3. `docker compose up -d --force-recreate studio module-local-gpu`
+   - Set `LOCAL_BACKEND_TOKEN` to match the active door bearer token. A door swap ALWAYS
+     regenerates the bearer (each door writes its own `/shared/token` in its own project-scoped
+     runtime volume), so this is never a no-op.
+2. `docker compose up -d --force-recreate studio module-local-gpu` (recreate BEFORE the sync)
+3. `npm run sync:secrets:compose`
+4. **Verify the DB, not the process env** (see the warning below):
+
+   ```bash
+   docker compose exec -T studio npx tsx -e "import{listPlatformSecrets}from./src/platform-secrets-db.js;import{openDatabase}from./src/platform/sqlite.js;const d=openDatabase(process.env.DATABASE_PATH);console.log((await listPlatformSecrets(d)).LOCAL_BACKEND_URL)"
+   ```
+
+> **A process-env probe CANNOT detect a stale door here, and that is the whole trap.**
+> `docker compose exec studio printenv LOCAL_BACKEND_URL` and a direct curl to the new door will
+> BOTH read correct while the sidecar still dials the old one, because the sidecar resolves its
+> backend from `platform_secrets` (DB wins), not from its process env. The failure surfaces only
+> at render time as `local-gpu keyframe submit failed: fetch failed` -- a connection error against
+> the door you just stopped. Verify the DB value. Found live on propagandhi, cf#224.
 
 Verify: `docker compose logs module-local-gpu | tail` should show the new backend URL (not the
 previous door).
@@ -362,7 +385,7 @@ top-level `motion_backend` field, not by nesting under the backend id.
 `motion_config` and `keyframe_config` do not. Mixing the two shapes is a common 400.
 
 ```json
-// Wrong — 400 (schema rejects unknown key "local-gpu" inside motion_config)
+// Wrong -- 400 (schema rejects unknown key "local-gpu" inside motion_config)
 {
   "motion_backend": "local-gpu",
   "motion_config": { "local-gpu": { "quality": "draft" } }
