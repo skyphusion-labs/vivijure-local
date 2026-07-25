@@ -33,8 +33,13 @@ export async function generateOpenAIImage(
   if (!resp.ok) {
     let detail = "";
     try {
-      const e = (await resp.json()) as { error?: { message?: string } };
-      detail = e?.error?.message ? `: ${e.error.message}` : "";
+      // cf#223: the provider MESSAGE is not ours and is not content-free. A moderation refusal from
+      // this API quotes the prompt back, so interpolating it verbatim put a USER PROMPT into an
+      // exception message -- which reaches the caller and every log sink. The enumerated code/type
+      // says what happened; the prose is dropped.
+      const e = (await resp.json()) as { error?: { code?: string; type?: string } };
+      const reason = e?.error?.code ?? e?.error?.type;
+      detail = reason ? ` (${reason})` : "";
     } catch {
       /* non-JSON error body */
     }
