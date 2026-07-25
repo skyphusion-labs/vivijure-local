@@ -14,19 +14,39 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  VIDEO_FINISH_ADVISORY_HOOKS,
+  VIDEO_FINISH_CAPABILITY_KEY,
   VIDEO_FINISH_GATED_HOOKS,
   VIDEO_FINISH_UNAVAILABLE_REASON,
   videoFinishHooksUnavailable,
 } from "../src/video-finish-availability.js";
 
 describe("videoFinishHooksUnavailable (self-host)", () => {
-  it("names EXACTLY the hooks the execution paths take down, no more", () => {
+  it("names EXACTLY what is unavailable, no more (cf#229: score is NOT)", () => {
     expect(Object.keys(videoFinishHooksUnavailable({})).sort()).toEqual([
+      "capability:video-finish",
       "film.finish",
       "master",
       "notify",
-      "score",
     ]);
+    expect([...VIDEO_FINISH_GATED_HOOKS].sort()).toEqual(["film.finish", "master", "notify"]);
+  });
+
+  it("REGRESSION GUARD (cf#229): score is never reported unavailable", () => {
+    // Bed generation does not need the tier on THIS panel either: the score module produces the bed
+    // locally and the film path never calls the hook. Reporting it would grey out working capability.
+    const named = Object.keys(videoFinishHooksUnavailable({}));
+    for (const advisory of VIDEO_FINISH_ADVISORY_HOOKS) {
+      expect(named, advisory + " RUNS on a studio with no video-finish tier").not.toContain(advisory);
+    }
+    expect([...VIDEO_FINISH_ADVISORY_HOOKS]).toEqual(["score"]);
+  });
+
+  it("the capability key can never be mistaken for a hook name", () => {
+    expect(VIDEO_FINISH_CAPABILITY_KEY).toMatch(/^capability:/);
+    for (const hook of [...VIDEO_FINISH_GATED_HOOKS, ...VIDEO_FINISH_ADVISORY_HOOKS]) {
+      expect(hook).not.toContain(":");
+    }
   });
 
   it("does NOT name the per-shot hooks: per-shot clips are what a container-less host delivers", () => {
@@ -57,9 +77,9 @@ describe("videoFinishHooksUnavailable (self-host)", () => {
     expect(VIDEO_FINISH_UNAVAILABLE_REASON).not.toMatch(/not yet provisioned/);
     // ...and it still says what they DO get, so "unavailable" cannot read as "broken".
     expect(VIDEO_FINISH_UNAVAILABLE_REASON).toMatch(/per-shot clips/);
-    // Every gated hook carries it, unmodified.
-    for (const hook of VIDEO_FINISH_GATED_HOOKS) {
-      expect(videoFinishHooksUnavailable({})[hook]).toBe(VIDEO_FINISH_UNAVAILABLE_REASON);
+    // Every reported key carries it, unmodified -- the capability key included.
+    for (const key of [VIDEO_FINISH_CAPABILITY_KEY, ...VIDEO_FINISH_GATED_HOOKS]) {
+      expect(videoFinishHooksUnavailable({})[key]).toBe(VIDEO_FINISH_UNAVAILABLE_REASON);
     }
   });
 });
