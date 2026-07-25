@@ -245,8 +245,10 @@ jobs:
           file: ./vivijure-local/containers/finish-rife-serve/Dockerfile
           push: ${{ steps.meta.outputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
+          # No cache-to here: this CUDA overlay's export is ~60GB against the 10GB Actions cache
+          # limit, and the failed export killed the v1.2.1 publish (backend "not_found") AFTER the
+          # image built. Layer reuse comes from GHCR, not the Actions cache.
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   cpu-images:
     needs: assert-on-main
