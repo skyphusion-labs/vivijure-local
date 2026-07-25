@@ -53,6 +53,18 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   cloud keyframe door; `keyframeLabel()` already projects from the registry, so the planner copy
   follows whichever provider is actually serving.
 
+### fix(planner): gate the audio-mux controls on the hook they drive (cf#118 parity)
+
+- Ported verbatim from vivijure-cf (the changed region was proven identical across both panels
+  before porting, not assumed).
+- "add audio" and "narrate" both end in the video-finish container, and the panel rendered them
+  unconditionally, so on a studio without that tier clicking was the only way to find out. Both
+  now declare `data-hook="score"` and the cf#98 gate disables them with the host reason verbatim.
+- **The gate was INERT for every dynamically-built control**: `hook-availability.js` applies on
+  load and DOMContentLoaded only, and every history row is built after that. `renderHistoryList`
+  now re-applies it over the rows it just built. Proven load-bearing by removing only the
+  re-apply and watching both buttons stay clickable.
+
 ## v1.2.1 -- 2026-07-25
 
 PATCH (CI/release class, no runtime change): completes the v1.2.0 image set.
