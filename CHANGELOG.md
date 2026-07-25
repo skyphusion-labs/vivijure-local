@@ -7,6 +7,42 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(hosted): name the capability that is absent, not four hooks that depend on it (cf#229 parity)
+
+- Same-window twin of vivijure-cf#241. PARITY IS THE SET AND THE BIAS, never the bytes: this panel
+  keeps its own operator-facing reason (it names `VIDEO_FINISH_URL`, because here the reader IS the
+  operator), and the KEYS it reports now match the hosted panel exactly.
+- `score` leaves the unavailable set. Bed generation does not need the video-finish tier on either
+  panel: the score module produces the bed locally and the film path never calls the hook at all
+  (the bed is attached before submit as `job.audio_key`). Only the MUX needs the container. Keeping
+  `score` here would grey out a generator that works, which is cf#98's defect pointed the other way.
+- The set is now `capability:video-finish` plus `master`, `film.finish`, `notify`. The capability key
+  names the TIER; the colon namespace keeps it from ever colliding with a hook name (hooks use dots).
+- The two mux buttons declare the capability instead of `score` (supersedes the declaration in the
+  cf#118 parity entry below). Same behaviour, honest reason.
+- **Deliberately NOT mirrored:** the hosted twin also carries a three-state resolver for the cp#112
+  population (tenants provisioned before the tier existed, whom no operator action can reach). That
+  state cannot occur here -- the reader owns the knob -- so shipping it would be cargo. Recorded in
+  the module header so the next porter does not "fix" the gap.
+
+### feat(planner): declare what a control NEEDS versus what it cannot DELIVER (cf#234 parity)
+
+- Ported verbatim from vivijure-cf: `public/hook-availability.js`, `public/planner-render-config.js`
+  and `public/planner-history-row.js` were proven BYTE-IDENTICAL across both panels before the port,
+  so the twin is a copy rather than a re-implementation.
+- `data-hook-advisory="<key>"`: the control RUNS, its product cannot be delivered here. Noted, never
+  disabled, never dimmed. The music and narration bed blocks declare it.
+- `data-hook-scope="container"`: a required declaration on a SECTION, disabling its fields and
+  stating the reason ONCE. `renderModuleSection` tags each projected section with the hook it was
+  rendered under, so `master` / `film.finish` / anything future gates generically.
+- The notification TOGGLE stays ungated (browser Notification API, works with no tier); a guard test
+  forbids a `data-hook` on it.
+- Evidence: parity + gate + declaration suites green, and the parity guard was failed on purpose
+  (score folded back into the set fails both the set assertion and the cf#229 parity assertion). The
+  live local studio was checked with curl: it emits the four keys with THIS panel's reason string,
+  and the served planner carries the advisory declarations. The gate's rendered behaviour was
+  browser-verified on vivijure-cf against the byte-identical asset.
+
 ### fix(planner): gate the audio-mux controls on the hook they drive (cf#118 parity)
 
 - Ported verbatim from vivijure-cf (the changed region was proven identical across both panels
