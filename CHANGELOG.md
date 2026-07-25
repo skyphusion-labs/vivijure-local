@@ -7,6 +7,13 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## v1.2.2 -- 2026-07-25
 
+### fix(ci): drop the Actions-cache export from the finish-rife-serve bake (#227)
+
+- The v1.2.1 finish-rife job BUILT successfully, then died exporting the ~60GB CUDA overlay into
+  the 10GB Actions cache (`not_found`), leaving `vivijure-local-finish-rife` the only unpublished
+  image of the ten. `cache-to` dropped from that job only; warm-bake reuse comes from GHCR layers.
+  This tag is the retry that publishes the tenth image.
+
 ### fix(planner): the host reports hooks it cannot serve (vivijure-cf#98 parity)
 
 - `GET /api/modules` emits `host.hooks_unavailable` (core 1.2.14) naming any hook this studio cannot
