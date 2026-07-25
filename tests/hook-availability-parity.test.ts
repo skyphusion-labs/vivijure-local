@@ -21,6 +21,7 @@ import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { buildVpcHostBindings } from "../src/platform/vpc-transport.js";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 let dir: string;
@@ -47,6 +48,11 @@ function platformWith(vars: Record<string, string>): Platform {
     secrets: new EnvSecretStore({}),
     modules: new NoModules(),
     vars: { AUTH_MODE: "token", STUDIO_API_TOKEN: SECRET, ...vars },
+    // Built the way BOOT builds it: server.ts calls applyRuntimeEnvToPlatform, which sets
+    // hostBindings from the runtime env (VIDEO_FINISH_URL -> the video-finish fetcher). A fixture
+    // that only set `vars` would leave hostBindings undefined and make every studio look like it
+    // lacks the tier -- which is exactly the over-claim the cf#118 check must not make.
+    hostBindings: buildVpcHostBindings(vars as NodeJS.ProcessEnv),
   } as unknown as Platform;
 }
 
@@ -65,6 +71,18 @@ const GATEWAY_CONFIGURED = {
   CF_AIG_TOKEN: "tok",
 };
 
+/**
+ * "Serves everything" grew a second requirement in cf#118: a studio that cannot reach the
+ * video-finish container cannot deliver score / master / film.finish / notify. VIDEO_FINISH_URL is
+ * how this panel configures that tier (vpc-transport synthesizes the fetcher from it), so the
+ * omission test has to configure it -- otherwise it stops asserting "the block is OMITTED" and
+ * quietly becomes an assertion that the video-finish report does not exist.
+ */
+const FULLY_CONFIGURED = {
+  ...GATEWAY_CONFIGURED,
+  VIDEO_FINISH_URL: "http://video-finish:8080",
+};
+
 afterEach(() => {
   _resetModuleDiscoveryCache();
   if (dir) rmSync(dir, { recursive: true, force: true });
@@ -76,9 +94,23 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
     expect(host?.hooks_unavailable?.["plan.enhance"]).toBe(PLANNER_UNAVAILABLE_REASON);
   });
 
-  it("OMITS the block when the gateway IS configured -- absence means available", async () => {
-    const host = await hostOf(GATEWAY_CONFIGURED);
+  it("OMITS the block when EVERY tier is configured -- absence means available", async () => {
+    const host = await hostOf(FULLY_CONFIGURED);
     expect(host?.hooks_unavailable).toBeUndefined();
+  });
+
+  it("reports the VIDEO-FINISH hooks when only that tier is missing (cf#118)", async () => {
+    // The gateway is configured, so plan.enhance is fine and anything reported here can ONLY have
+    // come from the video-finish gate -- which is what makes this a test of that gate rather than a
+    // test that something, somewhere, is unavailable.
+    const host = await hostOf(GATEWAY_CONFIGURED);
+    expect(Object.keys(host?.hooks_unavailable ?? {}).sort()).toEqual([
+      "film.finish",
+      "master",
+      "notify",
+      "score",
+    ]);
+    expect(host?.hooks_unavailable?.["plan.enhance"]).toBeUndefined();
   });
 
   it("a PARTIAL gateway config still reports unavailable", async () => {
