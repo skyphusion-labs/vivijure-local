@@ -16,6 +16,7 @@ import type {
   SpeechOutput,
 } from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
+import { untrustedLabel } from "../../log-scrub.js";
 import { buildSilentWav } from "../../dev/minimal-media.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import { aiRun } from "../../platform/ai-run.js";
@@ -566,15 +567,28 @@ export async function invokeNotifyEmail(
   // record a completion email the user never receives). A real send (postern / CF Email / SMTP) is a separate
   // feature; until then the honest output is "nothing delivered". The log below keeps the content visible to
   // the operator running the stub.
+  // cf#223: this line used to print the RECIPIENT ADDRESS, the SUBJECT and 200 characters of the
+  // body -- which is to say an email address plus the film and project names the customer chose. It
+  // is a deliberate exception to "log lines carry no content" (the stub has no transport, so the log
+  // IS the delivery) and that made it the single largest content leak in this panel.
+  //
+  // The resolution keeps both properties instead of trading one away: content-free BY DEFAULT, and
+  // the operator of a self-hosted box can opt IN to seeing the message they are not otherwise able
+  // to read. Opt-in rather than opt-out because the default is what a hosted deploy and an
+  // unattended box both get, and a default that leaks is not a default anybody chose.
+  const showStubContent = String(process.env.VIVIJURE_LOG_STUB_EMAIL ?? "").trim() === "true";
   console.log(
     JSON.stringify({
       event: "notify-email",
-      note: "local stub: logged only, not delivered",
-      to,
+      note: showStubContent
+        ? "local stub: logged only, not delivered"
+        : "local stub: logged only, not delivered (content hidden; set VIVIJURE_LOG_STUB_EMAIL=true to print it)",
+      to_label: untrustedLabel(to),
       from: FROM.email,
-      subject,
-      text_preview: text.slice(0, 200),
+      subject_length: subject.length,
+      text_length: text.length,
       html_length: html.length,
+      ...(showStubContent ? { to, subject, text_preview: text.slice(0, 200) } : {}),
     }),
   );
   return { ok: true, output: { delivered: [] } };

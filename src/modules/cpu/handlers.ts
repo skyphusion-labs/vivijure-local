@@ -1,6 +1,8 @@
 // CPU module invoke/poll handlers (ported from vivijure module workers).
 
 import type { BeatSyncOutput } from "@skyphusion-labs/vivijure-core";
+// cf#223: film_key is an OBJECT KEY, and an object key carries the project name.
+import { keyLabel } from "../../log-scrub.js";
 import type {
   FilmFinishInput,
   FilmFinishOutput,
@@ -156,7 +158,7 @@ function titlesPassthroughInvoke(
   degraded = false,
 ): InvokeResponse<FilmFinishOutput> {
   const output = titlesPassthrough(input, reason, { degraded });
-  if (degraded) console.warn(`film-titles: passthrough (${reason}) film=${input.film_key}`);
+  if (degraded) console.warn(`film-titles: passthrough (${reason}) film=${keyLabel(input.film_key)}`);
   return { ok: true, output };
 }
 
@@ -295,7 +297,7 @@ function subtitlePassthroughInvoke(
   degraded = false,
 ): InvokeResponse<FilmFinishOutput> {
   const output = subtitlePassthrough(input, reason, { degraded });
-  if (degraded) console.warn(`subtitle: passthrough (${reason}) film=${input.film_key}`);
+  if (degraded) console.warn(`subtitle: passthrough (${reason}) film=${keyLabel(input.film_key)}`);
   return { ok: true, output };
 }
 
