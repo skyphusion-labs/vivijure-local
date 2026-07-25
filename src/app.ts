@@ -28,6 +28,7 @@ import { registerM13Routes } from "./routes/m13-render-history.js";
 import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
 import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 import { resolveStudioPage } from "./studio-pages.js";
+import { videoFinishHooksUnavailable } from "./video-finish-availability.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export const repoRoot = join(__dirname, "..");
@@ -62,13 +63,26 @@ export function createApp(host: SettingsHost): Hono {
     // cf#98 parity: installed is not servable. A studio with the plan.enhance module installed but
     // no AI Gateway configured would otherwise serve a full planning-model picker whose every option
     // fails at hPlan -- the local#201 broken-button class. Absent key means available.
-    const hooksUnavailable = aiGatewayConfigured(env as Parameters<typeof aiGatewayConfigured>[0])
-      ? undefined
-      : { "plan.enhance": PLANNER_UNAVAILABLE_REASON };
+    // cf#118 parity: the video-finish tier is the second capability a host can genuinely lack, and
+    // it rides the SAME channel rather than growing a parallel one. Merged, so a studio missing both
+    // the gateway and the container reports both.
+    const hooksUnavailable = {
+      ...(aiGatewayConfigured(env as Parameters<typeof aiGatewayConfigured>[0])
+        ? {}
+        : { "plan.enhance": PLANNER_UNAVAILABLE_REASON }),
+      // ASK THE PLATFORM, not the module env. moduleEnvFromPlatform deliberately does NOT copy
+      // platform.hostBindings (only orchestratorContextFromPlatform does), so reading
+      // env.VIDEO_FINISH_VPC here is always undefined and would report the tier missing on a
+      // studio that has it running -- over-claiming, the failure direction that hides working
+      // capability. hostBindings is where reload.ts puts the fetcher it builds from
+      // VIDEO_FINISH_URL, so it is the authoritative answer to "can this host reach the tier".
+      ...videoFinishHooksUnavailable({ VIDEO_FINISH_VPC: platform.hostBindings?.VIDEO_FINISH_VPC }),
+    };
+    const anyHookUnavailable = Object.keys(hooksUnavailable).length > 0;
     return c.json(
       modulesResponse(modules, renderConfigProjection(), {
         dispatch: false,
-        ...(hooksUnavailable ? { hooks_unavailable: hooksUnavailable } : {}),
+        ...(anyHookUnavailable ? { hooks_unavailable: hooksUnavailable } : {}),
         ...(isDemoMode(authEnv()) ? { readonly: true } : {}),
       }),
     );
