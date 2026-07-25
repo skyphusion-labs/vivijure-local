@@ -12,10 +12,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 - `GET /api/modules` emits `host.hooks_unavailable` (core 1.2.14) naming any hook this studio cannot
   serve. First entry: `plan.enhance`, when the AI Gateway is not configured. Absent key means
   available; the block is omitted when everything is serviceable.
-- **Parity is the feature with an honest answer per host, not identical bytes.** The reason string's
-  reader-facing half matches vivijure-cf exactly; its parenthetical names THIS host's knobs
-  (`CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`) because a self-host studio has no Workers
-  `AI` binding to set.
+- **Parity is the feature with an honest answer per host, not identical bytes.** BOTH halves of the
+  reason string differ from vivijure-cf's, for the same reason: the reader is a different person. The
+  knobs are this host's (`CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`), and the ACTION is
+  given directly ("Set ... to enable it") because on a self-host door the reader IS the operator --
+  cf's "ask whoever operates this studio" is right for a hosted tenant and would tell a homelabber to
+  go ask themselves.
 - A PARTIAL gateway config reports unavailable too -- two of three is not configured.
 - Core pin `^1.2.14`.
 
