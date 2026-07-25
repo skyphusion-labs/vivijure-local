@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.3.0 -- 2026-07-25
+
+MINOR: hooks truthfulness parity twin of vivijure-cf v1.9.0 (same window, per the parity promise).
+
 ### fix(hosted): name the capability that is absent, not four hooks that depend on it (cf#229 parity)
 
 - Same-window twin of vivijure-cf#241. PARITY IS THE SET AND THE BIAS, never the bytes: this panel
