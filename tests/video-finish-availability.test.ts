@@ -8,6 +8,9 @@
 // BOTH DIRECTIONS, per cf#98: a host with the container configured must report NOTHING, which is
 // the panel's positive control -- a negative-only suite over a capability that is absent everywhere
 // passes without proving anything.
+//
+// PARITY IS THE SET AND THE BIAS, NOT THE BYTES (local#226). The reason string is deliberately
+// different from the hosted panel's, so nothing here asserts cross-panel string identity.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -39,13 +42,22 @@ describe("videoFinishHooksUnavailable (self-host)", () => {
     expect(videoFinishHooksUnavailable({ VIDEO_FINISH_VPC: { fetch: async () => new Response("ok") } })).toEqual({});
   });
 
-  it("carries the reason VERBATIM, identical to the hosted panel", () => {
-    // The text IS the product here: it is printed unmodified to someone who may not be able to fix
-    // it. Pinned so a later tidy-up toward operator jargon cannot silently regress it, and pinned
-    // IDENTICALLY on both panels so a self-hoster and a tenant read the same sentence.
-    expect(VIDEO_FINISH_UNAVAILABLE_REASON).toBe(
-      "Video finishing is not yet provisioned for this studio; finished renders deliver as per-shot clips.",
-    );
+  it("the reason addresses THIS host's reader, with THIS host's knob (local#226)", () => {
+    // WHAT THIS TEST USED TO DO, and why it was wrong: it pinned the string IDENTICAL to the hosted
+    // panel's. That reads like parity and is the opposite of it -- local#226 exists precisely
+    // because the same hook needs a different sentence per host, and an identity pin would have
+    // FAILED the fix for the defect it was locking in. Parity is the hook SET and the
+    // absent-key-means-available bias, never the bytes.
+    //
+    // Knob: the self-host reader owns the machine, so name the thing they can actually set.
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).toMatch(/VIDEO_FINISH_URL/);
+    // Action: pinned ABSENT rather than merely unasserted. "Ask whoever operates this studio" is
+    // correct on the hosted door and tells a homelabber to go ask themselves.
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).not.toMatch(/Ask whoever/);
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).not.toMatch(/not yet provisioned/);
+    // ...and it still says what they DO get, so "unavailable" cannot read as "broken".
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).toMatch(/per-shot clips/);
+    // Every gated hook carries it, unmodified.
     for (const hook of VIDEO_FINISH_GATED_HOOKS) {
       expect(videoFinishHooksUnavailable({})[hook]).toBe(VIDEO_FINISH_UNAVAILABLE_REASON);
     }

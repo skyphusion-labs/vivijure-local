@@ -1,8 +1,11 @@
 // WHICH HOOKS DIE WHEN THE VIDEO-FINISH TIER IS ABSENT (cf#118).
 //
-// PARITY COPY of vivijure-cf/src/video-finish-availability.ts: same hook set, same reason string,
-// same absent-key-means-available bias. The panels share no runtime module, and this is a PROMISE to
-// the reader of the UI, so it is kept identical deliberately. Change one, change both, same window.
+// PARITY WITH vivijure-cf/src/video-finish-availability.ts, and parity means the SAME HOOK SET and
+// the SAME absent-key-means-available bias -- NOT the same bytes. The reason string deliberately
+// DIFFERS, because the reader differs: a hosted tenant cannot act on a binding they have no access
+// to, and a self-hoster can. That is the local#226 rule; the first version of this file ignored it
+// and shipped the tenant's wording to an operator. Change the SET on one panel, change both, same
+// window; change the STRING and only the panel whose reader changed.
 //
 // On THIS panel `VIDEO_FINISH_VPC` is not a Workers binding but the fetcher `vpc-transport.ts`
 // synthesizes when `VIDEO_FINISH_URL` is configured (the compose video-finish container). Same
@@ -46,12 +49,24 @@
 /**
  * The reason string, printed VERBATIM by the panel (cf#98 does not rewrite or soften it).
  *
- * Written for the person who will read it: a hosted TENANT, who cannot fix this and should not be
- * told to set a binding they have no access to. The action is "ask whoever runs this studio", and
- * the sentence also says what they DO get, because "unavailable" alone reads as broken.
+ * DIFFERENT FROM THE HOSTED PANEL'S, ON PURPOSE (local#226, and Joan caught me re-breaking it). The
+ * hosted string is written for a TENANT who cannot fix this and has no access to the binding, so it
+ * names no knob. Here the reader IS the operator: they own the machine, the knob is theirs, and a
+ * string that withholds it is the "go ask yourself" failure with the asking removed.
+ *
+ * It names VIDEO_FINISH_URL specifically because this is the one case where the local reader has a
+ * concrete, likely-diagnosable cause: `video-finish` is a DEFAULT service in the shipped compose
+ * stack and compose.yaml already sets the variable, so a studio reaching this line has most likely
+ * dropped or misconfigured a container it was given. "Not yet provisioned for this studio" would
+ * tell that person nothing at all.
+ *
+ * Both halves the hosted string gets right are kept: it says what they DO still get (so
+ * "unavailable" does not read as broken), and it stays generic about the panel.
  */
 export const VIDEO_FINISH_UNAVAILABLE_REASON =
-  "Video finishing is not yet provisioned for this studio; finished renders deliver as per-shot clips.";
+  "Video finishing is unavailable on this studio because the video-finish tier is not configured; " +
+  "finished renders deliver as per-shot clips. Set VIDEO_FINISH_URL (the video-finish container in " +
+  "the default compose stack) to enable it.";
 
 /** Hooks whose product cannot be delivered without the video-finish tier. See the header. */
 export const VIDEO_FINISH_GATED_HOOKS = ["score", "master", "film.finish", "notify"] as const;

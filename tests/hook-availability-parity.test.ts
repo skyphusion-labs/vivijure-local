@@ -22,6 +22,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildVpcHostBindings } from "../src/platform/vpc-transport.js";
+import { VIDEO_FINISH_UNAVAILABLE_REASON } from "../src/video-finish-availability.js";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 let dir: string;
@@ -133,5 +134,14 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
     expect(PLANNER_UNAVAILABLE_REASON).toMatch(/^Storyboard planning is unavailable/);
     expect(PLANNER_UNAVAILABLE_REASON).toMatch(/Set CLOUDFLARE_ACCOUNT_ID/);
     expect(PLANNER_UNAVAILABLE_REASON).not.toMatch(/Ask whoever/);
+  });
+
+  it("the SAME rule holds for the video-finish reason (cf#118, and it was broken once)", () => {
+    // Enforced HERE, in the file that owns the local#226 rule, and not only in the cf#118 test:
+    // the first cf#118 port shipped the hosted panel's tenant-facing wording to a self-host
+    // operator, and a rule that lives only next to its newest instance does not catch the next one.
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).toMatch(/VIDEO_FINISH_URL/);
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).not.toMatch(/Ask whoever/);
+    expect(VIDEO_FINISH_UNAVAILABLE_REASON).not.toMatch(/not yet provisioned/);
   });
 });
