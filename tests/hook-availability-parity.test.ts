@@ -22,7 +22,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildVpcHostBindings } from "../src/platform/vpc-transport.js";
-import { VIDEO_FINISH_UNAVAILABLE_REASON } from "../src/video-finish-availability.js";
+import {
+  VIDEO_FINISH_ADVISORY_HOOKS,
+  VIDEO_FINISH_CAPABILITY_KEY,
+  VIDEO_FINISH_GATED_HOOKS,
+  VIDEO_FINISH_UNAVAILABLE_REASON,
+} from "../src/video-finish-availability.js";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 let dir: string;
@@ -106,12 +111,35 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
     // test that something, somewhere, is unavailable.
     const host = await hostOf(GATEWAY_CONFIGURED);
     expect(Object.keys(host?.hooks_unavailable ?? {}).sort()).toEqual([
+      "capability:video-finish",
       "film.finish",
       "master",
       "notify",
-      "score",
     ]);
     expect(host?.hooks_unavailable?.["plan.enhance"]).toBeUndefined();
+  });
+
+  it("cf#229 parity: score is REPORTED SERVABLE, because bed generation works here too", async () => {
+    // THE PARITY THAT MATTERS IS THE SET AND THE BIAS, never the bytes. This studio has its own
+    // reason string (it names VIDEO_FINISH_URL, because the reader is the operator), but if the two
+    // panels disagreed about WHICH keys are unavailable, the same storyboard would light up
+    // differently on the two doors -- and one of them would be lying. cf#229 removed score from the
+    // hosted set because generation does not need the tier; the same is true here, so the same key
+    // must be absent here.
+    const host = await hostOf(GATEWAY_CONFIGURED);
+    const named = Object.keys(host?.hooks_unavailable ?? {});
+    for (const advisory of VIDEO_FINISH_ADVISORY_HOOKS) {
+      expect(named, advisory + " RUNS on a studio with no video-finish tier").not.toContain(advisory);
+    }
+    // ...and the capability that IS absent is named, so the mux controls still have an honest key.
+    expect(named).toContain(VIDEO_FINISH_CAPABILITY_KEY);
+  });
+
+  it("the capability key can never be mistaken for a hook name", () => {
+    expect(VIDEO_FINISH_CAPABILITY_KEY).toMatch(/^capability:/);
+    for (const hook of [...VIDEO_FINISH_GATED_HOOKS, ...VIDEO_FINISH_ADVISORY_HOOKS]) {
+      expect(hook).not.toContain(":");
+    }
   });
 
   it("a PARTIAL gateway config still reports unavailable", async () => {
