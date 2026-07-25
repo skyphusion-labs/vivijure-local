@@ -14,6 +14,7 @@ import {
   type LoraStatus,
 } from "@skyphusion-labs/vivijure-core/cast-db";
 import { isValidVoiceId } from "@skyphusion-labs/vivijure-core/voices";
+import { keyLabel, untrustedLabel } from "./log-scrub.js";
 import { emitTar, readTar } from "@skyphusion-labs/vivijure-core/tar";
 import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
 import { extFromMime } from "./utils.js";
@@ -148,8 +149,10 @@ export async function exportCastBundle(env: OrchestratorEnv, id: number): Promis
   for (const e of planned) {
     const head = await env.R2_RENDERS.head(e.r2Key);
     if (!head) {
+      // cf#223: key LABEL, not the key. A cast artifact key is id-derived today; the same helper
+      // is used everywhere so a future key that carries a name cannot quietly start leaking.
       console.warn(
-        `cast ${id} export: artifact ${e.r2Key} (${e.path}) missing from R2 -- dropped from bundle`,
+        `cast ${id} export: artifact ${keyLabel(e.r2Key)} missing from R2 -- dropped from bundle`,
       );
       continue;
     }
@@ -164,7 +167,7 @@ export async function exportCastBundle(env: OrchestratorEnv, id: number): Promis
   for (const e of present) {
     const obj = await env.R2_RENDERS.get(e.r2Key);
     if (!obj) {
-      console.warn(`cast ${id} export: artifact ${e.r2Key} vanished before read -- skipped`);
+      console.warn(`cast ${id} export: artifact ${keyLabel(e.r2Key)} vanished before read -- skipped`);
       continue;
     }
     const bytes = new Uint8Array(await obj.arrayBuffer());
@@ -355,8 +358,10 @@ async function importInner(env: OrchestratorEnv, body: Uint8Array): Promise<Resp
   if (manifest.cast.voice_id && isValidVoiceId(manifest.cast.voice_id)) {
     await updateCast(env, id, { voice_id: manifest.cast.voice_id });
   } else if (manifest.cast.voice_id) {
+    // cf#223: the value came out of an IMPORTED BUNDLE, so "it is an id by contract" is not a
+    // property of this string -- an uploaded manifest can put anything here. Label and length only.
     console.warn(
-      `cast import ${id}: bundle voice_id "${manifest.cast.voice_id}" unknown on this instance -- dropped`,
+      `cast import ${id}: bundle voice_id ${untrustedLabel(manifest.cast.voice_id)} unknown on this instance -- dropped`,
     );
   }
 
