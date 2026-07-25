@@ -270,9 +270,17 @@ Same variables as upstream `vivijure`.
 
 ## GPU backends: mock vs real
 
-**Default (demo path):** compose runs `scripts/gpu-mock-module-server.ts` for `keyframe` and
-`local-gpu`. Mocks write minimal PNG/MP4 artifacts to MinIO so the full orchestrator path runs
-without a GPU.
+**Default (demo path):** compose runs `scripts/runpod-module-server.ts` for `keyframe` and
+`scripts/local-gpu-module-server.ts` for `local-gpu`; each falls back to the GPU mock when its
+credentials are absent. Mocks write minimal PNG/MP4 artifacts to MinIO so the full orchestrator path
+runs without a GPU.
+
+**The keyframe mock is a DEV affordance, not a user-facing tier (local#223).** With no RunPod
+credentials the `keyframe` sidecar reports `configured:false` on `/module.json`, so the panel hides
+it rather than advertising "GPU Keyframe (SDXL on RunPod)" and serving mock frames. The mock still
+answers `/invoke` on the sidecar port for direct dev use; it is simply unreachable through the
+panel. Keyframes on a no-RunPod install come from `local-gpu` (your own card) or the cloud keyframe
+door.
 
 **Real own-GPU:** run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
 or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) on your host.

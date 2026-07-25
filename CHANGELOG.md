@@ -21,7 +21,30 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 - A PARTIAL gateway config reports unavailable too -- two of three is not configured.
 - Core pin `^1.2.14`.
 
-## Unreleased
+### fix(modules): the keyframe module hides itself when RunPod is unconfigured (local#223)
+
+- A bare no-RunPod homelab was offered **"GPU Keyframe (SDXL on RunPod)"** and silently served dev
+  MOCK output. It did not fail, which is worse than the broken button local#201 removed: a silent
+  substitution reads as a successful render.
+- Root cause was the COMPOSITION, not either app. The keyframe sidecar routed every path
+  (`app.all("*")`) to the mock when RunPod was unconfigured, including `/module.json`; the mock
+  serves the raw manifest, so `configured` was ABSENT, and absent means "always keep" at the
+  registry choke point. The one module that falls back to a mock was the one module the
+  configured-filter could not see.
+- Fix (cf#224 gate 3, HIDE -- no relabel, no mock output to users): `/module.json` is now always
+  served by the RunPod app, so `configured` is honest and an uncredentialed keyframe module is
+  dropped exactly like every other RunPod module. Only non-manifest paths still fall back to the
+  mock, so it stays reachable as a direct dev affordance and unreachable through the panel.
+- The composition moved out of `scripts/runpod-module-server.ts` into
+  `src/modules/runpod/keyframe-sidecar.ts` so the tests drive the SHIPPED app rather than a
+  re-implementation of its routing; both branches now read `configured` through the same predicate,
+  so manifest honesty and routing cannot drift apart. Sidecar boot log says both halves.
+- **Parity note (asymmetric by fact, not by exception):** vivijure-cf has no keyframe mock and no
+  configured-filter -- its keyframe module is RunPod-backed and configured, so there is nothing to
+  hide there. This is a local-panel change with no cf counterpart.
+- Keyframes on a no-RunPod homelab remain available through `local-gpu` (your own card) and the
+  cloud keyframe door; `keyframeLabel()` already projects from the registry, so the planner copy
+  follows whichever provider is actually serving.
 
 ## v1.2.1 -- 2026-07-25
 
