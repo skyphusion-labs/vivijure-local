@@ -201,7 +201,11 @@ jobs:
     name: finish-rife-serve
     # PR + main smoke builds stay on GitHub-hosted; only v* publish runs on org GPU runners.
     runs-on: ${{ (github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')) && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
-    timeout-minutes: 45
+    # 90, not 45: the uncached first bake of this CUDA overlay ran 45.3 and ~46 min into the v1.2.0
+    # tag run's 45-minute budget and was killed by THIS timeout both times (reads as "cancelled" in
+    # the UI, which cost a runner-defect investigation before anyone checked here). GHCR layer reuse
+    # should bring later bakes down, but the budget must fit the cold case.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
         with:

@@ -21,6 +21,17 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.2.1 -- 2026-07-25
+
+PATCH (CI/release class, no runtime change): completes the v1.2.0 image set.
+
+- **fix(ci):** `finish-rife-serve` bake `timeout-minutes` 45 -> 90 (cf#215). The uncached first
+  bake of the RIFE CUDA overlay ran 45.3 and ~46 minutes into the v1.2.0 tag run's 45-minute
+  budget and was killed by the job's own timeout both times; GitHub reports that as "cancelled",
+  which read as a runner defect until the timeout was checked. The
+  `vivijure-local-finish-rife-serve` GHCR package therefore did not exist through v1.2.0; this
+  tag's bake publishes it for the first time.
+
 ## v1.2.0 -- 2026-07-24
 
 MINOR: **epic #200 -- vivijure-local runs without RunPod** lands as the primary path. RunPod
