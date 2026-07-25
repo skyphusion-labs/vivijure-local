@@ -5,6 +5,20 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## Unreleased
+
+### fix(planner): gate the audio-mux controls on the hook they drive (cf#118 parity)
+
+- Ported verbatim from vivijure-cf (the changed region was proven identical across both panels
+  before porting, not assumed).
+- "add audio" and "narrate" both end in the video-finish container, and the panel rendered them
+  unconditionally, so on a studio without that tier clicking was the only way to find out. Both
+  now declare `data-hook="score"` and the cf#98 gate disables them with the host reason verbatim.
+- **The gate was INERT for every dynamically-built control**: `hook-availability.js` applies on
+  load and DOMContentLoaded only, and every history row is built after that. `renderHistoryList`
+  now re-applies it over the rows it just built. Proven load-bearing by removing only the
+  re-apply and watching both buttons stay clickable.
+
 ## v1.2.2 -- 2026-07-25
 
 ### fix(ci): drop the Actions-cache export from the finish-rife-serve bake (#227)
@@ -53,17 +67,23 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   cloud keyframe door; `keyframeLabel()` already projects from the registry, so the planner copy
   follows whichever provider is actually serving.
 
-### fix(planner): gate the audio-mux controls on the hook they drive (cf#118 parity)
+### fix(planner): the panel discloses a finishing degrade instead of a green "completed" (cf#118)
 
-- Ported verbatim from vivijure-cf (the changed region was proven identical across both panels
-  before porting, not assumed).
-- "add audio" and "narrate" both end in the video-finish container, and the panel rendered them
-  unconditionally, so on a studio without that tier clicking was the only way to find out. Both
-  now declare `data-hook="score"` and the cf#98 gate disables them with the host reason verbatim.
-- **The gate was INERT for every dynamically-built control**: `hook-availability.js` applies on
-  load and DOMContentLoaded only, and every history row is built after that. `renderHistoryList`
-  now re-applies it over the rows it just built. Proven load-bearing by removing only the
-  re-apply and watching both buttons stay clickable.
+- Ported VERBATIM from vivijure-cf in the same window; `finalizeRenderPoll` was byte-identical
+  across both panels, so this is one change in two repos rather than two implementations.
+- When the video-finish tier is unavailable the orchestrator degrades honestly (per-shot clips at
+  assemble, the silent film at mux, with a reason). The poll payload carried all of it
+  (`output.finish_unavailable` plus `output.clips`) and the panel dropped it: the render read
+  `completed`, in green, with the fact buried in a JSON blob.
+- The panel now reads `completed with limits`, states structurally what was handed over, prints the
+  studio reason **VERBATIM**, and lists the delivered per-shot clips as real download links.
+- **Correctness, not cosmetics: the stale download link is fixed.** The assemble degrade leaves
+  `output_key` UNDEFINED, and the old completed-branch only ASSIGNED the anchors, never reset them,
+  so a degraded render following a good one in the same session left "download silent MP4" pointing
+  at the PREVIOUS render. Reproduced in a real browser on the pre-fix asset, then re-run against
+  the fix.
+- New `public/finish-degrade.js`: pure, DOM-free, unit-tested under Node. Junk resolves to "no
+  degrade", never to a scary banner on a render that is fine.
 
 ## v1.2.1 -- 2026-07-25
 
