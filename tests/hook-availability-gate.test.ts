@@ -182,6 +182,20 @@ describe("cf#229: ADVISORY states the limit and disables NOTHING", () => {
     expect(note?.textContent).toBe(REASON);
   });
 
+  it("the advisory note obeys THIS panel's reader properties, never a pinned sentence", async () => {
+    // The MIRROR of the hosted guard, and deliberately the opposite in one place: here the reader
+    // IS the operator, so naming their knob is correct and withholding it is the defect (local#226).
+    // Properties, never the sentence: the copy can be rewritten, the reader cannot.
+    const { get } = await runGate(UNAVAILABLE);
+    const note = get("music-block").nextElementSibling;
+    expect(note?.className).toBe("hook-advisory-note");
+    const text = String(note?.textContent ?? "");
+    expect(text.trim().length, "an advisory that says nothing is not a disclosure").toBeGreaterThan(0);
+    expect(text, "this panel's reader owns the knob; name it").toMatch(/VIDEO_FINISH_URL/);
+    expect(text, "and never send a homelabber to ask themselves").not.toMatch(/Ask whoever/);
+    expect(text).toMatch(/clips/);
+  });
+
   it("a REQUIRED declaration on the same capability still disables", async () => {
     // The pair that proves the distinction is real: same key, same map, opposite outcome, decided
     // only by which relationship the control declared.
