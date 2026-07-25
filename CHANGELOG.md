@@ -5,7 +5,7 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
-## Unreleased
+## v1.2.2 -- 2026-07-25
 
 ### fix(planner): the host reports hooks it cannot serve (vivijure-cf#98 parity)
 
