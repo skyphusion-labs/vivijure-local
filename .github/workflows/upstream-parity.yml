@@ -37,7 +37,7 @@ jobs:
         working-directory: vivijure-local
         run: bash scripts/upstream-public-parity.sh .upstream/vivijure
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
 
