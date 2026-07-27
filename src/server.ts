@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { join } from "node:path";
 import { sweepUnresolvedJobs } from "@skyphusion-labs/vivijure-core/render-sweep";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
+import { meteredObjectStore } from "@skyphusion-labs/vivijure-core/storage-quota";
 import { createApp, repoRoot } from "./app.js";
 import {
   createModuleTransport,
@@ -47,7 +48,11 @@ export async function buildStudio(): Promise<StudioBoot> {
 
   const platform: Platform = {
     db,
-    renders: storage.renders,
+    // core#52: every artifact write in this studio goes through platform.renders, so wrapping it here
+    // (and in applyRuntimeEnvToPlatform, which rebuilds it on a settings reload) is the single seam that
+    // keeps the storage ledger current without touching every call site. The wrap is idempotent, so the
+    // boot wrap and the reload wrap cannot stack into double counting.
+    renders: meteredObjectStore(storage.renders, db),
     chatBucket: storage.chatBucket,
     presigner: storage.presigner,
     secrets: new RuntimeSecretStore(runtime),
@@ -71,6 +76,8 @@ export async function buildStudio(): Promise<StudioBoot> {
       MUSETALK_RUNPOD_ENDPOINT_ID: runtime.get("MUSETALK_RUNPOD_ENDPOINT_ID"),
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID"),
       STORAGE_BACKEND: storage.backend,
+      // core#52 storage ceiling in BYTES. Unset / "0" / non-integer = OFF.
+      R2_STORAGE_QUOTA_BYTES: runtime.get("R2_STORAGE_QUOTA_BYTES"),
     },
   };
 

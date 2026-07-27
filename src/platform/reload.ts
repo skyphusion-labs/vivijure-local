@@ -6,6 +6,7 @@ import { createStorage } from "./create-storage.js";
 import { RuntimeSecretStore } from "./runtime-secrets.js";
 import type { RuntimeEnv } from "./runtime-env.js";
 import { buildVpcHostBindings } from "./vpc-transport.js";
+import { meteredObjectStore } from "@skyphusion-labs/vivijure-core/storage-quota";
 
 export interface PlatformReloadResult {
   restart_recommended: boolean;
@@ -24,7 +25,10 @@ export function applyRuntimeEnvToPlatform(
     token: runtime.get("STUDIO_API_TOKEN"),
   });
 
-  platform.renders = storage.renders;
+  // core#52: a settings reload REBUILDS the store, so the metering wrapper has to be re-applied here or
+  // the storage ledger silently stops updating the moment an operator saves connection settings. Same
+  // idempotent wrapper as the boot seam in server.ts.
+  platform.renders = meteredObjectStore(storage.renders, platform.db);
   platform.chatBucket = storage.chatBucket;
   platform.presigner = storage.presigner;
   platform.modules = createModuleTransport(env);
@@ -49,6 +53,7 @@ export function applyRuntimeEnvToPlatform(
     MUSETALK_RUNPOD_ENDPOINT_ID: runtime.get("MUSETALK_RUNPOD_ENDPOINT_ID"),
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID"),
     STORAGE_BACKEND: storage.backend,
+    R2_STORAGE_QUOTA_BYTES: runtime.get("R2_STORAGE_QUOTA_BYTES"),
   };
 
   platform.hostBindings = buildVpcHostBindings(env);

@@ -7,6 +7,41 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.5.0
+
+MINOR: the storage ceiling (vivijure-core#52). Twin: vivijure-cf v1.11.0 and vivijure-core v1.3.0, one
+release wave, per the parity promise. The knob, the accounting and the reconcile all live in core; this
+panel wires them, so the self-host door gets the identical feature in the identical release rather than
+a hosted-only knob it never sees.
+
+### feat(quota): R2_STORAGE_QUOTA_BYTES, accounted at write time in SQLite
+
+- **`R2_STORAGE_QUOTA_BYTES`** -- unset / `0` / non-integer = OFF (a no-op that never touches the
+  database). A positive integer = a byte ceiling enforced at SUBMIT with an honest **507** carrying the
+  real numbers (`N bytes stored of the M-byte ceiling`). Reads, deletes, the planner and chat keep
+  working, so the operator can go delete something. A ceiling that is SET but cannot be checked denies
+  **503** (fail closed).
+- **Usage is accounted at write time in SQLite** (migration `0014_storage_usage.sql`, carrying core's
+  `STORAGE_USAGE_DDL` verbatim), never read from an S3/MinIO usage API. The ledger is keyed on the
+  object key, so a job doc rewritten on every advance tick updates one row instead of climbing to the
+  ceiling on control docs alone.
+- **Two seams, both idempotent:** `server.ts` meters the store at boot, and
+  `applyRuntimeEnvToPlatform` re-meters the store it REBUILDS on a settings save. Without the second
+  one, accounting would silently stop the first time an operator saved connection settings.
+- **Operator surface:** `GET /api/storage/usage` and `POST /api/storage/reconcile`. The reconcile
+  rebuilds the ledger from the store and is both the one-time backfill for a studio that predates
+  accounting (artifact sizes are not derivable from the DB, so the counter starts at 0) and the repair
+  for drift from an out-of-band delete.
+
+### fix(storage): a full-store list no longer returns a different spelling of every key
+
+- `FilesystemObjectStore.list("")` always prepended a separator, so listing the WHOLE store returned
+  `/renders/a.mp4` for an object written as `renders/a.mp4`. Any key-indexed consumer would hold rows a
+  later delete could never match and drift forever. Found while wiring the storage reconcile, which is
+  the first caller to pass an empty prefix; fixed and covered by a test asserting a reconciled key is
+  the same key the write path uses.
+
+
 ## v1.4.0 -- 2026-07-26
 
 MINOR: the abuse-report link twin (local#242 / control-plane#130). Twin: vivijure-cf v1.10.0 (same window, per the parity promise).

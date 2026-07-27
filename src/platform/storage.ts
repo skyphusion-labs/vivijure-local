@@ -119,7 +119,13 @@ export class FilesystemObjectStore implements ObjectStore {
         const relKey = rel ? `${rel}/${ent.name}` : ent.name;
         if (ent.isDirectory()) await walk(p, relKey);
         else {
-          const fullKey = (prefix.endsWith("/") ? prefix : prefix + "/") + relKey;
+          // An EMPTY prefix means "the whole store", and it must return keys spelled exactly as they
+          // were written ("renders/a.mp4"), not with a leading slash. The old form always prepended a
+          // separator, so a full-store list handed back "/renders/a.mp4": a different spelling of the
+          // same object, which makes any key-indexed consumer (the core#52 storage ledger) hold rows a
+          // later delete can never match, and drift high forever. Found while wiring the storage
+          // reconcile, which is the first caller to pass an empty prefix.
+          const fullKey = prefix ? (prefix.endsWith("/") ? prefix : prefix + "/") + relKey : relKey;
           keys.push(fullKey.replace(/\/+/g, "/"));
         }
       }
