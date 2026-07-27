@@ -437,6 +437,19 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "restart",
   },
   {
+    // control-plane#130 twin. The LOCAL half of the abuse-report link, and the entry exists because
+    // on this panel the reader IS the operator: publishing a contact for your own studio is a thing
+    // you can actually do, so the knob belongs where you can find it. Unset means the panel shows no
+    // link at all, which is correct rather than a gap -- this bundle ships no provider address to
+    // fall back to, deliberately.
+    key: "ABUSE_REPORT_URL",
+    label: "Abuse report URL",
+    blurb: "Where reports about content made on THIS studio should go (absolute http(s) URL). Unset means no link.",
+    category: "media",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
     key: "VIDEO_FINISH_URL",
     label: "Video finish service",
     blurb: "CPU container for concat / finish / inspect.",
