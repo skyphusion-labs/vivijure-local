@@ -1,7 +1,15 @@
 # syntax=docker/dockerfile:1
-# Pinned to 3.11: rembg -> pymatting -> numba supports only >=3.10,<3.14, and the
-# numba-cache warm step below hardcodes the python3.11 site-packages path. Do NOT bump past 3.13.
-FROM python:3.14-slim-bookworm
+# PINNED TO 3.11, AND THE PIN IS ENFORCED IN .github/dependabot.yml, NOT HERE.
+#
+# rembg -> pymatting -> numba supports only >=3.10,<3.14, and the numba-cache warm step below
+# hardcodes the python3.11 site-packages path. Two independent reasons this cannot move.
+#
+# This comment used to say "Do NOT bump past 3.13" and that was not enough: dependabot does not read
+# prose. PR #243 bumped it to 3.14 inside a grouped "docker-images" update, the tag bake failed on
+# the hardcoded site-packages path, and the PR check set was green because the container jobs skip
+# on pull_request. A constraint a tool cannot see is a wish, so the real guard is now an `ignore`
+# rule in dependabot.yml. Change that if this ever legitimately moves.
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
