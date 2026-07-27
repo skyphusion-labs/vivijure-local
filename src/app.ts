@@ -13,6 +13,14 @@ import { isDemoMode } from "./auth-gate.js";
 import { abuseReportUrl } from "./abuse-contact.js";
 import { discoverConfiguredModules } from "./module-registry.js";
 import { modulesResponse } from "@skyphusion-labs/vivijure-core";
+import {
+  checkStorageQuota,
+  isStorageSubmitRoute,
+  reconcileStorageUsage,
+  storageQuotaBytes,
+  storageUsage,
+} from "@skyphusion-labs/vivijure-core/storage-quota";
+import { wrapR2Bucket } from "@skyphusion-labs/vivijure-core/platform";
 import type { Platform } from "./platform/index.js";
 import { moduleEnvFromPlatform } from "./platform/module-env.js";
 import { aiGatewayConfigured, PLANNER_UNAVAILABLE_REASON } from "./platform/ai-gateway.js";
@@ -56,7 +64,46 @@ export function createApp(host: SettingsHost): Hono {
     await next();
   });
 
+  // core#52 (vivijure-cf twin): the storage ceiling. Enforced at SUBMIT, before the spend, on the routes
+  // whose product is stored bytes -- so an over-quota studio is denied honestly with the real numbers
+  // instead of discovering it halfway through a film. Reads, deletes, the planner and chat keep working,
+  // so the operator can go delete something. Registered AFTER the auth gate: an unauthenticated request
+  // must never reach the ledger. The gated route list lives in core, so both panels gate the same
+  // surface; R2_STORAGE_QUOTA_BYTES unset means this is a pure no-op that never touches the database.
+  app.use("/api/*", async (c, next) => {
+    if (isStorageSubmitRoute(c.req.method, new URL(c.req.url).pathname)) {
+      const verdict = await checkStorageQuota({
+        DB: platform.db,
+        R2_STORAGE_QUOTA_BYTES: platform.vars.R2_STORAGE_QUOTA_BYTES,
+      });
+      if (!verdict.ok) return c.json({ error: verdict.message }, verdict.status as 503 | 507);
+    }
+    await next();
+  });
+
   app.get("/api/whoami", (c) => c.json({ user: "studio" }));
+
+  // core#52 operator surface (vivijure-cf twin). GET reports what the ledger says; POST rebuilds it from
+  // the store, which is both the one-time backfill for a studio that predates accounting (artifact sizes
+  // are not derivable from the DB, so the counter starts at 0) and the repair for drift from an
+  // out-of-band delete or a failed ledger write.
+  app.get("/api/storage/usage", async (c) => {
+    const quotaBytes = storageQuotaBytes({ R2_STORAGE_QUOTA_BYTES: platform.vars.R2_STORAGE_QUOTA_BYTES });
+    const { usedBytes, objects } = await storageUsage(platform.db);
+    return c.json({
+      used_bytes: usedBytes,
+      objects,
+      quota_bytes: quotaBytes,
+      over: quotaBytes !== null && usedBytes >= quotaBytes,
+    });
+  });
+
+  app.post("/api/storage/reconcile", async (c) => {
+    const report = await reconcileStorageUsage(wrapR2Bucket(platform.renders), platform.db);
+    // `unsized` counts objects the store would not report a size for: accounted as 0 and reported
+    // honestly rather than folded into the total as a guess.
+    return c.json({ objects: report.objects, bytes: report.bytes, unsized: report.unsized });
+  });
 
   app.get("/api/modules", async (c) => {
     const env = moduleEnvFromPlatform(platform);
