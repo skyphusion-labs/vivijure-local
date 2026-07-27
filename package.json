@@ -64,7 +64,7 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1090.0",
+    "@aws-sdk/client-s3": "^3.1095.0",
     "@hono/node-server": "^2.0.12",
     "@skyphusion-labs/vivijure-core": "^1.2.14",
     "@skyphusion-labs/vivijure-mcp": "^1.0.1",
@@ -75,7 +75,7 @@
     "sharp": ">=0.35.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.10",
     "tsx": "^4.23.1",
