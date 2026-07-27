@@ -7,6 +7,35 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.4.0 -- 2026-07-26
+
+MINOR: the abuse-report link twin (local#242 / control-plane#130). Twin: vivijure-cf v1.10.0 (same window, per the parity promise).
+
+### feat(abuse): the abuse-report link on the self-host panel (local#242)
+
+- **Same-wave twin of vivijure-cf#245.** The dual-panel gate at the top of this file is why this
+  shipped first rather than after: the abuse link is a studio panel feature, and cutting the hosted
+  release while this panel lacked it would have broken the gate.
+- **The panel half is a SYNC, not a re-implementation.** `public/` is verbatim-shared with
+  vivijure-cf and enforced by `scripts/upstream-public-parity.sh`, so `abuse-link.js`,
+  `abuse-link-checks.js`, the script tags and the `.studio-foot` rules arrive through
+  `scripts/sync-from-vivijure.sh`. Hand-writing a local renderer would have manufactured exactly the
+  drift that gate exists to catch, which is what local#242 recorded as CI failure.
+- **The host half is this repo, and it is where parity is the SET and the BIAS.** Identical
+  contract: an optional operator var projected as `host.abuse_report_url` on `GET /api/modules`,
+  refused unless it is an absolute http(s) URL, absent meaning no field and no link. The refusal is
+  the same DOM boundary for the same reason (the value reaches an `href`, so `javascript:` and
+  `data:` are dropped; a relative path is dropped because it would resolve against the studio
+  origin).
+- **What differs is who the reader is.** A hosted tenant cannot set this and must not be told to.
+  Here the reader IS the operator, so the knob lives in the Settings catalog with every other
+  operator var, and absence means "you have not published a contact for your own studio yet" rather
+  than "nobody told you where to report".
+- **No fallback address, deliberately.** This IS the bundle a self-hoster installs, so the rule that
+  no abuse address ships inside it is this panel own requirement rather than inherited politeness.
+  The parity test asserts it against the shipped assets with a non-empty sweep as its control, plus
+  a check that the renderer has no address to fall back TO.
+
 ## v1.3.0 -- 2026-07-25
 
 MINOR: hooks truthfulness parity twin of vivijure-cf v1.9.0 (same window, per the parity promise).

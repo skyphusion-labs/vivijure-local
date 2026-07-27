@@ -10,6 +10,7 @@ import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
 import { isDemoMode } from "./auth-gate.js";
+import { abuseReportUrl } from "./abuse-contact.js";
 import { discoverConfiguredModules } from "./module-registry.js";
 import { modulesResponse } from "@skyphusion-labs/vivijure-core";
 import type { Platform } from "./platform/index.js";
@@ -79,10 +80,15 @@ export function createApp(host: SettingsHost): Hono {
       ...videoFinishHooksUnavailable({ VIDEO_FINISH_VPC: platform.hostBindings?.VIDEO_FINISH_VPC }),
     };
     const anyHookUnavailable = Object.keys(hooksUnavailable).length > 0;
+    // control-plane#130 twin: where a reporter is sent for abuse of THIS studio. Absent unless the
+    // operator set it, and the absence is the correct default rather than a gap -- this is the
+    // self-host bundle, so there is no provider address to fall back to. See src/abuse-contact.ts.
+    const abuseUrl = abuseReportUrl({ ABUSE_REPORT_URL: platform.vars.ABUSE_REPORT_URL });
     return c.json(
       modulesResponse(modules, renderConfigProjection(), {
         dispatch: false,
         ...(anyHookUnavailable ? { hooks_unavailable: hooksUnavailable } : {}),
+        ...(abuseUrl ? { abuse_report_url: abuseUrl } : {}),
         ...(isDemoMode(authEnv()) ? { readonly: true } : {}),
       }),
     );
