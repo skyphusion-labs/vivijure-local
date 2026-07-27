@@ -96,6 +96,9 @@ jobs:
 
   studio-image:
     needs: assert-on-main
+    # local#255: needs alone does not stop a skipped assert-on-main from propagating a skip
+    # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
+    if: always() && needs.assert-on-main.result == 'success'
     name: studio
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
@@ -147,6 +150,9 @@ jobs:
 
   caddy-image:
     needs: assert-on-main
+    # local#255: needs alone does not stop a skipped assert-on-main from propagating a skip
+    # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
+    if: always() && needs.assert-on-main.result == 'success'
     name: caddy
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
@@ -198,6 +204,9 @@ jobs:
 
   finish-rife-serve:
     needs: assert-on-main
+    # local#255: needs alone does not stop a skipped assert-on-main from propagating a skip
+    # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
+    if: always() && needs.assert-on-main.result == 'success'
     name: finish-rife-serve
     # PR + main smoke builds stay on GitHub-hosted; only v* publish runs on org GPU runners.
     runs-on: ${{ (github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')) && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
@@ -252,6 +261,9 @@ jobs:
 
   cpu-images:
     needs: assert-on-main
+    # local#255: needs alone does not stop a skipped assert-on-main from propagating a skip
+    # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
+    if: always() && needs.assert-on-main.result == 'success'
     name: cpu-${{ matrix.image }}
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
     timeout-minutes: 30
