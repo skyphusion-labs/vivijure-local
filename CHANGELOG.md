@@ -7,6 +7,42 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.5.1
+
+PATCH: makes v1.5.0 installable. **v1.5.0 is a PARTIAL RELEASE and should not be pinned** -- its tag
+bake failed on two container images, so `vivijure-local-image-prep` and `vivijure-local-audio-beat-sync`
+were never published at `1.5.0`. Verified against GHCR, not inferred from the run: the other images
+(studio, caddy, video-finish, audio-master, audio-mix) DO carry a `1.5.0` tag; those two do not. A
+self-hoster running `VJ_IMAGE_TAG=1.5.0` therefore gets a compose that cannot pull two of its services.
+Move to `1.5.1`.
+
+Carries **NO schema change** (verified against `migrations/`, which exists in this repo: the
+v1.5.0..v1.5.1 range touches no migration file). Contains exactly one merged PR: #254.
+
+### fix(containers): revert image-prep and audio-beat-sync to python 3.11 (#254)
+
+- Dependabot #243 moved three Dockerfiles from `python:3.11-slim-bookworm` to `3.14` inside a grouped
+  `docker-images` update. **Both broken files already carried the constraint in a comment** ("Do NOT
+  bump past 3.13") and were bumped anyway, because dependabot does not read prose. `video-finish`, the
+  third file in that PR and the only one without such a comment, built fine -- an exact correlation.
+- **3.14 is blocked upstream, not in our Dockerfiles**, which is why this is a revert rather than a fix
+  forward: `image-prep` reaches numba via `rembg -> pymatting` and `audio-beat-sync` via `librosa`, and
+  numba supports only `>=3.10,<3.14`. `audio-beat-sync` additionally pins `numpy==1.26.4`, which
+  publishes no cp314 wheel, so pip falls back to a source build and meson dies with
+  `Unknown compiler(s)` because the slim image has no compiler. Unpinning the hardcoded site-packages
+  paths would not have helped.
+- **Scope is the two broken images only.** Five containers sit on 3.14, not the three in #243:
+  `audio-master` and `audio-mix` moved on 2026-07-15 (#79) and have shipped that way since, and
+  `video-finish` is structurally identical to them (aiohttp its only dependency, no hardcoded python
+  path) and builds clean. Reverting those would have undone a working security bump against evidence.
+- **The pin is now enforced in `.github/dependabot.yml`, not in a comment.** The docker ecosystem entry
+  is split so the two numba-pinned directories carry an `ignore` for python semver-major/minor, while
+  every other directory keeps updating normally. Not a blanket freeze. A constraint a tool cannot see
+  is a wish.
+- Verified by BUILDING both images, because the PR check set is green and vacuous for container
+  changes (vivijure-local#255): `audio-beat-sync` -> `warm OK`, 20 numba kernels baked; `image-prep` ->
+  `rembg warm OK`, 29 kernels. Both are the exact steps that failed in run `30238372677`.
+
 ## v1.5.0
 
 MINOR: the storage ceiling (vivijure-core#52). Twin: vivijure-cf v1.11.0 and vivijure-core v1.3.0, one
