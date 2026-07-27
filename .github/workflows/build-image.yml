@@ -94,6 +94,30 @@ jobs:
           fi
           echo "commit ${head} is on origin/main; ancestry guard passed."
 
+      # local#257: the org tag ruleset lets ANY v* tag through; nothing here checked that the
+      # tag matches the code it publishes. Mirrors vivijure-control-plane's tag-vs-version
+      # preflight -- but that guard famously checked only package.json while the Worker served a
+      # DIFFERENT file (src/version.ts): a guard that reads one file checks the label on the box,
+      # not the contents. vivijure-local has no served version string (yet); today the version is
+      # declared in exactly two places, package.json and CHANGELOG.md, and this step checks BOTH.
+      # A third version-carrying file added later (a served /version route, a compose label) must
+      # be added here too.
+      - name: Tag matches the declared version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(jq -r .version package.json)"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ${pkg} -- refusing to publish a mislabelled build"
+            exit 1
+          fi
+          if ! grep -qF "## v${pkg}" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## v${pkg}' entry -- refusing to publish an undocumented release"
+            exit 1
+          fi
+          echo "tag ${GITHUB_REF_NAME} matches declared version ${pkg}, documented in CHANGELOG.md."
+
   studio-image:
     needs: assert-on-main
     name: studio
