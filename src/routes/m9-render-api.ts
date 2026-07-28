@@ -43,6 +43,7 @@ import {
   updateRenderFromView,
 } from "@skyphusion-labs/vivijure-core/renders-db";
 import { badRequest, forbidden, httpErrorResponse, notFound } from "../errors.js";
+import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
 import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { json, readBody } from "../http.js";
 import type { Platform } from "../platform/types.js";
@@ -152,6 +153,7 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         config?: Record<string, unknown>;
       }>(c.req.raw);
       if (!Array.isArray(a.shots) || a.shots.length === 0) throw badRequest("shots[] required");
+      await unloadOllamaBeforeRender(env());
       const job = await startClipJob(env(), {
         project: a.project ?? "clips",
         shots: a.shots,
@@ -275,6 +277,7 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         );
         a.motion_config = filmMotionConfig;
       }
+      await unloadOllamaBeforeRender(oenv);
       const job = await startFilmJob(
         oenv,
         {

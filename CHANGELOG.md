@@ -7,6 +7,13 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(homelab): unload Ollama on every path before door GPU claim (local#265)
+
+Belt-and-suspenders sequential VRAM: studio film/clip/scatter/finalize submits call
+`unloadOllamaBeforeRender`; local-gpu motion (not only keyframe) and local-finish also call
+`ensureOllamaUnloadedForGpu` before `/run`. Fail-open with log when Ollama is down; never skip
+when `OLLAMA_BASE_URL` is set. Docs: plan → unload → keyframe.
+
 ### feat(homelab): Ollama plan.enhance → unload → local-gpu (16GB first); no RunPod in default stack
 
 Conrad ruling 2026-07-28 ([local#265](https://github.com/skyphusion-labs/vivijure-local/issues/265),

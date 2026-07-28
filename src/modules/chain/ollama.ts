@@ -158,3 +158,38 @@ export async function unloadOllamaModelBestEffort(
     return false;
   }
 }
+
+/** Read OLLAMA_* from process env, orchestrator env bags, or typed OllamaEnv. */
+export function ollamaEnvFromRecord(
+  env: OllamaEnv | NodeJS.ProcessEnv | Record<string, unknown>,
+): OllamaEnv {
+  const get = (k: keyof OllamaEnv): string | undefined => {
+    const v = (env as Record<string, unknown>)[k];
+    return typeof v === "string" && v.trim() ? v.trim() : undefined;
+  };
+  return {
+    OLLAMA_BASE_URL: get("OLLAMA_BASE_URL"),
+    OLLAMA_PLAN_MODEL: get("OLLAMA_PLAN_MODEL"),
+  };
+}
+
+/**
+ * Canonical sequential-VRAM handoff (local#265): free Ollama before any local door
+ * GPU job (keyframe, motion, local finish). Fail-open with a warn when Ollama is
+ * configured but unload fails; no-op when OLLAMA_BASE_URL is unset.
+ * Never skip the unload attempt when OLLAMA_BASE_URL is configured.
+ */
+export async function ensureOllamaUnloadedForGpu(
+  env: OllamaEnv | NodeJS.ProcessEnv | Record<string, unknown>,
+  modelOverride?: string,
+): Promise<boolean> {
+  const ollama = ollamaEnvFromRecord(env);
+  if (!ollamaConfigured(ollama)) return false;
+  const ok = await unloadOllamaModelBestEffort(ollama, modelOverride);
+  if (ok) {
+    console.info(
+      `ollama unload ok (model=${ollamaPlanModel(ollama, modelOverride)}) before local GPU claim`,
+    );
+  }
+  return ok;
+}

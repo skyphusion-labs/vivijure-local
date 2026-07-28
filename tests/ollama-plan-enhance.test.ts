@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   callOllama,
   DEFAULT_OLLAMA_PLAN_MODEL,
+  ensureOllamaUnloadedForGpu,
   isOllamaModelId,
   ollamaPlanModel,
   stripThinkingContent,
@@ -9,6 +10,8 @@ import {
 } from "../src/modules/chain/ollama.js";
 import { parseEnhanced, parsePlanStoryboard } from "../src/modules/chain/plan-enhance-core.js";
 import { pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
+import { unloadOllamaBeforeRender } from "../src/ollama-handoff.js";
+import { invokeLocalGpu, invokeLocalKeyframe } from "../src/modules/local-gpu/handlers.js";
 
 describe("ollama plan.enhance helpers", () => {
   afterEach(() => {
@@ -78,5 +81,88 @@ describe("ollama plan.enhance helpers", () => {
         think: true,
       }),
     ).resolves.toBe("harbor short");
+  });
+});
+
+describe("sequential VRAM handoff (local#265)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("ensureOllamaUnloadedForGpu POSTs keep_alive:0 and fail-opens when Ollama is down", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434", OLLAMA_PLAN_MODEL: "qwen3:14b" }),
+    ).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const call = fetchMock.mock.calls[0] as unknown as [string | URL, RequestInit?];
+    expect(String(call[0])).toBe("http://ollama:11434/api/generate");
+    expect(JSON.parse(String(call[1]?.body))).toMatchObject({
+      model: "qwen3:14b",
+      keep_alive: 0,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      }),
+    );
+    await expect(ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434" })).resolves.toBe(
+      false,
+    );
+    await expect(ensureOllamaUnloadedForGpu({})).resolves.toBe(false);
+  });
+
+  it("unloadOllamaBeforeRender is the studio alias for the same helper", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await unloadOllamaBeforeRender({ OLLAMA_BASE_URL: "http://ollama:11434" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("local-gpu keyframe and motion unload Ollama before door /run", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes("/api/generate")) return new Response("{}", { status: 200 });
+        if (url.endsWith("/run")) return new Response(JSON.stringify({ id: "a".repeat(32) }), { status: 200 });
+        return new Response("nope", { status: 404 });
+      }),
+    );
+
+    const env = {
+      LOCAL_BACKEND_URL: "http://door:8000",
+      OLLAMA_BASE_URL: "http://ollama:11434",
+      OLLAMA_PLAN_MODEL: "qwen3:14b",
+    };
+
+    await invokeLocalKeyframe(env, {
+      hook: "keyframe",
+      input: { project: "film", bundle_key: "bundles/film.tar.gz", shot_ids: ["shot_01"] },
+      config: {},
+      context: { project: "film", job_id: "j1" },
+    });
+    expect(calls[0]).toBe("http://ollama:11434/api/generate");
+    expect(calls.some((u) => u.endsWith("/run"))).toBe(true);
+
+    calls.length = 0;
+    await invokeLocalGpu(env, {
+      hook: "motion.backend",
+      input: {
+        shot_id: "shot_01",
+        prompt: "push in",
+        keyframe_url: "https://example.test/kf.png",
+        seconds: 5,
+      },
+      config: {},
+      context: { project: "film", job_id: "j2" },
+    });
+    expect(calls[0]).toBe("http://ollama:11434/api/generate");
+    expect(calls.some((u) => u.endsWith("/run"))).toBe(true);
   });
 });

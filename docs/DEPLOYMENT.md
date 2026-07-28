@@ -183,11 +183,14 @@ the root user password changes.
 
 Default first-win sequence on one card:
 
+**plan → unload → keyframe** (then motion / optional local finish on the same card).
+
 1. **Ollama** serves `plan.enhance` (`OLLAMA_PLAN_MODEL`, default **`qwen3:14b`**).
-2. After enhance completes, the module **unloads** the model (`keep_alive: 0`).
-3. **local-gpu** keyframe (`action: preview` on the door) claims VRAM. local-gpu also best-effort
-   unloads Ollama again immediately before submit.
-4. Motion continues on the same door; finish stays CPU assemble (+ optional satellites).
+2. After enhance/chat completes, the planner **unloads** the model (`keep_alive: 0`).
+3. Before any studio film/clip submit and again in the local-gpu (keyframe + motion) and
+   local-finish sidecars, Ollama is best-effort unloaded so the door can claim VRAM.
+4. **local-gpu** keyframe (`action: preview`) then motion on the same door; finish stays CPU
+   assemble (+ optional local GPU finish / satellites).
 
 **Why `qwen3:14b`:** Ollama Q4_K_M ~9.3GB, comfortable on a 16GB door with KV headroom. Qwen3
 beats qwen2.5 on creative writing, scripts, and instruction following (video ideation +
