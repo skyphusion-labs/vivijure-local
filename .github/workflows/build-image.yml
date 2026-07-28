@@ -246,19 +246,22 @@ jobs:
 
       # local#260: the first time this job could actually run on a PR (local#255 fixed the
       # needs-chain skip that had masked it), it failed with "No space left on device" inside the
-      # docker build itself, not a build error. First attempt at a fix (toolchain removal only,
-      # freeing roughly 20-30GB) was NOT enough: the SAME failure recurred on the same run this PR
-      # introduced (job 90169583610), confirmed via the job step timeline that "Free disk space"
-      # itself completed successfully and the very next step, the actual build, is what starved
-      # the disk. So the toolchain removal stays (real, if insufficient, headroom), and the real
-      # fix is relocating Docker's storage to /mnt: GitHub-hosted ubuntu-latest runners ship a
-      # SEPARATE, much larger ephemeral disk mounted at /mnt that is empty by default, while /
-      # (where Docker stores images and build layers by default) is the small, heavily
-      # pre-populated partition. This is the standard fix for exactly this failure shape on
-      # GitHub-hosted runners building large images (the community pattern behind actions like
-      # easimon/maximize-build-space and jlumbroso/free-disk-space); moving Docker's data-root
-      # there rather than trimming / further is what actually gives this CUDA overlay (~60GB
-      # export) somewhere to put its layers.
+      # docker build itself, not a build error. TWO earlier attempts on this same PR both hit the
+      # identical failure (toolchain removal alone, then toolchain removal plus a gated /mnt
+      # relocation), and both times the job crashed hard enough that its own log never made it to
+      # GitHub (the runner dies mid-flush of its own diagnostics, so `gh run view --log` and the
+      # jobs/logs API both come back empty for this job specifically -- confirmed on both prior
+      # attempts). ::notice:: lines are NOT part of that log stream; they land as check-run
+      # annotations instead, which DID survive both crashes. So this attempt reports every disk
+      # number through ::notice:: rather than a plain echo, on the assumption that a third crash is
+      # possible and the only way to learn anything from it is a channel proven to survive one.
+      #
+      # THE RELOCATION IS NOW UNCONDITIONAL when /mnt exists, dropping the earlier "only if /mnt
+      # has MORE free space than /" gate: that comparison could itself have been what skipped the
+      # relocation on attempt two (same failure recurred, and there is no way to confirm which
+      # branch it took without the log). Moving Docker off root is strictly a win for root's
+      # headroom regardless of /mnt's absolute size, so the size comparison was the wrong gate to
+      # begin with -- the only real question is whether /mnt exists at all.
       #
       # SELF-HOSTED ONLY EXCLUDED: this step runs ONLY on the GitHub-hosted path (PR / main
       # smoke). The GPU runner used for tag/publish builds is a persistent box with its own disk
@@ -267,24 +270,31 @@ jobs:
         if: runner.environment == 'github-hosted'
         run: |
           set -x
-          echo "---- before ----"
+          root_before="$(df --output=avail -B1 / | tail -1)"
+          echo "::notice::root avail BEFORE anything: ${root_before} bytes"
           df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo docker image prune -af || true
-          echo "---- after toolchain removal ----"
+          df -h /mnt || echo "::notice::/mnt does not exist on this runner"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL \
+            /opt/az /usr/local/.ghcup /usr/local/share/powershell /usr/share/swift \
+            /usr/local/share/chromium /opt/google-cloud-sdk /usr/local/graalvm || true
+          sudo docker system prune -af --volumes || true
+          sudo apt-get clean || true
+          sudo journalctl --vacuum-size=50M || true
+          root_after_clean="$(df --output=avail -B1 / | tail -1)"
+          echo "::notice::root avail after toolchain/apt/journal cleanup: ${root_after_clean} bytes (freed $((root_after_clean - root_before)) bytes)"
           df -h /
-          # Relocate Docker onto /mnt, the large empty ephemeral disk GitHub-hosted runners ship
-          # alongside the small root partition. Falls back to a no-op (with a loud notice) if /mnt
-          # is missing or too small to be worth it, rather than failing the step over an
-          # environment this workflow does not control.
-          if [ -d /mnt ] && [ "$(df --output=avail -B1 /mnt | tail -1)" -gt "$(df --output=avail -B1 / | tail -1)" ]; then
+          if [ -d /mnt ]; then
+            mnt_before="$(df --output=avail -B1 /mnt | tail -1)"
+            echo "::notice::relocating /var/lib/docker to /mnt (mnt avail before move: ${mnt_before} bytes)"
             sudo systemctl stop docker
             sudo mv /var/lib/docker /mnt/docker
             sudo ln -s /mnt/docker /var/lib/docker
             sudo systemctl start docker
-            echo "---- after moving /var/lib/docker to /mnt ----"
+            root_after_move="$(df --output=avail -B1 / | tail -1)"
+            mnt_after_move="$(df --output=avail -B1 /mnt | tail -1)"
+            echo "::notice::after moving docker to /mnt: root avail ${root_after_move} bytes, mnt avail ${mnt_after_move} bytes"
           else
-            echo "::notice::/mnt is absent or not larger than /; skipping the docker relocation, toolchain removal only."
+            echo "::notice::/mnt does not exist on this runner; docker stays on root, toolchain removal only"
           fi
           df -h /
           df -h /mnt || true
