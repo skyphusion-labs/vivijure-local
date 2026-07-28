@@ -8,14 +8,11 @@
 // label "Local GPU Keyframe (SDXL on your own card)", reported COMPLETED. The film that came out was
 // assembled, honestly, from fabricated frames.
 //
-// This file is the regression fence in BOTH directions:
-//   1. an unconfigured door self-reports `configured: false` and is dropped at the registry choke
-//      point, so it is neither visible nor submittable (the local#223 shape, applied here);
-//   2. its /invoke REFUSES BY NAME and writes NOTHING -- the half a hide alone does not give you,
-//      and the half that was fabricating.
-//
-// The store assertions are the load-bearing ones. A test that only checked the error string would
-// still pass if some future branch wrote an artifact and then failed.
+// This file covers the DELETION of the fabricators and the RunPod credential seam. The doorless case
+// is no longer tested here, because there is no longer a doorless local-gpu app to test: local#280
+// gated the module out of the stack entirely (tests/localgpu-lane-280.test.ts). This file's earlier
+// assertions that an unconfigured sidecar self-reports `configured: false` were rewritten there --
+// Conrad rejected that design: "We shouldn't have to build a shim for a module that isn't even there."
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Hono } from "hono";
 import type { RegisteredModule } from "@skyphusion-labs/vivijure-core";
@@ -25,7 +22,6 @@ import { createLocalGpuModuleApp } from "../src/modules/local-gpu/app.js";
 import type { LocalGpuEnv } from "../src/modules/local-gpu/handlers.js";
 import { createRunpodModuleApp } from "../src/modules/runpod/app.js";
 import type { RunpodModuleEnv } from "../src/modules/runpod/env.js";
-import type { ArtifactStore } from "../src/platform/create-storage.js";
 import { filterConfiguredModules } from "../src/module-registry.js";
 
 // The SHIPPED manifests, not stubs: the mock served these files verbatim, so a hand-written fixture
@@ -39,30 +35,6 @@ function manifest(name: string): Record<string, unknown> {
 
 const DOOR_CONFIGURED: LocalGpuEnv = { LOCAL_BACKEND_URL: "http://door:8080" };
 const RUNPOD_CONFIGURED: RunpodModuleEnv = { RUNPOD_API_KEY: "k", KEYFRAME_RUNPOD_ENDPOINT_ID: "ep" };
-
-/** Records every write, so "wrote nothing" is provable rather than assumed. */
-function memStore(): ArtifactStore & { keys: string[] } {
-  const keys: string[] = [];
-  return {
-    keys,
-    async put(key: string) {
-      keys.push(key);
-    },
-    async get() {
-      return null;
-    },
-    async getBytes() {
-      return null;
-    },
-    async getRange() {
-      return null;
-    },
-    async head() {
-      return null;
-    },
-    async delete() {},
-  } as ArtifactStore & { keys: string[] };
-}
 
 const KEYFRAME_INVOKE = {
   hook: "keyframe",
@@ -88,7 +60,7 @@ async function invoke(app: Hono, body: unknown): Promise<Response> {
 
 async function moduleJson(app: Hono): Promise<Record<string, unknown>> {
   const res = await app.fetch(new Request("https://module/module.json"));
-  expect(res.status).toBe(200); // the compose healthcheck curls this path in BOTH states
+  expect(res.status).toBe(200);
   return (await res.json()) as Record<string, unknown>;
 }
 
@@ -96,55 +68,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("local-gpu with no door configured (local#229)", () => {
+describe("local-gpu with a real door (local#229 positive control)", () => {
   const app = (env: LocalGpuEnv) => createLocalGpuModuleApp(manifest("local-gpu"), async () => env);
 
-  it("reports configured:false (pre-fix this key was ABSENT, and absent means KEEP)", async () => {
-    const body = await moduleJson(app({}));
-    // The discriminating assertion. The mock branch answered here with the raw manifest, so
-    // `configured` was undefined -- and undefined means "always keep" at the registry choke point,
-    // which is precisely why the local#201 filter could not see this module.
-    expect(Object.keys(body)).toContain("configured");
-    expect(body.configured).toBe(false);
-    // CONTROL: the real manifest, not an empty object that would satisfy the above vacuously. This
-    // is the exact label the fabricated frames were served under.
-    expect((body.provides as { label: string }[])[1].label).toBe("Local GPU Keyframe (SDXL on your own card)");
-    expect(body.name).toBe("local-gpu");
-  });
-
-  it("keyframe /invoke REFUSES and writes NO artifact", async () => {
-    const store = memStore();
-    const res = await invoke(app({}), KEYFRAME_INVOKE);
-    const body = (await res.json()) as { ok: boolean; error?: string; output?: unknown };
-    expect(body.ok).toBe(false);
-    expect(body.error).toMatch(/LOCAL_BACKEND_URL/);
-    expect(body.output).toBeUndefined();
-    // Pre-fix this was `renders/p1/keyframes/s1.png`, a 1x1 red PNG.
-    expect(store.keys).toEqual([]);
-  });
-
-  it("motion /invoke REFUSES and writes NO clip", async () => {
-    const store = memStore();
-    const res = await invoke(app({}), MOTION_INVOKE);
-    const body = (await res.json()) as { ok: boolean; error?: string; output?: unknown };
-    expect(body.ok).toBe(false);
-    expect(body.error).toMatch(/LOCAL_BACKEND_URL/);
-    expect(body.output).toBeUndefined();
-    // Pre-fix this was `renders/p1/clips/s1_local-gpu.mp4`, a black 320x240 clip.
-    expect(store.keys).toEqual([]);
-  });
-
-  it("is DROPPED by filterConfiguredModules, so the panel cannot offer it", async () => {
-    const unconfigured = (await moduleJson(app({}))) as unknown as RegisteredModule;
-    const other = { name: "acme-door", hooks: ["keyframe"] } as unknown as RegisteredModule;
-    const kept = filterConfiguredModules([unconfigured, other]).map((m) => m.name);
-    expect(kept).toEqual(["acme-door"]);
-    expect(kept).not.toContain("local-gpu");
-  });
-
-  it("configured door: reports configured:true and TALKS TO THE DOOR (POSITIVE CONTROL)", async () => {
-    // The hide is credential-driven, not unconditional, and the real path is untouched by this
-    // change -- both halves have to hold or the fix is just a feature deletion.
+  it("TALKS TO THE DOOR and fabricates nothing", async () => {
+    // The mock deletion has to leave the genuine path untouched, or the fix is just a feature
+    // deletion. Every outbound call is recorded so "went to the door" is proven, not assumed.
     const seen: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -158,13 +87,27 @@ describe("local-gpu with no door configured (local#229)", () => {
       }),
     );
     const configured = app(DOOR_CONFIGURED);
-    expect((await moduleJson(configured)).configured).toBe(true);
 
     const res = await invoke(configured, MOTION_INVOKE);
     const body = (await res.json()) as { ok: boolean; pending?: boolean; jobId?: string };
     expect(body.ok).toBe(true);
     expect(body.jobId).toBe("job1");
     expect(seen.some((u) => u.startsWith("http://door:8080/"))).toBe(true);
+  });
+
+  it("serves the real manifest and self-reports NO `configured` field (local#280)", async () => {
+    // A module that is in the stack is installed, full stop. The removed `configured: false` branch
+    // was the shim Conrad rejected; asserting the key is absent is what keeps it from creeping back.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 503 })));
+    const body = await moduleJson(app(DOOR_CONFIGURED));
+    expect(Object.keys(body)).not.toContain("configured");
+    // CONTROL: the shipped manifest, not an empty object that would satisfy the above vacuously.
+    // This is the exact label the fabricated frames were once served under.
+    expect((body.provides as { label: string }[])[1].label).toBe("Local GPU Keyframe (SDXL on your own card)");
+    expect(body.name).toBe("local-gpu");
+    // Kept by the registry filter for the same reason: nothing here asks to be hidden.
+    const kept = filterConfiguredModules([body as unknown as RegisteredModule]).map((m) => m.name);
+    expect(kept).toEqual(["local-gpu"]);
   });
 });
 

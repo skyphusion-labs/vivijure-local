@@ -1,20 +1,25 @@
-// local#229: the local-gpu sidecar serves the GPU door and NOTHING ELSE.
+// The local-gpu sidecar serves the GPU door and NOTHING ELSE.
 //
-// It used to carry a mock branch: with LOCAL_BACKEND_URL unset it wrote a 1x1 red PNG per keyframe
-// and a black 320x240 clip per shot, under the manifest label "Local GPU Keyframe (SDXL on your own
-// card)". `scripts/local-gpu-module-server.ts` passed the real artifact store as the mock store
-// unconditionally, so that branch was live in the SHIPPED compose stack (LOCAL_BACKEND_URL is empty
-// by default), not just in dev. A bare `compose up` therefore rendered a film out of fabricated
-// frames and reported it COMPLETED. That is the defect Conrad hit; the fabricators are deleted.
+// local#229 deleted the mock branch that made this sidecar fabricate frames (a 1x1 red PNG per
+// keyframe, a black 320x240 clip per shot) whenever LOCAL_BACKEND_URL was empty -- which was the
+// default in the shipped compose stack, so a bare `compose up` delivered a film assembled from
+// placeholders and reported it COMPLETED.
 //
-// The honest replacement is the local#201 choke point, used exactly as the RunPod sidecars use it:
-// `/module.json` reports `configured` from the SAME predicate the routing reads, so an
-// unconfigured door self-reports `configured: false` and `filterConfiguredModules` drops it. A
-// dropped module is neither visible in the panel nor submittable, and the host says WHY before a
-// render starts (src/local-door-availability.ts -> host.hooks_unavailable).
+// local#280 removed the SECOND thing this file was doing: reporting `configured: false` about itself.
+// That was a process kept alive to announce its own absence, and it existed because the compose
+// healthcheck curled /module.json and so the container had to stay up. Conrad's ruling: "We shouldn't
+// have to build a shim for a module that isn't even there." The stack answers this now -- the module
+// lives in the `localgpu` compose profile, so with no door there is no container, no manifest, and no
+// binding for the studio to discover. Absence needs no representative.
 //
-// `configured` is computed from `localGpuConfigured` and the invoke handlers refuse on the same
-// condition, so the manifest's honesty and the routing decision cannot drift apart.
+// So this app assumes a door: it is only ever constructed by a sidecar that has already refused to
+// start without LOCAL_BACKEND_URL (scripts/local-gpu-module-server.ts). /module.json describes the
+// module, and a failing healthcheck means a genuinely broken container rather than a hidden one.
+//
+// The `not configured` guards in handlers.ts stay. They are ordinary argument validation, identical
+// in form to every other module in this repo (runpod, cpu, cloud-keyframe, score), and they are not
+// a stand-in for anything: without them an empty base URL becomes an opaque fetch throw instead of a
+// named error. They are unreachable through the compose lane, which is the point.
 import { Hono } from "hono";
 import type {
   CancelRequest,
@@ -28,7 +33,6 @@ import {
   doorDurationGrid,
   invokeLocalGpu,
   invokeLocalKeyframe,
-  localGpuConfigured,
   pollLocalGpu,
   pollLocalKeyframe,
   type LocalGpuEnv,
@@ -44,12 +48,10 @@ export function createLocalGpuModuleApp(
 
   app.get("/module.json", async (c) => {
     const env = await getEnv();
-    const configured = localGpuConfigured(env);
-    // 200 in both states: the compose healthcheck curls this path, and an unconfigured door is a
-    // hidden module, not a broken container.
-    if (!configured) return c.json({ ...manifest, configured });
+    // No `configured` field: this module is either installed (the localgpu lane is on and a door
+    // answered) or it is not in the stack. There is no third state for it to self-report.
     const grid = await doorDurationGrid(env);
-    return c.json({ ...manifest, ...(grid ? { duration_grid: grid } : {}), configured });
+    return c.json({ ...manifest, ...(grid ? { duration_grid: grid } : {}) });
   });
 
   app.post("/invoke", async (c) => {
