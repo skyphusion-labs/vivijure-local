@@ -28,7 +28,7 @@ import {
   parseKeyframes,
   parseTrainedLoras,
 } from "./keyframe-core.js";
-import { unloadOllamaModelBestEffort, type OllamaEnv } from "../chain/ollama.js";
+import { ensureOllamaUnloadedForGpu, type OllamaEnv } from "../chain/ollama.js";
 
 export interface LocalGpuEnv extends OllamaEnv {
   LOCAL_BACKEND_URL?: string;
@@ -77,6 +77,8 @@ export async function invokeLocalGpu(
   }
   const { baseUrl, token, urlError } = backendCfg(env);
   if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
+  // Sequential VRAM (local#265): unload Ollama before motion claims the door GPU.
+  await ensureOllamaUnloadedForGpu(env);
   try {
     const grid = await doorDurationGrid(env);
     const r = await fetch(`${baseUrl}/run`, {
@@ -167,8 +169,8 @@ export async function invokeLocalKeyframe(
   }
   const { baseUrl, token, urlError } = backendCfg(env);
   if (!baseUrl) return { ok: false, error: urlError ?? "local-gpu: LOCAL_BACKEND_URL not configured" };
-  // Sequential VRAM (local#265): ensure Ollama planning model is unloaded before the door claims the GPU.
-  await unloadOllamaModelBestEffort(env);
+  // Sequential VRAM (local#265): unload Ollama before keyframe claims the door GPU.
+  await ensureOllamaUnloadedForGpu(env);
   try {
     const r = await fetch(`${baseUrl}/run`, {
       method: "POST",

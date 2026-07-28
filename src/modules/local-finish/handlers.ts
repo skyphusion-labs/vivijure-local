@@ -24,6 +24,7 @@ import {
   passthroughOutput,
 } from "../runpod/finish-core.js";
 import { classifyGoneState, runpodJobGone, runpodTerminalFailure, terminalErrorInOutput } from "../runpod/shared.js";
+import { ensureOllamaUnloadedForGpu } from "../chain/ollama.js";
 
 /** Local HTTP finish modules only — finish-rife has no local image (Conrad 2026-07-28). */
 export type LocalFinishModuleName = "finish-lipsync" | "finish-upscale";
@@ -69,6 +70,8 @@ export async function invokeLocalFinish(
     action === "lipsync_clip"
       ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
       : buildFinishBody(input, cfg, req.context.project, action, extra);
+  // Sequential VRAM: local finish GPU shares the card with Ollama + the door.
+  await ensureOllamaUnloadedForGpu(env);
   try {
     const r = await fetch(`${baseUrl}/run`, {
       method: "POST",

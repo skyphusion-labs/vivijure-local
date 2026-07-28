@@ -13,6 +13,9 @@ export interface FinishBackendEnv {
   LOCAL_FINISH_LIPSYNC_URL?: string;
   LOCAL_FINISH_UPSCALE_URL?: string;
   LOCAL_FINISH_TOKEN?: string;
+  /** Homelab sequential VRAM: unload before local finish GPU jobs (local#265). */
+  OLLAMA_BASE_URL?: string;
+  OLLAMA_PLAN_MODEL?: string;
 }
 
 const MODULE_BACKEND_KEY: Record<string, keyof FinishBackendEnv> = {
@@ -33,6 +36,8 @@ export function finishBackendFromProcess(env: NodeJS.ProcessEnv): FinishBackendE
     LOCAL_FINISH_LIPSYNC_URL: env.LOCAL_FINISH_LIPSYNC_URL?.trim() || undefined,
     LOCAL_FINISH_UPSCALE_URL: env.LOCAL_FINISH_UPSCALE_URL?.trim() || undefined,
     LOCAL_FINISH_TOKEN: env.LOCAL_FINISH_TOKEN?.trim() || undefined,
+    OLLAMA_BASE_URL: env.OLLAMA_BASE_URL?.trim() || undefined,
+    OLLAMA_PLAN_MODEL: env.OLLAMA_PLAN_MODEL?.trim() || undefined,
   };
 }
 

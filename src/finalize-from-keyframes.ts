@@ -26,6 +26,7 @@ import { coerceQualityTier } from "@skyphusion-labs/vivijure-core/runpod-types";
 import type { RunpodJobView } from "@skyphusion-labs/vivijure-core/runpod-types";
 import { normalizePerShotModels } from "@skyphusion-labs/vivijure-core/storyboard-validate";
 import type { ClipJob } from "@skyphusion-labs/vivijure-core/render-orchestrator";
+import { unloadOllamaBeforeRender } from "./ollama-handoff.js";
 
 export interface AnimateFromPreviewArgs {
   parent: RenderRow;
@@ -189,6 +190,7 @@ export async function animateFromPreview(
     }
   }
 
+  await unloadOllamaBeforeRender(env);
   const job = await startFilmFromKeyframes(
     env,
     {

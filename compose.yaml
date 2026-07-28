@@ -90,6 +90,9 @@ x-runpod-module: &runpod-module
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
+    # Sequential VRAM (local#265): finish sidecars unload Ollama before local GPU /run.
+    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+    OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
     # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3, quota headroom on the backend render EP; id removed from tracked docs, scheduled for teardown per cf#215, see fleet-chezmoi runpod endpoints runbook; satellites override below)
     RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
     S3_ENDPOINT: http://minio:9000
