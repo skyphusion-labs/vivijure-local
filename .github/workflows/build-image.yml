@@ -226,62 +226,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  finish-rife-serve:
-    needs: assert-on-main
-    # local#255: needs alone does not stop a skipped assert-on-main from propagating a skip
-    # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
-    if: always() && needs.assert-on-main.result == 'success'
-    name: finish-rife-serve
-    # PR + main smoke builds stay on GitHub-hosted; only v* publish runs on org GPU runners.
-    runs-on: ${{ (github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')) && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
-    # 90, not 45: the uncached first bake of this CUDA overlay ran 45.3 and ~46 min into the v1.2.0
-    # tag run's 45-minute budget and was killed by THIS timeout both times (reads as "cancelled" in
-    # the UI, which cost a runner-defect investigation before anyone checked here). GHCR layer reuse
-    # should bring later bakes down, but the budget must fit the cold case.
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: vivijure-local
-
-      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - name: Log in to GHCR
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set image tags
-        id: meta
-        run: |
-          image="${REGISTRY}/vivijure-local-finish-rife"
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            version="${GITHUB_REF_NAME#v}"
-            {
-              echo "tags<<EOF"
-              echo "${image}:${version}"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-            echo "push=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "tags=${image}:ci" >> "$GITHUB_OUTPUT"
-            echo "push=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build finish-rife-serve overlay
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
-        with:
-          context: ./vivijure-local/containers/finish-rife-serve
-          file: ./vivijure-local/containers/finish-rife-serve/Dockerfile
-          push: ${{ steps.meta.outputs.push }}
-          tags: ${{ steps.meta.outputs.tags }}
-          # No cache-to here: this CUDA overlay's export is ~60GB against the 10GB Actions cache
-          # limit, and the failed export killed the v1.2.1 publish (backend "not_found") AFTER the
-          # image built. Layer reuse comes from GHCR, not the Actions cache.
-          cache-from: type=gha
+  # finish-rife-serve RETIRED (Conrad 2026-07-28): no local RIFE image in vivijure-local.
+  # RIFE stays on the RunPod backend worker for vivijure-cf / opt-in RunPod finish only.
 
   cpu-images:
     needs: assert-on-main

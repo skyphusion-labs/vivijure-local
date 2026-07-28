@@ -17,12 +17,7 @@ export function createLocalFinishModuleApp(
   getEnv: () => Promise<FinishBackendEnv>,
 ): Hono {
   const app = new Hono();
-  const action =
-    moduleName === "finish-rife"
-      ? ("finish_clip" as const)
-      : moduleName === "finish-lipsync"
-        ? ("lipsync_clip" as const)
-        : ("upscale_clip" as const);
+  const action = moduleName === "finish-lipsync" ? ("lipsync_clip" as const) : ("upscale_clip" as const);
   const extra = moduleName === "finish-upscale" ? { target_height: 1080 } : undefined;
 
   app.get("/module.json", async (c) => {
