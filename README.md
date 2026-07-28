@@ -1,12 +1,13 @@
 # Vivijure Local
 
 **Self-hosted Vivijure Studio for homelab and hobbyist builders** -- Node, SQLite, and
-S3-compatible storage, **no Cloudflare account**. Full **capability parity** with
+S3-compatible storage, **no Cloudflare account required**. Full **capability parity** with
 [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf): same modular film-studio API,
-same `vivijure-module/2` contract, same `public/` UI, different runtime. Default intent is
-**local renders** on your own GPU (local GPU door + local finish sidecars); RunPod is an optional
-escape hatch, not the homelab default ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180),
-[FINISH_BACKEND.md](docs/FINISH_BACKEND.md)).
+same `vivijure-module/2` contract, same `public/` UI, different runtime. Default path is
+**Ollama plan.enhance → unload → local-gpu keyframe (16GB door first) → CPU finish**. The default
+compose stack registers **no RunPod modules**
+([local#265](https://github.com/skyphusion-labs/vivijure-local/issues/265),
+[local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200)).
 
 For **production** workloads (Cloudflare Workers, R2, AI Gateway, RunPod render testbed), use
 [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
@@ -17,18 +18,18 @@ Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
 Provider-neutral host for [Vivijure Studio](https://vivijure.com): same reference API
 ([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)).
-GPU render backends (`vivijure-local-12gb`, `vivijure-local-16gb`, finish sidecars) plug in via
-module URLs; this repo is the **control panel host** only.
+GPU render backends (`vivijure-local-16gb` first, `vivijure-local-12gb` alternate, finish sidecars)
+plug in via module URLs; this repo is the **control panel host** only.
 
 ## Local vs Cloudflare (`vivijure-cf`)
 
 | | **vivijure-local** (this repo) | **vivijure-cf** (production) |
 |---|---|---|
 | **Who** | Homelab / hobbyist self-host | Cloudflare-hosted studio |
-| **Runtime** | Node + Docker + MinIO | Workers + D1 + R2 |
+| **Runtime** | Node + Docker + MinIO + Ollama | Workers + D1 + R2 |
 | **Contract** | Full parity (`CONTRACT.md`, module registry) | Same |
-| **GPU default** | Local GPU door + local finish sidecars | RunPod (`vivijure-backend` + finish satellites) |
-| **RunPod** | Optional (`FINISH_BACKEND=runpod`, cloud module URLs) | Canonical render/finish testbed |
+| **GPU default** | Ollama + 16GB local door + CPU finish | RunPod (`vivijure-backend` + finish satellites) |
+| **RunPod** | Opt-in only (`COMPOSE_PROFILES=cloud` / satellites) | Canonical render/finish testbed |
 | **When to pick** | Your box, LAN you control, own GPU | Production, free-tier CF stack, no homelab ops |
 
 Route checklist: [docs/PARITY.md](docs/PARITY.md). Homelab operator path: [docs/quickstart.md](docs/quickstart.md).
@@ -36,23 +37,27 @@ CF path: [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf
 
 ## Rendering without RunPod (the default)
 
-You never need a RunPod account. A complete film renders with **zero RunPod credentials**:
+You never need a RunPod account. A complete film renders with **zero RunPod modules** in the default
+compose stack:
 
+- **Planning (`plan.enhance`)** runs on **local Ollama** (default `qwen2.5:14b`); the model is
+  unloaded before keyframe work claims the GPU.
 - **Motion and keyframes** render on your own GPU through the local door
-  ([`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb) /
-  [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)); set `LOCAL_BACKEND_URL`.
-- **The GPUless steps** (planner, cloud keyframe, music, narration) run on **Cloudflare AI**, billed
-  from your Cloudflare credit, no RunPod endpoint. Narration speaks through Deepgram Aura-1 by
-  default; MiniMax HD is the optional RunPod tier.
+  ([`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) first;
+  [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb) alternate); set
+  `LOCAL_BACKEND_URL`.
+- **Optional CF AI** overlays (dialogue / music / narration) when you add gateway creds; not required
+  for the Ollama + door path.
 - **Finish** runs on the CPU `video-finish` container (assemble and mux), plus optional local
   lipsync / upscale sidecars.
 
-The instant demo needs nothing at all: compose ships mock keyframe and motion, so `npm run smoke:exit`
-renders end to end with no GPU and no cloud key.
+The instant demo needs nothing at all: compose ships a `local-gpu` mock when `LOCAL_BACKEND_URL` is
+unset, so `npm run smoke:exit` can run without a GPU. Set `PLANNER_AI_MOCK=true` if you skip the
+Ollama model pull.
 
-**Optional: wire RunPod** for higher-fidelity tiers (cloud i2v, MiniMax HD narration, RunPod finish).
-It is strictly opt-in: a RunPod module with no credentials stays hidden from the panel, never a broken
-button. Wiring guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+**Optional: wire RunPod** via `COMPOSE_PROFILES=cloud` (or satellites) for cloud i2v, RunPod
+keyframe, MiniMax HD narration, RunPod finish. Strictly opt-in. Wiring guide:
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Who this is for
 

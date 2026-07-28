@@ -2,6 +2,8 @@
 /**
  * Finish module sidecar: FINISH_BACKEND=local -> LOCAL_FINISH_*_URL; runpod -> RunPod API.
  *
+ * finish-rife is RunPod-only (no local image; Conrad 2026-07-28).
+ *
  * Usage: tsx scripts/finish-module-server.ts <port> <finish-rife|finish-lipsync|finish-upscale>
  */
 import { serve } from "@hono/node-server";
@@ -15,9 +17,11 @@ import { createRunpodModuleApp } from "../src/modules/runpod/app.js";
 import { runpodConfigured, runpodModuleEnvFromRuntime } from "../src/modules/runpod/env.js";
 import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
+type FinishModuleName = LocalFinishModuleName | "finish-rife";
+
 const port = Number(process.argv[2]);
-const moduleName = process.argv[3] as LocalFinishModuleName;
-const FINISH_MODULES = new Set<LocalFinishModuleName>(["finish-rife", "finish-lipsync", "finish-upscale"]);
+const moduleName = process.argv[3] as FinishModuleName;
+const FINISH_MODULES = new Set<FinishModuleName>(["finish-rife", "finish-lipsync", "finish-upscale"]);
 
 if (!port || !moduleName || !FINISH_MODULES.has(moduleName)) {
   console.error("usage: finish-module-server.ts <port> <finish-rife|finish-lipsync|finish-upscale>");
@@ -42,8 +46,16 @@ const runtime = await loadModuleRuntimeEnv();
 const finishEnv = finishBackendFromProcess(runtime.asProcessEnv());
 const backend = resolveFinishBackend(moduleName, finishEnv);
 
+if (moduleName === "finish-rife" && backend === "local") {
+  console.error(
+    "finish-rife has no local path in vivijure-local (no finish-rife image). " +
+      "Use FINISH_BACKEND=runpod, or omit RIFE (CPU video-finish assemble).",
+  );
+  process.exit(1);
+}
+
 const app =
-  backend === "local"
+  backend === "local" && moduleName !== "finish-rife"
     ? createLocalFinishModuleApp(manifest, moduleName, getFinishEnv)
     : createRunpodModuleApp(manifest, moduleName, getRunpodEnv);
 

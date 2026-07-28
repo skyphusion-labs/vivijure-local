@@ -7,6 +7,30 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(homelab): Ollama plan.enhance → unload → local-gpu (16GB first); no RunPod in default stack
+
+Conrad ruling 2026-07-28 ([local#265](https://github.com/skyphusion-labs/vivijure-local/issues/265),
+epic [local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200)):
+
+- **Compose:** `ollama` + `ollama-pull` services; `module-keyframe` (RunPod) moved to `cloud` profile;
+  studio no longer sets `MODULE_KEYFRAME_URL` by default.
+- **plan.enhance:** Ollama first-win when `OLLAMA_BASE_URL` is set; default catalog model
+  `ollama/qwen2.5:14b`; AI Gateway / Anthropic remain opt-in overlays. `plan-enhance.json` is
+  local-only (excluded from cf manifest drift).
+- **Sequential VRAM:** unload Ollama (`keep_alive: 0`) after enhance and again before local-gpu
+  keyframe submit.
+- **Door default:** docs + `.env.example` put **16GB** (`vivijure-local-16gb`) first; 12GB is the
+  alternate. `LOCAL_BACKEND_URL` still unset in compose for offline mock.
+- **Secrets sync:** `MODULE_KEYFRAME_URL` is purgeable (cloud opt-in); `OLLAMA_*` synced from env.
+- Residual RunPod **code** (handlers, cloud profile sidecars) stays for opt-in overlays; it is not
+  registered in the default instance.
+
+### chore(finish): retire finish-rife-serve from vivijure-local (Conrad ruling)
+
+No local RIFE image. Removes `containers/finish-rife-serve`, the GHCR bake job
+(`vivijure-local-finish-rife`), and `LOCAL_FINISH_RIFE_URL` / `FINISH_RIFE_BACKEND` wiring.
+RIFE stays RunPod-only (vivijure-cf / explicit opt-in). Supersedes local#204; closes local#260.
+
 ## v1.5.1
 
 PATCH: makes v1.5.0 installable. **v1.5.0 is a PARTIAL RELEASE and should not be pinned** -- its tag
