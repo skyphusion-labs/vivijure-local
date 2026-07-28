@@ -70,7 +70,18 @@ export interface CallOllamaOptions {
    * plan.enhance JSON is not eaten by CoT. Chat/ideation may pass true.
    */
   think?: boolean;
+  /** Sampling temperature. Structured plan/enhance ~0.4; chat ~0.75. */
+  temperature?: number;
+  /** Context window tokens (default 8192; enough for brief + storyboard JSON). */
+  num_ctx?: number;
 }
+
+/** Structured plan / enhance / refine (JSON fidelity over flourish). */
+export const OLLAMA_STRUCTURED_TEMPERATURE = 0.4;
+/** Chat / ideation (creative film direction). */
+export const OLLAMA_CHAT_TEMPERATURE = 0.75;
+/** Default context for storyboard plan/refine payloads. */
+export const OLLAMA_DEFAULT_NUM_CTX = 8192;
 
 /** Strip residual &lt;think&gt; blocks if a model ignored think:false. */
 export function stripThinkingContent(text: string): string {
@@ -90,6 +101,14 @@ export async function callOllama(
   if (!base) throw new Error("ollama requires OLLAMA_BASE_URL");
   const model = ollamaPlanModel(env, modelOverride);
   const think = opts?.think === true;
+  const temperature =
+    typeof opts?.temperature === "number" && Number.isFinite(opts.temperature)
+      ? opts.temperature
+      : think
+        ? OLLAMA_CHAT_TEMPERATURE
+        : OLLAMA_STRUCTURED_TEMPERATURE;
+  const num_ctx =
+    typeof opts?.num_ctx === "number" && opts.num_ctx > 0 ? opts.num_ctx : OLLAMA_DEFAULT_NUM_CTX;
 
   const resp = await fetch(`${base}/api/chat`, {
     method: "POST",
@@ -100,6 +119,7 @@ export async function callOllama(
       stream: false,
       // Top-level think (not options.think) -- required for qwen3 / r1 on native API.
       think,
+      options: { temperature, num_ctx },
       // Keep the model loaded only for this call; unloadOllamaModel frees VRAM after.
       keep_alive: "5m",
     }),
@@ -107,7 +127,11 @@ export async function callOllama(
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`ollama ${resp.status}: ${errText.slice(0, 300)}`);
+    const hint =
+      resp.status === 404 || /not found|pull/i.test(errText)
+        ? ` (is ${model} pulled? run: docker compose run --rm ollama-pull)`
+        : "";
+    throw new Error(`ollama ${resp.status}: ${errText.slice(0, 300)}${hint}`);
   }
   const data = (await resp.json()) as {
     message?: { content?: string; thinking?: string };

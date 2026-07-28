@@ -1,0 +1,19 @@
+# Optional NVIDIA GPU overlay for the homelab Ollama planner (local#265).
+#
+# Use when the 16GB door and Ollama share one NVIDIA card (sequential VRAM:
+# plan → unload → keyframe). Without this file Ollama still runs on CPU.
+#
+#   docker compose -f compose.yaml -f compose.ollama-nvidia.yaml up -d
+#
+# Or set COMPOSE_FILE=compose.yaml:compose.ollama-nvidia.yaml in .env.
+#
+# Requires NVIDIA Container Toolkit on the host. Do not leave Ollama loaded
+# while local-gpu keyframe runs on the same card.
+
+services:
+  ollama:
+    gpus: all
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      # Prefer GPU; fall back only if the toolkit is misconfigured.
+      NVIDIA_VISIBLE_DEVICES: all

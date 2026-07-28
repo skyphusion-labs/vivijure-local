@@ -38,7 +38,34 @@ if (edgeProfileRefusesMinioPlaceholder(profiles, access, secret)) {
   process.exit(1);
 }
 
+const plannerMock = (process.env.PLANNER_AI_MOCK ?? fileEnv.get("PLANNER_AI_MOCK") ?? "false")
+  .trim()
+  .toLowerCase();
+const planModel = process.env.OLLAMA_PLAN_MODEL ?? fileEnv.get("OLLAMA_PLAN_MODEL") ?? "qwen3:14b";
+
 const pull = spawnSync("docker", ["compose", "pull"], { cwd: ROOT, stdio: "inherit" });
 if (pull.status !== 0) process.exit(pull.status ?? 1);
 const up = spawnSync("docker", ["compose", "up", "-d"], { cwd: ROOT, stdio: "inherit" });
-process.exit(up.status ?? 1);
+if (up.status !== 0) process.exit(up.status ?? 1);
+
+// Homelab real planning: block until the default model is present (idempotent if already pulled).
+// Offline/CI: PLANNER_AI_MOCK=true skips this wait. NVIDIA GPU: see compose.ollama-nvidia.yaml.
+if (plannerMock !== "true") {
+  console.log(
+    `compose-up: ensuring Ollama model ${planModel} (first boot may download ~9GB Q4)...`,
+  );
+  const modelPull = spawnSync("docker", ["compose", "run", "--rm", "ollama-pull"], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  if (modelPull.status !== 0) {
+    console.error(
+      "compose-up: ollama-pull failed. Retry: docker compose run --rm ollama-pull\n" +
+        "Or set PLANNER_AI_MOCK=true for offline/CI without a model.",
+    );
+    process.exit(modelPull.status ?? 1);
+  }
+  console.log(`compose-up: Ollama model ${planModel} ready for plan.enhance`);
+}
+
+process.exit(0);

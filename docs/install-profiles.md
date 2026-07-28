@@ -40,7 +40,8 @@ docker compose up -d
 | dialogue-gen | `module-dialogue-gen` | `MODULE_DIALOGUE_URL` |
 | music-gen | `module-music-gen` | `MODULE_MUSIC_GEN_URL` |
 
-Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for `OLLAMA_PLAN_MODEL`).
+Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
+`OLLAMA_PLAN_MODEL`, default `qwen3:14b`). NVIDIA GPU overlay: `compose.ollama-nvidia.yaml`.
 
 ### CPU VPC shims (default)
 

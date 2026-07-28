@@ -7,11 +7,11 @@ export type Intensity = "light" | "medium" | "bold";
 
 const INTENSITY_GUIDE: Record<Intensity, string> = {
   light:
-    "Add a light touch of cinematic direction: one concrete camera or lighting detail per shot. Stay close to the original.",
+    "Add a light touch of filmable direction: one concrete camera angle or lighting cue per shot that an SDXL keyframe can show. Stay close to the original.",
   medium:
-    "Add clear cinematic direction: camera framing or movement, lens feel, and lighting or mood, in a natural sentence or two per shot.",
+    "Add clear shot-list direction: camera framing or gentle movement, subject action, and lighting or mood, in one or two natural sentences per shot (keyframe-ready, not prose fiction).",
   bold:
-    "Direct each shot vividly: camera framing and movement, lens, lighting, mood, and a sense of motion, while keeping the original subject and action.",
+    "Direct each shot vividly for short AI video: camera framing and movement, lens feel, lighting, mood, and a sense of motion, while keeping the original subject and action.",
 };
 
 export interface ChatMessage {
@@ -26,13 +26,18 @@ export function buildMessages(prompts: string[], intensity: Intensity): ChatMess
     {
       role: "system",
       content:
-        "You are a film director doing a pass over a storyboard's shot descriptions. " +
+        "You are a film director rewriting storyboard shot lines for a local AI film studio " +
+        "(SDXL keyframes → short motion clips). " +
         guide +
         " Preserve each shot's subject, action, and meaning; do not add or remove shots; do not change who appears. " +
+        "Write visual, filmable language (who/what, framing, light); avoid abstract theme essays and style words that belong in a global style_prefix. " +
         "Reply with ONLY a JSON array of strings: the rewritten shot descriptions, in the same order, the same length as the input. " +
         "No prose before or after the array, no keys, no markdown fences, no thinking tags.",
     },
-    { role: "user", content: `Rewrite these ${prompts.length} shot descriptions:\n${numbered}` },
+    {
+      role: "user",
+      content: `Rewrite these ${prompts.length} shot descriptions for keyframe-ready direction:\n${numbered}`,
+    },
   ];
 }
 
