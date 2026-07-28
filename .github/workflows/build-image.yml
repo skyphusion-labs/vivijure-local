@@ -244,51 +244,6 @@ jobs:
         with:
           path: vivijure-local
 
-      # local#260: the first time this job could actually run on a PR (local#255 fixed the
-      # needs-chain skip that had masked it), it failed with "No space left on device" inside the
-      # docker build itself, not a build error. First attempt at a fix (toolchain removal only,
-      # freeing roughly 20-30GB) was NOT enough: the SAME failure recurred on the same run this PR
-      # introduced (job 90169583610), confirmed via the job step timeline that "Free disk space"
-      # itself completed successfully and the very next step, the actual build, is what starved
-      # the disk. So the toolchain removal stays (real, if insufficient, headroom), and the real
-      # fix is relocating Docker's storage to /mnt: GitHub-hosted ubuntu-latest runners ship a
-      # SEPARATE, much larger ephemeral disk mounted at /mnt that is empty by default, while /
-      # (where Docker stores images and build layers by default) is the small, heavily
-      # pre-populated partition. This is the standard fix for exactly this failure shape on
-      # GitHub-hosted runners building large images (the community pattern behind actions like
-      # easimon/maximize-build-space and jlumbroso/free-disk-space); moving Docker's data-root
-      # there rather than trimming / further is what actually gives this CUDA overlay (~60GB
-      # export) somewhere to put its layers.
-      #
-      # SELF-HOSTED ONLY EXCLUDED: this step runs ONLY on the GitHub-hosted path (PR / main
-      # smoke). The GPU runner used for tag/publish builds is a persistent box with its own disk
-      # sizing, not an ephemeral VM with a /mnt to relocate onto, and does not need any of this.
-      - name: Free disk space for the CUDA overlay build (GitHub-hosted only)
-        if: runner.environment == 'github-hosted'
-        run: |
-          set -x
-          echo "---- before ----"
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo docker image prune -af || true
-          echo "---- after toolchain removal ----"
-          df -h /
-          # Relocate Docker onto /mnt, the large empty ephemeral disk GitHub-hosted runners ship
-          # alongside the small root partition. Falls back to a no-op (with a loud notice) if /mnt
-          # is missing or too small to be worth it, rather than failing the step over an
-          # environment this workflow does not control.
-          if [ -d /mnt ] && [ "$(df --output=avail -B1 /mnt | tail -1)" -gt "$(df --output=avail -B1 / | tail -1)" ]; then
-            sudo systemctl stop docker
-            sudo mv /var/lib/docker /mnt/docker
-            sudo ln -s /mnt/docker /var/lib/docker
-            sudo systemctl start docker
-            echo "---- after moving /var/lib/docker to /mnt ----"
-          else
-            echo "::notice::/mnt is absent or not larger than /; skipping the docker relocation, toolchain removal only."
-          fi
-          df -h /
-          df -h /mnt || true
-
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Log in to GHCR
@@ -315,6 +270,29 @@ jobs:
             echo "tags=${image}:ci" >> "$GITHUB_OUTPUT"
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # local#260: the first time this job could actually run on a PR (local#255 fixed the
+      # needs-chain skip that had masked it), it failed with "No space left on device" inside the
+      # docker build itself, not a build error. GitHub-hosted ubuntu-latest ships with roughly
+      # 70GB pre-installed toolchains (dotnet, the Android SDK, GHC, CodeQL) eating most of the
+      # disk before any job runs, and this CUDA overlay is the one image in this workflow big
+      # enough to hit that ceiling (build-push-action already omits cache-to here because the
+      # export alone is ~60GB). Reclaiming that pre-installed space is the standard fix for this
+      # exact failure on hosted runners; a bigger runner tier or dropping this job from the PR
+      # path both cost more (money, or re-opening local#255) for the same result.
+      #
+      # SELF-HOSTED ONLY EXCLUDED: this step runs ONLY on the GitHub-hosted path (PR / main
+      # smoke). The GPU runner used for the tag/publish build is a persistent box, not an
+      # ephemeral VM; it does not carry these toolchains and does not need this, and blindly
+      # rm -rf-ing paths there is not a trade worth making for a runner class this never helps.
+      - name: Free disk space for the CUDA overlay build (GitHub-hosted only)
+        if: runner.environment == 'github-hosted'
+        run: |
+          set -x
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune -af || true
+          df -h /
 
       - name: Build finish-rife-serve overlay
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
