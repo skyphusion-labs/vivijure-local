@@ -130,17 +130,22 @@ describe("GET /api/models (local host)", () => {
     expect(body.models).toEqual([]);
   });
 
-  // The shared six-key row shape. Joan pinned the panel against the bytes cf emits; this asserts
+  // The shared row shape. Joan pinned the panel against the bytes cf emits; this asserts
   // local emits the same keys, so one generic render path serves both hosts.
+  // local#101 adds optional `module` / `default` on planning rows (additive; image rows omit them).
   it("every row carries exactly the shared key set, whatever its origin", async () => {
     const { body } = await getModels(true);
-    const allowed = ["capabilities", "group", "id", "label", "provider", "type"];
+    const allowed = ["capabilities", "default", "group", "id", "label", "module", "provider", "type"];
     const required = ["id", "label", "group", "type", "capabilities"];
     expect(body.models.length).toBeGreaterThan(0);
     for (const row of body.models) {
       expect(Object.keys(row).filter((k) => !allowed.includes(k))).toEqual([]);
       expect(Object.keys(row)).toEqual(expect.arrayContaining(required));
     }
+    const planning = body.models.filter((m) => m.type === "chat");
+    expect(planning.length).toBeGreaterThan(0);
+    expect(planning.every((m) => typeof (m as { module?: string }).module === "string")).toBe(true);
+    expect(planning.filter((m) => (m as { default?: boolean }).default === true).length).toBe(1);
   });
 
   // The agreement test: /api/storyboard/models is a FILTERED VIEW of this same projection, not a

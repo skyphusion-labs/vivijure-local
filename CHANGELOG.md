@@ -7,6 +7,18 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(planning): stamp `module` and `default` on projected catalog rows (local#101)
+
+Additive wire fields on GET `/api/storyboard/models` (and the planning half of `/api/models`):
+
+- **`module`** — registry name of the plan.enhance module that declared the row, so consumers do
+  not parse `group` for ownership.
+- **`default: true`** — the row matching `config_schema.model.default` (or the sole no-enum row).
+
+The planner picker lands on the declared default when there is no saved preference, and prefers it
+over "first option" when a saved id has left the catalog. Image rows are unchanged (fields omitted).
+cf ports this projector after merge (upstream-first, cf#62).
+
 ## v1.5.1
 
 PATCH: makes v1.5.0 installable. **v1.5.0 is a PARTIAL RELEASE and should not be pinned** -- its tag

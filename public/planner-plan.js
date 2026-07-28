@@ -75,6 +75,12 @@ async function loadModels() {
     // restore cannot drift apart in what they do with a stale id.
     if (pending) applyModelChoice(select, pending, ids);
     else if (ids.includes(prev)) select.value = prev;
+    else {
+      // No saved preference (or it left the catalog): land on the module-declared default
+      // when the wire row carries default:true (local#101); otherwise the browser's first option.
+      const def = modelCatalog.defaultOptionId(select);
+      if (def && ids.includes(def)) select.value = def;
+    }
   } catch (err) {
     modelCatalog.renderError(select, err.message);
   }
