@@ -124,7 +124,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 ## Chain module sidecars (compose)
 
 - [x] `plan.enhance` (`MODULE_PLANENHANCE_URL`, model choice in module; Opus via gateway or local llama fallback)
-- [x] `cast.image` (`MODULE_CAST_IMAGE_URL`)
+- [x] `cast.image` (`MODULE_CAST_IMAGE_URL`; local Klein 4B via `CAST_IMAGE_BACKEND_URL`, local#269)
 - [x] `dialogue` (`MODULE_DIALOGUE_URL` -> dialogue-gen sidecar)
 - [x] `speech` (`MODULE_SPEECH_UPSCALE_URL`)
 - [x] `notify` (`MODULE_NOTIFY_EMAIL_URL`)

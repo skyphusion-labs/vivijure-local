@@ -1,7 +1,6 @@
 /**
- * cast.image generation (ported from vivijure/modules/cast-image/src/image-gen.ts).
- * FLUX-2: multipart + reference blobs, gateway-bypassed path in ai-run.
- * Proxied (nano-banana): image_input[] data URIs through the gateway.
+ * cast.image Workers AI generation (ported from vivijure/modules/cast-image/src/image-gen.ts).
+ * Homelab local path: cast-image-provider.ts → CAST_IMAGE_BACKEND_URL (local#269).
  */
 import { aiRun } from "../../platform/ai-run.js";
 import type { AiGatewayEnv } from "../../platform/ai-gateway.js";
@@ -20,8 +19,8 @@ async function fetchRef(url: string): Promise<Blob | null> {
   }
 }
 
-/** Generate one training reference image. Throws on no-image / flagged generation. */
-export async function generateCastImage(
+/** Workers AI / gateway path. Prefer generateCastImageViaProvider for first-win routing. */
+export async function generateCastImageWorkersAi(
   env: AiGatewayEnv,
   model: string,
   prompt: string,
@@ -69,3 +68,6 @@ export async function generateCastImage(
   const bytes = new Uint8Array(await resp.arrayBuffer());
   return { bytes, mime: resp.headers.get("content-type") || "image/png" };
 }
+
+/** @deprecated Use generateCastImageViaProvider; kept as Workers AI alias for older tests. */
+export const generateCastImage = generateCastImageWorkersAi;

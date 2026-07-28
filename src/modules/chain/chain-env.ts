@@ -6,6 +6,8 @@ export type ChainModuleEnv = PlannerEnv & {
   ENHANCE_MODEL?: string;
   OLLAMA_BASE_URL?: string;
   OLLAMA_PLAN_MODEL?: string;
+  CAST_IMAGE_BACKEND_URL?: string;
+  CAST_IMAGE_BACKEND_TOKEN?: string;
   RUNPOD_API_KEY?: string;
   RUNPOD_ENDPOINT_ID?: string;
   AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
@@ -19,6 +21,8 @@ export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = proces
     ENHANCE_MODEL: processEnv.ENHANCE_MODEL,
     OLLAMA_BASE_URL: processEnv.OLLAMA_BASE_URL?.trim() || undefined,
     OLLAMA_PLAN_MODEL: processEnv.OLLAMA_PLAN_MODEL?.trim() || undefined,
+    CAST_IMAGE_BACKEND_URL: processEnv.CAST_IMAGE_BACKEND_URL?.trim() || undefined,
+    CAST_IMAGE_BACKEND_TOKEN: processEnv.CAST_IMAGE_BACKEND_TOKEN?.trim() || undefined,
     RUNPOD_API_KEY: processEnv.RUNPOD_API_KEY?.trim() || undefined,
     RUNPOD_ENDPOINT_ID: processEnv.RUNPOD_ENDPOINT_ID?.trim() || undefined,
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: processEnv.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,

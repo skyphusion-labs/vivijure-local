@@ -238,6 +238,24 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "CAST_IMAGE_BACKEND_URL",
+    label: "Local cast.image backend URL",
+    blurb:
+      "Homelab Apache FLUX.2 Klein 4B sidecar (default http://cast-image:8785 with COMPOSE_PROFILES=cast-image). " +
+      "When set, cast.image uses local gen (no Cloudflare). Unload runs after the job for sequential VRAM.",
+    category: "ai",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "CAST_IMAGE_BACKEND_TOKEN",
+    label: "Local cast.image backend token",
+    blurb: "Optional bearer for CAST_IMAGE_BACKEND_URL (matches CAST_IMAGE_TOKEN on the sidecar).",
+    category: "ai",
+    sensitive: true,
+    applies_on: "immediate",
+  },
+  {
     key: "FINISH_BACKEND",
     label: "Finish GPU backend mode",
     blurb:
