@@ -49,5 +49,8 @@ if (!localGpuConfigured(startupEnv)) {
 const app = createLocalGpuModuleApp(manifest, getEnv);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
-  console.log(`local-gpu module on http://127.0.0.1:${port} (door=${startupEnv.LOCAL_BACKEND_URL})`);
+  // Presence, never the value: LOCAL_BACKEND_URL arrives through the same runtime-env bag as
+  // LOCAL_BACKEND_TOKEN (platform_secrets), so echoing it puts secret-store content in container logs
+  // (CodeQL js/clear-text-logging).
+  console.log(`local-gpu module on http://127.0.0.1:${port} (door=configured)`);
 });

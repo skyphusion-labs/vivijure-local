@@ -24,23 +24,42 @@ import {
 const REPO = join(import.meta.dirname, "..");
 
 /**
- * Services compose would actually start.
+ * Ask compose once per distinct state and reuse the answer.
+ *
+ * Memoized because each call spawns the compose binary to parse a 750-line file, and a test file that
+ * fans out a dozen of those adds real load to a 4-vCPU CI runner -- enough to push sibling workers past
+ * their 5s test timeout. Four spawns total, not one per assertion.
  *
  * `--env-file /dev/null` is deliberate: without it compose reads the developer's own .env, and a local
  * LOCAL_BACKEND_URL would decide the result instead of the fixture.
  */
-function services(env: Record<string, string> = {}, profiles: string[] = []): string[] {
-  const args = ["compose", "--env-file", "/dev/null"];
-  for (const p of profiles) args.push("--profile", p);
-  args.push("config", "--services");
-  return execFileSync("docker", args, {
+const renders = new Map<string, string>();
+function compose(args: string[], env: Record<string, string>, profiles: string[]): string {
+  const key = JSON.stringify([args, env, profiles]);
+  const cached = renders.get(key);
+  if (cached !== undefined) return cached;
+  const argv = ["compose", "--env-file", "/dev/null"];
+  for (const p of profiles) argv.push("--profile", p);
+  const out = execFileSync("docker", [...argv, ...args], {
     cwd: REPO,
     encoding: "utf8",
     env: { ...process.env, LOCAL_BACKEND_URL: "", MODULE_LOCAL_GPU_URL: "", ...env },
-  })
+  });
+  renders.set(key, out);
+  return out;
+}
+
+/** Services compose would actually start. */
+function services(env: Record<string, string> = {}, profiles: string[] = []): string[] {
+  return compose(["config", "--services"], env, profiles)
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** The fully resolved compose file (anchors expanded, interpolation applied). */
+function rendered(env: Record<string, string> = {}, profiles: string[] = []): string {
+  return compose(["config"], env, profiles);
 }
 
 describe("no door: the local-gpu service is not in the stack at all", () => {
@@ -63,12 +82,8 @@ describe("no door: the local-gpu service is not in the stack at all", () => {
   it("the studio does NOT depend_on it, so a doorless box can boot", () => {
     // The reason the shim had to keep running: `studio` waited for module-local-gpu to be healthy.
     // A dependency on a service that may not exist is the assumption that forced the stand-in.
-    const rendered = execFileSync(
-      "docker",
-      ["compose", "--env-file", "/dev/null", "config"],
-      { cwd: REPO, encoding: "utf8", env: { ...process.env, LOCAL_BACKEND_URL: "" } },
-    );
-    const studio = rendered.slice(rendered.indexOf("\n  studio:"));
+    const all = rendered();
+    const studio = all.slice(all.indexOf("\n  studio:"));
     const dependsOn = studio.slice(studio.indexOf("depends_on:"), studio.indexOf("environment:"));
     expect(dependsOn).not.toContain("module-local-gpu");
     expect(dependsOn).toContain("video-finish"); // control: the block was actually found
@@ -77,12 +92,7 @@ describe("no door: the local-gpu service is not in the stack at all", () => {
   it("binds no MODULE_LOCAL_GPU_URL, so the registry has no module to offer", () => {
     // The other half of "not installed": even with no container, a hardcoded binding would make the
     // studio advertise a module and 502 at submit. moduleUrlsFromEnv skips empty values.
-    const rendered = execFileSync(
-      "docker",
-      ["compose", "--env-file", "/dev/null", "config"],
-      { cwd: REPO, encoding: "utf8", env: { ...process.env, LOCAL_BACKEND_URL: "", MODULE_LOCAL_GPU_URL: "" } },
-    );
-    expect(rendered).not.toContain("http://module-local-gpu:9102");
+    expect(rendered()).not.toContain("http://module-local-gpu:9102");
   });
 });
 
