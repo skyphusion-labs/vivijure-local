@@ -195,8 +195,8 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
   # Homelab LLM for plan.enhance (local#265). Shares the GPU with the 16GB door serially:
-  # plan → unload → keyframe. On NVIDIA hosts, add a compose override with `gpus: all`
-  # (see docs/DEPLOYMENT.md); without it Ollama runs on CPU (fine for CI / Mac).
+  # plan → unload → keyframe. On NVIDIA hosts use compose.ollama-nvidia.yaml (see
+  # docs/DEPLOYMENT.md); without it Ollama runs on CPU (fine for CI / Mac).
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -215,6 +215,7 @@ services:
       start_period: 20s
 
   # One-shot pull for default qwen3:14b (~9.3GB Q4; fits 16GB with headroom before unload).
+  # First boot downloads the model; retries on transient registry errors; verifies with `show`.
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
@@ -228,8 +229,21 @@ services:
     command:
       - |
         set -e
-        echo "ollama-pull: ensuring $$OLLAMA_PLAN_MODEL is present"
-        ollama pull "$$OLLAMA_PLAN_MODEL"
+        model="$$OLLAMA_PLAN_MODEL"
+        echo "ollama-pull: ensuring $$model is present (first boot may download ~9GB)"
+        i=1
+        while [ "$$i" -le 5 ]; do
+          if ollama pull "$$model"; then
+            ollama show "$$model" >/dev/null
+            echo "ollama-pull: $$model ready"
+            exit 0
+          fi
+          echo "ollama-pull: attempt $$i failed; retrying in 8s"
+          i=$$((i + 1))
+          sleep 8
+        done
+        echo "ollama-pull: failed to pull $$model after retries" >&2
+        exit 1
     restart: "no"
 
   # RunPod keyframe sidecar -- cloud profile only (not in default homelab stack).
@@ -445,6 +459,8 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
     environment:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       # Offline/CI: PLANNER_AI_MOCK=true. Homelab real planning: false (default) + Ollama.

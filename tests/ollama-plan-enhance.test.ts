@@ -4,11 +4,18 @@ import {
   DEFAULT_OLLAMA_PLAN_MODEL,
   ensureOllamaUnloadedForGpu,
   isOllamaModelId,
+  OLLAMA_CHAT_TEMPERATURE,
+  OLLAMA_STRUCTURED_TEMPERATURE,
   ollamaPlanModel,
   stripThinkingContent,
   unloadOllamaModel,
 } from "../src/modules/chain/ollama.js";
-import { parseEnhanced, parsePlanStoryboard } from "../src/modules/chain/plan-enhance-core.js";
+import {
+  augmentSystemForOllama,
+  OLLAMA_CHAT_SYSTEM_DEFAULT,
+  OLLAMA_STRUCTURED_PREAMBLE,
+} from "../src/modules/chain/ollama-prompts.js";
+import { buildMessages, parseEnhanced, parsePlanStoryboard } from "../src/modules/chain/plan-enhance-core.js";
 import { pickProvider } from "../src/modules/chain/plan-enhance-provider.js";
 import { unloadOllamaBeforeRender } from "../src/ollama-handoff.js";
 import { invokeLocalGpu, invokeLocalKeyframe } from "../src/modules/local-gpu/handlers.js";
@@ -43,13 +50,15 @@ describe("ollama plan.enhance helpers", () => {
     ).toEqual({ scenes: [{ prompt: "dock at dawn" }] });
   });
 
-  it("calls /api/chat with think:false and unloads via keep_alive 0", async () => {
+  it("calls /api/chat with think:false, structured temperature, and unloads via keep_alive 0", async () => {
     const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/api/chat")) {
         const body = JSON.parse(String(init?.body));
         expect(body.model).toBe("qwen3:14b");
         expect(body.think).toBe(false);
+        expect(body.options?.temperature).toBe(OLLAMA_STRUCTURED_TEMPERATURE);
+        expect(body.options?.num_ctx).toBe(8192);
         return new Response(JSON.stringify({ message: { content: '["a directed"]' } }), {
           status: 200,
         });
@@ -69,10 +78,11 @@ describe("ollama plan.enhance helpers", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("honors think:true for chat/ideation", async () => {
+  it("honors think:true and creative temperature for chat/ideation", async () => {
     const fetchMock = vi.fn(async (_input: string | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body));
       expect(body.think).toBe(true);
+      expect(body.options?.temperature).toBe(OLLAMA_CHAT_TEMPERATURE);
       return new Response(JSON.stringify({ message: { content: "harbor short" } }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -81,6 +91,24 @@ describe("ollama plan.enhance helpers", () => {
         think: true,
       }),
     ).resolves.toBe("harbor short");
+  });
+
+  it("hints to run ollama-pull when the model is missing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response('{"error":"model not found"}', { status: 404 })),
+    );
+    await expect(
+      callOllama({ OLLAMA_BASE_URL: "http://ollama:11434" }, [{ role: "user", content: "hi" }]),
+    ).rejects.toThrow(/ollama-pull/);
+  });
+
+  it("augments Ollama systems toward filmable creative direction", () => {
+    expect(augmentSystemForOllama(undefined, "chat")).toBe(OLLAMA_CHAT_SYSTEM_DEFAULT);
+    expect(augmentSystemForOllama("schema rules", "plan")).toContain(OLLAMA_STRUCTURED_PREAMBLE);
+    expect(augmentSystemForOllama("schema rules", "plan")).toContain("schema rules");
+    const enhance = buildMessages(["dock at dawn"], "medium");
+    expect(enhance[0]?.content).toMatch(/keyframe|filmable|SDXL/i);
   });
 });
 

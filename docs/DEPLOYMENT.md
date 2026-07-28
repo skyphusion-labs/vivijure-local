@@ -192,16 +192,27 @@ Default first-win sequence on one card:
 4. **local-gpu** keyframe (`action: preview`) then motion on the same door; finish stays CPU
    assemble (+ optional local GPU finish / satellites).
 
-**Why `qwen3:14b`:** Ollama Q4_K_M ~9.3GB, comfortable on a 16GB door with KV headroom. Qwen3
-beats qwen2.5 on creative writing, scripts, and instruction following (video ideation +
-auto-direction); hybrid thinking is available for chat. Catalog also offers `deepseek-r1:14b`
-(~9GB, heavier reasoning) and `qwen3:8b` (~5.2GB, smaller cards). Structured enhance/plan calls
-send `think: false` so CoT does not break JSON arrays; chat opts into `think: true`.
+**Why `qwen3:14b` (kept as default):** Ollama library Q4_K_M ~9.3GB, comfortable on a 16GB door
+with KV headroom for storyboard JSON. Strongest published library fit for creative writing,
+scripts, shot lists, and instruction-following auto-direction without eating the card.
+Rejected as default: `mistral-small:24b` (~14GB Q4, almost no KV headroom on 16GB);
+community creative fine-tunes (not Ollama-library stable for first-win installs). Catalog also
+offers `deepseek-r1:14b` (~9GB, heavier reasoning) and `qwen3:8b` (~5.2GB, smaller cards).
+Structured enhance/plan calls send `think: false` + cooler temperature so CoT/JSON stay clean;
+chat opts into `think: true` with a creative-director system default.
 
-Compose starts `ollama` + one-shot `ollama-pull`. On NVIDIA hosts, add a compose override with
-`gpus: all` on the `ollama` service so the LLM uses the card; without it Ollama runs on CPU
-(acceptable for CI / Mac). AI Gateway / Anthropic catalog rows remain available as an opt-in overlay
-when gateway creds are set and you pick an `anthropic/*` model id.
+Compose starts `ollama` + one-shot `ollama-pull` (retries + `ollama show` verify).
+`npm run compose:up` waits for the pull when `PLANNER_AI_MOCK` is not true.
+`module-plan-enhance` depends on pull success so the sidecar does not serve before the model exists.
+On NVIDIA hosts sharing the door GPU, use the overlay:
+
+```bash
+docker compose -f compose.yaml -f compose.ollama-nvidia.yaml up -d
+# or: COMPOSE_FILE=compose.yaml:compose.ollama-nvidia.yaml
+```
+
+Without the overlay Ollama runs on CPU (acceptable for CI / Mac). AI Gateway / Anthropic catalog
+rows remain an opt-in overlay when gateway creds are set and you pick an `anthropic/*` model id.
 
 ### Switching 12GB ↔ 16GB GPU doors (homelab)
 

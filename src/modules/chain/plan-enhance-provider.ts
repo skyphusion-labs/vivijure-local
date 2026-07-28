@@ -169,7 +169,7 @@ export async function direct(
   }
 
   const provider = pickProvider(env, modelId);
-  // Structured plan/enhance defaults to think:false; chat may opt into thinking.
+  // Structured plan/enhance defaults to think:false + cooler temp; chat may opt into thinking.
   const ollamaCallOpts: CallOllamaOptions = { think: false, ...ollamaOpts };
 
   if (provider === "ollama") {

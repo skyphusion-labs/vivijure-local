@@ -47,6 +47,7 @@ Open **http://127.0.0.1:8790** in a browser. Paste the token from `.studio-token
 | Studio API + UI | http://127.0.0.1:8790 |
 | MinIO API | http://127.0.0.1:9000 |
 | MinIO console | http://127.0.0.1:9001 (`minioadmin` / `minioadmin`) |
+| Ollama (plan.enhance) | http://127.0.0.1:11434 (default model **`qwen3:14b`**, ~9.3GB; 16GB door) |
 | CPU media health | http://127.0.0.1:8780-8784 (`/health`) |
 
 Stop the stack: `npm run compose:down`
@@ -78,14 +79,17 @@ One `compose.yaml` brings up:
 
 1. **studio** -- Node control plane (API + static UI from the shared `public/`).
 2. **minio** -- S3-compatible object store for renders, bundles, and job state.
-3. **ollama** -- open-weight `plan.enhance` (default `qwen3:14b`, ~9.3GB on a 16GB card); unloaded before keyframe.
+3. **ollama** + **ollama-pull** -- open-weight `plan.enhance` (default **`qwen3:14b`**, ~9.3GB Q4;
+   fits a 16GB door with headroom). `npm run compose:up` waits for the pull on first boot.
+   Unloaded after plan and before keyframe (never concurrent with the door on the same card).
 4. **CPU media** -- `video-finish`, `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`.
 5. **Module sidecars** -- `local-gpu` (keyframe + motion; mock when no door), plan-enhance, beat-sync,
    audio-master, film-titles, subtitle, and the other CPU/chain modules.
 
 Compose defaults `PLANNER_AI_MOCK=false` and points plan.enhance at Ollama. For offline CI without
-pulling a model, set `PLANNER_AI_MOCK=true`. AI Gateway remains an opt-in overlay (see
-[DEPLOYMENT.md](DEPLOYMENT.md)).
+pulling a model, set `PLANNER_AI_MOCK=true`. On NVIDIA hosts sharing the door GPU, add
+`compose.ollama-nvidia.yaml` (see [DEPLOYMENT.md](DEPLOYMENT.md)). AI Gateway remains an opt-in
+overlay.
 
 ## Prove the pipeline (smoke test)
 

@@ -7,6 +7,16 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(ollama): harden creative home path for qwen3:14b (local#265)
+
+Keep **`qwen3:14b`** as the 16GB default (strongest Ollama-library creative/instruction fit
+with ~9.3GB Q4 headroom; reject mistral-small:24b / community fine-tunes as first-win default).
+Working-path improvements: creative-director prompt overlays for plan/refine/chat/enhance;
+chat temperature + structured cooler sampling; `ollama-pull` retries + `show` verify;
+`module-plan-enhance` waits on pull; `npm run compose:up` blocks until the model is ready
+(unless `PLANNER_AI_MOCK=true`); optional `compose.ollama-nvidia.yaml`; clearer missing-model
+errors. Unload-before-door handoff from #268 unchanged.
+
 ### fix(homelab): unload Ollama on every path before door GPU claim (local#265)
 
 Belt-and-suspenders sequential VRAM: studio film/clip/scatter/finalize submits call
