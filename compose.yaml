@@ -14,10 +14,12 @@
 # MinIO S3 API:  http://127.0.0.1:9000  (in-network); public HTTPS via Caddy + S3_PRESIGN_ENDPOINT
 #               COMPOSE_PROFILES=edge requires non-placeholder S3_* (npm run install:edge mints them).
 #
-# Default homelab stack (Conrad ruling 2026-07-28 / local#265):
+# Default homelab stack (Conrad ruling 2026-07-28 / local#265 + #269):
 #   Ollama plan.enhance → unload → local-gpu keyframe (16GB door first). NO RunPod modules in default.
+#   cast.image: set CAST_IMAGE_BACKEND_URL + profile cast-image for local Apache Klein 4B (no CF).
 # CPU sidecars, VPC shims, score/chain modules, Ollama, and local-gpu run by default.
 # Optional profiles (see docs/install-profiles.md):
+#   cast-image -- FLUX.2 Klein 4B GPU sidecar for local cast training refs (local#269)
 #   cloud      -- RunPod keyframe, own-gpu, cloud i2v, cloud-keyframe, speech-upscale
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
 # local-gpu mock when LOCAL_BACKEND_URL unset (offline default). Default door hostname: vivijure-local-16gb.
@@ -33,6 +35,7 @@ volumes:
   minio-data:
   studio-data:
   ollama-data:
+  cast-image-models:
   caddy-data:
   caddy-config:
 
@@ -476,6 +479,31 @@ services:
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
 
+  # Local Apache cast.image backend (FLUX.2 Klein 4B). Profile-gated: heavy CUDA image + HF weights.
+  # Enable: COMPOSE_PROFILES=cast-image (+ compose.cast-image-nvidia.yaml on NVIDIA).
+  # Set CAST_IMAGE_BACKEND_URL=http://cast-image:8785 (compose default below when profile on).
+  cast-image:
+    profiles: [cast-image]
+    image: ${VJ_IMAGE_REGISTRY:-ghcr.io/skyphusion-labs}/vivijure-local-cast-image:${VJ_IMAGE_TAG:-latest}
+    build:
+      context: ./containers/cast-image
+      dockerfile: Dockerfile
+    pull_policy: missing
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8785:8785"
+    environment:
+      PORT: "8785"
+      CAST_IMAGE_MODEL: ${CAST_IMAGE_MODEL:-black-forest-labs/FLUX.2-klein-4B}
+      CAST_IMAGE_TOKEN: ${CAST_IMAGE_BACKEND_TOKEN:-}
+      HF_HOME: /models/huggingface
+    volumes:
+      - cast-image-models:/models/huggingface
+    networks: [studio]
+    healthcheck:
+      <<: *cpu-health
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8785/health"]
+
   module-cast-image:
     <<: *module-sidecar
     volumes:
@@ -486,6 +514,11 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9141/module.json"]
     environment:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
+      # Homelab first-win (local#269): local Klein 4B when URL set; CF Workers AI remains opt-in.
+      CAST_IMAGE_BACKEND_URL: ${CAST_IMAGE_BACKEND_URL:-}
+      CAST_IMAGE_BACKEND_TOKEN: ${CAST_IMAGE_BACKEND_TOKEN:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}

@@ -1,0 +1,14 @@
+# Optional NVIDIA GPU overlay for the local cast.image Klein 4B sidecar (local#269).
+#
+#   COMPOSE_PROFILES=cast-image docker compose \
+#     -f compose.yaml -f compose.cast-image-nvidia.yaml up -d
+#
+# Requires NVIDIA Container Toolkit. Sequential VRAM on one 16GB card:
+#   cast.image → unload → Ollama plan.enhance → unload → local-gpu keyframe.
+# Do not leave Klein loaded while Ollama or the door claims the same GPU.
+
+services:
+  cast-image:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all

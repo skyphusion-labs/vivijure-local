@@ -7,6 +7,16 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(cast.image): local Apache FLUX.2 Klein 4B path (local#269)
+
+Self-hostable cast training refs without Cloudflare. Homelab first-win when
+`CAST_IMAGE_BACKEND_URL` is set (compose profile `cast-image` + optional
+`compose.cast-image-nvidia.yaml`). Default catalog model is **`local/flux-2-klein-4b`**
+(Apache-2.0); CF klein-9b / Workers AI remain opt-in overlays. Sidecar:
+`containers/cast-image` (`POST /generate`, `POST /unload`). Sequential VRAM: unload
+Ollama before local gen; unload Klein after the cast.image job. CONTRACT poll/store
+shape unchanged (`cast-gen/<id>/ref_XX.png`). Local SDXL `train_lora` remains [#271](https://github.com/skyphusion-labs/vivijure-local/issues/271).
+
 ### feat(ollama): harden creative home path for qwen3:14b (local#265)
 
 Keep **`qwen3:14b`** as the 16GB default (strongest Ollama-library creative/instruction fit

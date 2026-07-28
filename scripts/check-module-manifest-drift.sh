@@ -6,6 +6,8 @@
 #   - bare-planner.json — deliberate enum-less fixture for gate / e2e (not from sync)
 #   - plan-enhance.json — local-only Ollama first-win catalog (Conrad 2026-07-28 / #265);
 #     cf keeps the Anthropic/AI Gateway MANIFEST; do not re-sync this file from cf.
+#   - cast-image.json — local-only Klein 4B first-win catalog (Conrad 2026-07-28 / #272);
+#     cf keeps Workers AI / nano-banana MANIFEST; do not re-sync this file from cf.
 #
 #   bash scripts/check-module-manifest-drift.sh [vivijure-cf-clone]
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-module-manifest-drift.sh
@@ -40,7 +42,7 @@ else
 fi
 
 # Space-separated basenames excluded from both directions of the diff.
-EXCLUDE_RE='^(bare-planner\.json|plan-enhance\.json)$'
+EXCLUDE_RE='^(bare-planner\.json|plan-enhance\.json|cast-image\.json)$'
 drift=()
 
 excluded() {
@@ -76,8 +78,8 @@ done < <(cd "$TMP" && find . -maxdepth 1 -name '*.json' -type f | sed 's|^\./||'
 if [[ ${#drift[@]} -gt 0 ]]; then
   echo "check-module-manifest-drift: FAIL -- ${#drift[@]} drifting manifest(s): ${drift[*]}" >&2
   echo "check-module-manifest-drift: fix with: VIVIJURE_SRC=$UP npm run module-manifests && git add dev/manifests && commit" >&2
-  echo "check-module-manifest-drift: note: plan-enhance.json is local-only (Ollama); do not overwrite from cf" >&2
+  echo "check-module-manifest-drift: note: plan-enhance.json / cast-image.json are local-only; do not overwrite from cf" >&2
   exit 1
 fi
 
-echo "check-module-manifest-drift: PASS (dev/manifests match vivijure-cf; excluded bare-planner.json plan-enhance.json)"
+echo "check-module-manifest-drift: PASS (dev/manifests match vivijure-cf; excluded bare-planner.json plan-enhance.json cast-image.json)"

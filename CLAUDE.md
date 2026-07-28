@@ -42,6 +42,7 @@ docker compose up -d    # CPU media stack + optional MinIO
 | MinIO S3 API | 9000 |
 | MinIO console | 9001 |
 | Ollama (plan.enhance) | 11434 |
+| cast-image (Klein 4B; profile) | 8785 |
 | video-finish | 8780 |
 | image-prep | 8781 |
 | audio-beat-sync | 8782 |

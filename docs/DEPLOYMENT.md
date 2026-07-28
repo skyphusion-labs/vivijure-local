@@ -118,6 +118,8 @@ the studio container.
 | `PLANNER_AI_MOCK` | `false` | Set `true` for offline/CI without Ollama model pull |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Homelab plan.enhance provider |
 | `OLLAMA_PLAN_MODEL` | `qwen3:14b` | Default open-weight planner (~9.3GB Q4; 16GB headroom) |
+| `CAST_IMAGE_BACKEND_URL` | unset | Local cast.image Klein 4B (`http://cast-image:8785` with profile `cast-image`) |
+| `CAST_IMAGE_BACKEND_TOKEN` | unset | Optional bearer for the cast-image sidecar |
 
 ### Object storage (MinIO)
 
@@ -179,11 +181,42 @@ recreate is needed after the sync.
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
 the root user password changes.
 
-### Homelab path: Ollama → unload → local-gpu (local#265)
+### Homelab path: cast.image (local Klein 4B) → Ollama → unload → local-gpu
 
-Default first-win sequence on one card:
+Default first-win sequence on one 16GB card (local#265 + local#269):
 
-**plan → unload → keyframe** (then motion / optional local finish on the same card).
+**cast.image (optional prep) → unload → plan → unload → keyframe** (then motion / optional local finish).
+
+#### Local cast.image without Cloudflare (local#269)
+
+Apache-2.0 **FLUX.2 Klein 4B** generates cast LoRA training refs on-box. CF Workers AI is
+opt-in only. Default catalog id: `local/flux-2-klein-4b` (not non-commercial klein-9b).
+
+```bash
+# Build the GPU sidecar (not published to GHCR until a release bake; first run pulls HF weights)
+docker compose --profile cast-image build cast-image
+
+# NVIDIA host
+COMPOSE_PROFILES=cast-image docker compose \
+  -f compose.yaml -f compose.cast-image-nvidia.yaml up -d cast-image
+
+# .env — then sync + recreate module-cast-image
+CAST_IMAGE_BACKEND_URL=http://cast-image:8785
+npm run sync:secrets:compose
+docker compose up -d --force-recreate module-cast-image
+```
+
+Health: `curl -fsS http://127.0.0.1:8785/health` → `configured: true` only when CUDA is present.
+Without a GPU the sidecar still binds and returns clear 503s on `/generate`.
+
+After each cast.image job finishes, the module calls `POST /unload` so Ollama / the door can
+claim VRAM. Before each local generate it also unloads Ollama (`ensureOllamaUnloadedForGpu`).
+
+**Train gap:** image keys stay `cast-gen/<cast_id>/ref_XX.png` (train-compatible). Local SDXL
+`train_lora` on the 16GB door is tracked in [local#271](https://github.com/skyphusion-labs/vivijure-local/issues/271);
+today `/train-lora` still needs RunPod or CF for the adapter half.
+
+#### Ollama plan.enhance → unload → local-gpu (local#265)
 
 1. **Ollama** serves `plan.enhance` (`OLLAMA_PLAN_MODEL`, default **`qwen3:14b`**).
 2. After enhance/chat completes, the planner **unloads** the model (`keep_alive: 0`).

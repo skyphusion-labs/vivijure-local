@@ -22,6 +22,7 @@ import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import { aiRun } from "../../platform/ai-run.js";
 import type { ChainModuleEnv } from "./chain-env.js";
 import {
+  DEFAULT_CAST_MODEL,
   FLAG_FALLBACK_MODEL,
   MODELS,
   buildState as buildCastState,
@@ -33,7 +34,12 @@ import {
   stateKey as castStateKey,
   type CastImageState,
 } from "./cast-image-core.js";
-import { generateCastImage } from "./cast-image-gen.js";
+import {
+  generateCastImageViaProvider,
+  pickCastImageProvider,
+  unloadCastImageGpuBestEffort,
+} from "./cast-image-provider.js";
+import { LOCAL_CAST_MODEL } from "./cast-image-local.js";
 export { invokeImageGenerate, MODELS as IMAGE_GENERATE_MODELS } from "./image-generate-core.js";
 export type { ImageGenerateInput, ImageGenerateOutput } from "./image-generate-core.js";
 import {
@@ -269,6 +275,7 @@ export async function invokePlanEnhance(
 }
 
 export async function invokeCastImage(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   req: InvokeRequest<CastImageInput>,
 ): Promise<InvokeResponse<CastImageOutput>> {
@@ -276,10 +283,13 @@ export async function invokeCastImage(
   if (!input || typeof input.cast_id !== "number" || !input.portrait_url) {
     return { ok: false, error: "cast.image: input needs cast_id and portrait_url" };
   }
-  const model =
+  const requested =
     typeof req.config?.model === "string" && MODELS.includes(req.config.model as (typeof MODELS)[number])
       ? req.config.model
-      : MODELS[0];
+      : DEFAULT_CAST_MODEL;
+  // Homelab first-win: when local backend is set, persist the Apache local id (not CF 9b).
+  const model =
+    pickCastImageProvider(env, requested) === "local" ? LOCAL_CAST_MODEL : requested;
   const num = typeof req.config?.num_images === "number" ? req.config.num_images : 10;
   const job_id = crypto.randomUUID();
   const state = buildCastState(input, model, num);
@@ -303,19 +313,30 @@ export async function pollCastImage(
   const sk = castStateKey(token.cast_id, token.job_id);
   const state = await readJson<CastImageState>(store, sk);
   if (!state) return { ok: false, error: "cast.image: run state not found (expired or bad token)" };
-  if (state.prompts.length === 0) return { ok: true, output: readCastOutput(state) };
+  if (state.prompts.length === 0) {
+    await unloadCastImageGpuBestEffort(env);
+    return { ok: true, output: readCastOutput(state) };
+  }
 
   for (let i = 0; i < CAST_IMAGE_PER_POLL && state.prompts.length > 0; i++) {
     const prompt = state.prompts[0];
-    let img: { bytes: Uint8Array; mime: string };
+    let img: { bytes: Uint8Array; mime: string; model: string };
     try {
-      img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+      img = await generateCastImageViaProvider(env, state.model, prompt, state.ref_urls);
+      state.model = img.model;
     } catch (e) {
-      if (isFlaggedError((e as Error).message) && state.model !== FLAG_FALLBACK_MODEL) {
+      const provider = pickCastImageProvider(env, state.model);
+      // nano-banana fallback is cloud-only (proprietary); never on the Apache local path.
+      if (
+        provider === "workers-ai" &&
+        isFlaggedError((e as Error).message) &&
+        state.model !== FLAG_FALLBACK_MODEL
+      ) {
         state.model = FLAG_FALLBACK_MODEL;
         state.fallback_used = true;
         try {
-          img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+          img = await generateCastImageViaProvider(env, state.model, prompt, state.ref_urls);
+          state.model = img.model;
         } catch (e2) {
           return { ok: false, error: "cast.image: generation failed (post-fallback): " + (e2 as Error).message };
         }
@@ -340,9 +361,12 @@ export async function pollCastImage(
     /* best-effort: next poll re-reads prior state */
   }
 
-  return state.prompts.length === 0
-    ? { ok: true, output: readCastOutput(state) }
-    : { ok: true, pending: true };
+  if (state.prompts.length === 0) {
+    // Sequential VRAM: release Klein before later Ollama plan / local-gpu keyframe.
+    await unloadCastImageGpuBestEffort(env);
+    return { ok: true, output: readCastOutput(state) };
+  }
+  return { ok: true, pending: true };
 }
 
 function ttsBytesFromAiResult(result: unknown): Uint8Array {

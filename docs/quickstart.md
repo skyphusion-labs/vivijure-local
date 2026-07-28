@@ -114,6 +114,10 @@ npm run conformance:compose
   `LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000` (16GB door first) for keyframes + motion, CPU
   `video-finish` to assemble. Optional CF AI Gateway only for dialogue/music/narration overlays.
   See [DEPLOYMENT.md](DEPLOYMENT.md).
+- **Local cast training refs (no Cloudflare):** `COMPOSE_PROFILES=cast-image` +
+  `CAST_IMAGE_BACKEND_URL=http://cast-image:8785` runs Apache **FLUX.2 Klein 4B** for cast.image
+  ([local#269](https://github.com/skyphusion-labs/vivijure-local/issues/269)). Sequential VRAM with
+  Ollama / the door; see [DEPLOYMENT.md](DEPLOYMENT.md). Local SDXL train is [#271](https://github.com/skyphusion-labs/vivijure-local/issues/271).
 - **Real GPU (16GB door first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
   (or the 12GB alternate) on your host; set `LOCAL_BACKEND_URL` and recreate `module-local-gpu`.
   See [DEPLOYMENT.md](DEPLOYMENT.md).

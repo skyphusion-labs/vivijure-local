@@ -43,6 +43,22 @@ docker compose up -d
 Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 `OLLAMA_PLAN_MODEL`, default `qwen3:14b`). NVIDIA GPU overlay: `compose.ollama-nvidia.yaml`.
 
+### Profile: `cast-image` (local Apache Klein 4B; local#269)
+
+GPU sidecar for cast LoRA training refs without Cloudflare. Not in the default stack (CUDA +
+HF weights). Set `CAST_IMAGE_BACKEND_URL=http://cast-image:8785` and use the nvidia overlay on
+shared-card hosts:
+
+```bash
+docker compose --profile cast-image build cast-image
+COMPOSE_PROFILES=cast-image docker compose \
+  -f compose.yaml -f compose.cast-image-nvidia.yaml up -d cast-image
+```
+
+Default model: `local/flux-2-klein-4b` (`black-forest-labs/FLUX.2-klein-4B`, Apache-2.0).
+Do not use klein-9b as the homelab default (non-commercial). CF Workers AI stays an opt-in
+overlay when gateway creds are set. Local `train_lora` door half: [#271](https://github.com/skyphusion-labs/vivijure-local/issues/271).
+
 ### CPU VPC shims (default)
 
 | Service | Port | Studio env |

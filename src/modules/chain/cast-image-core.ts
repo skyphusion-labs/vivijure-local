@@ -1,7 +1,11 @@
 /**
  * cast.image pure logic (ported from vivijure/modules/cast-image/cast-image.ts).
+ *
+ * Homelab default (local#269): local/flux-2-klein-4b (Apache-2.0). CF klein-9b is
+ * non-commercial and opt-in only.
  */
 import type { CastImageOutput } from "@skyphusion-labs/vivijure-core/modules/types";
+import { LOCAL_CAST_MODEL } from "./cast-image-local.js";
 
 export const TRAINING_PROMPTS: readonly string[] = [
   "close-up portrait, neutral expression, eye level, soft studio lighting, clean grey background",
@@ -16,20 +20,28 @@ export const TRAINING_PROMPTS: readonly string[] = [
   "close-up portrait, slight head tilt, looking up at the camera, soft natural window light, plain background",
 ];
 
+/** CF / proprietary fallback only when the Workers AI path hits a safety flag. */
 export const FLAG_FALLBACK_MODEL = "google/nano-banana-pro";
 
-/** Safety-flag errors from the image model warrant retry / nano-banana fallback. */
+/** Safety-flag errors from the image model warrant retry / nano-banana fallback (cloud path). */
 export function isFlaggedError(msg: unknown): boolean {
   const s = String(msg || "").toLowerCase();
   return s.includes("3030") || s.includes("has been flagged") || s.includes("choose another prompt");
 }
 
+/**
+ * Catalog: Apache local Klein 4B first (homelab), then CF Apache 4B, then opt-in overlays.
+ * Do not default to klein-9b (FLUX Non-Commercial).
+ */
 export const MODELS = [
+  LOCAL_CAST_MODEL,
+  "@cf/black-forest-labs/flux-2-klein-4b",
   "@cf/black-forest-labs/flux-2-klein-9b",
   "google/nano-banana-pro",
-  "@cf/black-forest-labs/flux-2-klein-4b",
   "@cf/black-forest-labs/flux-2-dev",
 ] as const;
+
+export const DEFAULT_CAST_MODEL = LOCAL_CAST_MODEL;
 
 export function composeTrainingPrompt(template: string, bible?: string, style?: string): string {
   const safeStyle = String(style || "").trim();
