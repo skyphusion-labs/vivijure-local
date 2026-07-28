@@ -446,6 +446,13 @@ PATCH: dual-panel parity with vivijure-cf v1.7.4 + core 1.2.2 (cf#29).
 
 Paired release with cf#179 / v1.7.4. Do not roll propagandhi until GHCR `:1.1.5` publish is green.
 
+## v1.1.4 -- 2026-07-21
+
+- **fix(deps): Pillow 12.3.0 in the image-prep sidecar (#140).**
+- **fix(finish): faster sweep ticks, and finish-chain poll progress**, so a finishing film reports
+  movement instead of looking stalled.
+  (Backfilled 2026-07-28 from the v1.1.4 GitHub release; the row was missing from this file.)
+
 ## v1.1.3 -- 2026-07-21
 
 PATCH: Wan LoRA UI + planner preflight + test parity with vivijure-cf v1.7.3 (cf#29 follow-up).
@@ -511,4 +518,27 @@ issue's completion contract). Carries one BREAKING response-shape change, below.
 - **`S3_CHAT_BUCKET` is retired and ignored.** Its only observable effect was breaking chat image
   previews (above). If it is still set, the studio logs a warning naming it at startup and continues
   using `S3_BUCKET`; nothing fails to boot. Remove it from your env.
+
+## v1.0.1 -- 2026-07-18
+
+- **fix(panel): sync the shared planner assets from vivijure-cf `main` (cf#62, #102).** The panel
+  stops inventing core-owned quality tiers, and a stale saved model or tier now drops **visibly**
+  through one guarded restore mechanism rather than silently resolving to something else. Panel
+  parity with vivijure-cf v1.4.0 was verified live, per surface.
+- **fix(containers): revert video-finish to a python 3.11 base (#97).**
+- **fix(ci): make `upstream-parity` check the shared stylesheet and stop overclaiming (#92)**, then
+  check `settings.js` verbatim now that the copies are identical (#96); make
+  `npm run upstream:parity` actually work and stop advising an ignored variable (#94).
+- **fix(planner): style the cancel-render control as destructive (#90).**
+- **deps:** `@skyphusion-labs/vivijure-core` to `^1.0.0` (#89).
+- GHCR images track `main` and already carried these files.
+  (Backfilled 2026-07-28 from the v1.0.1 GitHub release; the row was missing from this file.)
+
+## v1.0.0 -- 2026-07-15
+
+- **First constellation-stable release of the local / homelab studio host.** Matches the GHCR
+  `vivijure-local-studio` tip.
+- **Carries no commits of its own**: the tag marks the stable line rather than shipping content, so
+  the tree is identical to the plane-C tag before it.
+  (Backfilled 2026-07-28 from the v1.0.0 GitHub release; the row was missing from this file.)
 
