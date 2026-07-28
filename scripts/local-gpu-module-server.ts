@@ -1,7 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * local-gpu module sidecar: proxies to LOCAL_BACKEND_URL (homelab GPU backend).
- * Falls back to GPU mock when LOCAL_BACKEND_URL is unset (offline compose default).
+ * local-gpu module sidecar: proxies to LOCAL_BACKEND_URL (homelab GPU door).
+ *
+ * There is NO mock fallback (local#229). With LOCAL_BACKEND_URL unset the sidecar still boots and
+ * still answers /module.json -- with `configured: false`, so the panel hides the module and the host
+ * says why -- and every /invoke refuses with a named error instead of writing fabricated frames.
  *
  * Usage: tsx scripts/local-gpu-module-server.ts <port>
  */
@@ -11,7 +14,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalGpuModuleApp } from "../src/modules/local-gpu/app.js";
 import { localGpuEnvFromProcess } from "../src/modules/local-gpu/handlers.js";
-import { createStorage } from "../src/platform/create-storage.js";
 import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
@@ -29,12 +31,12 @@ async function getEnv() {
   return localGpuEnvFromProcess(runtime.asProcessEnv());
 }
 
-const runtime = await loadModuleRuntimeEnv();
-const storage = createStorage(runtime.asProcessEnv());
-const app = createLocalGpuModuleApp(manifest, getEnv, storage.renders);
+const app = createLocalGpuModuleApp(manifest, getEnv);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, async () => {
   const env = await getEnv();
-  const mode = env.LOCAL_BACKEND_URL?.trim() ? "backend=configured" : "mock";
+  const mode = env.LOCAL_BACKEND_URL?.trim()
+    ? "door=configured"
+    : "no door: hidden from the panel until LOCAL_BACKEND_URL is set";
   console.log(`local-gpu module on http://127.0.0.1:${port} (${mode})`);
 });

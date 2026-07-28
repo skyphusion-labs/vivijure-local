@@ -13,7 +13,16 @@ import { LocalObjectPresigner } from "../src/platform/storage.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MIN_PNG } from "../src/dev/minimal-media.js";
+
+// Test-local fixture. Deliberately NOT imported from src/: local#229 deleted the shared
+// fabricated-artifact helpers, and a data-URL round-trip needs a few real PNG bytes, not a
+// production seam that could be reached from a render path.
+const TINY_PNG = Uint8Array.from(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
 
 const STORYBOARD = {
   title: "bundle_smoke",
@@ -35,10 +44,10 @@ describe("bundle-assembler pure helpers", () => {
     expect(safeCharFilename("A", "Neon Runner")).toBe("char_A_Neon_Runner.png");
   });
 
-  it("decodeDataUrl round-trips MIN_PNG", () => {
-    const url = `data:image/png;base64,${Buffer.from(MIN_PNG).toString("base64")}`;
+  it("decodeDataUrl round-trips a png data url", () => {
+    const url = `data:image/png;base64,${Buffer.from(TINY_PNG).toString("base64")}`;
     const bytes = decodeDataUrl(url);
-    expect(bytes?.length).toBe(MIN_PNG.length);
+    expect(bytes?.length).toBe(TINY_PNG.length);
     expect(detectImageExt(bytes!)).toBe("png");
   });
 });

@@ -20,8 +20,9 @@
 # Optional profiles (see docs/install-profiles.md):
 #   cloud      -- RunPod keyframe, own-gpu, cloud i2v, cloud-keyframe, speech-upscale
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
-# local-gpu mock when LOCAL_BACKEND_URL unset (offline default). Default door hostname: vivijure-local-16gb.
-# FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
+# local-gpu needs LOCAL_BACKEND_URL: unset = module HIDDEN, never mock frames (local#229). Default
+#   door hostname: vivijure-local-16gb.
+# FINISH_BACKEND defaults to local (LOCAL_FINISH_*_URL, docs/FINISH_BACKEND.md); RunPod is opt-in.
 
 name: vivijure-local
 
@@ -84,7 +85,7 @@ x-runpod-module: &runpod-module
     VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
     MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
-    FINISH_BACKEND: ${FINISH_BACKEND:-runpod}
+    FINISH_BACKEND: ${FINISH_BACKEND:-local}
     FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
     FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
@@ -262,7 +263,8 @@ services:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9102/module.json"]
     environment:
       # 16GB door first (local#265). Override to 12gb hostname or host URL as needed.
-      # Unset / empty → mock sidecar (offline compose). Set in .env for a real door.
+      # Unset / empty → module reports configured:false and the panel HIDES it (local#229: no mock
+      # frames, ever). Set in .env to point at a real door.
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -591,7 +593,7 @@ services:
       VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
       MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
-      # Default documented door: vivijure-local-16gb (set in .env). Empty → local-gpu mock.
+      # Default documented door: vivijure-local-16gb (set in .env). Empty → local-gpu hidden.
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       # RunPod keyframe module is cloud-profile only; leave unset in default stack.

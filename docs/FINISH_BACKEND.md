@@ -76,7 +76,7 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 
 | Variable | Purpose |
 |----------|---------|
-| `FINISH_BACKEND` | `local` (default after cutover) or `runpod` |
+| `FINISH_BACKEND` | `local` (**the default**, local#229) or `runpod` (explicit opt-in) |
 | `LOCAL_FINISH_LIPSYNC_URL` | HTTP base for MuseTalk / `lipsync_clip` |
 | `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip` |
 | `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`) |
@@ -87,6 +87,10 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 `MODULE_FINISH_RIFE_URL` as a local path, `finish-rife-serve`, or any on-box RIFE HTTP / GHCR image.
 Stale `LOCAL_FINISH_RIFE_URL` / `MODULE_FINISH_RIFE_URL` rows are purged from `platform_secrets` when
 absent from env. RIFE on the local panel is RunPod-only when explicitly wired; otherwise omit it.
+
+**The cutover happened (local#229):** `FINISH_BACKEND` now defaults to `local`. Previously it
+defaulted to `runpod`, so bringing the `satellites` profile up without setting the variable dispatched
+homelab finish jobs to a cloud provider the operator had never opted into.
 
 When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **fail-loud**
 (`ok: false`, not silent RunPod fallback or passthrough). Homelabbers who want RunPod finish set

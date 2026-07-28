@@ -56,7 +56,7 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 | Piece | Default |
 |-------|---------|
 | Planner | Ollama (`OLLAMA_BASE_URL` + `OLLAMA_PLAN_MODEL=qwen3:14b`); unload before keyframe |
-| Keyframe + motion | `module-local-gpu` (mock when `LOCAL_BACKEND_URL` unset; **16GB door** when set) |
+| Keyframe + motion | `module-local-gpu` (**16GB door** when `LOCAL_BACKEND_URL` set; **hidden + hooks reported unavailable** when unset -- no mock, local#229) |
 | Dialogue / music-gen | AI Gateway sidecars (honest degrade when gateway creds unset) |
 | RunPod keyframe | **not started** (`profiles: [cloud]`; `MODULE_KEYFRAME_URL` unset) |
 | speech-upscale | **not started** (`profiles: [cloud]`; `MODULE_SPEECH_UPSCALE_URL` unset) |
@@ -105,15 +105,14 @@ where GPU work runs depends on `FINISH_BACKEND` (see [FINISH_BACKEND.md](FINISH_
 
 | `FINISH_BACKEND` | GPU execution |
 |------------------|---------------|
-| `local` (homelab default after local#180) | `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL` on your GPU box |
-| `runpod` (escape hatch) | RunPod serverless via `*_RUNPOD_ENDPOINT_ID` |
+| `local` (**the default**, local#229) | `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL` on your GPU box; refuses by name when unset |
+| `runpod` (explicit opt-in) | RunPod serverless via `*_RUNPOD_ENDPOINT_ID` |
 
 ```bash
 # In .env (studio reads these when set)
 MODULE_LIPSYNC_URL=http://module-finish-lipsync:9111
 MODULE_UPSCALE_URL=http://module-finish-upscale:9112
-# Post local#180:
-# FINISH_BACKEND=local
+# FINISH_BACKEND defaults to local; set these or the sidecars refuse by name:
 # LOCAL_FINISH_LIPSYNC_URL=http://finish-lipsync:8011
 # LOCAL_FINISH_UPSCALE_URL=http://finish-upscale:8012
 
@@ -145,8 +144,9 @@ LOCAL_BACKEND_URL=https://gpu.example.com
 LOCAL_BACKEND_TOKEN=...
 ```
 
-Unset or stop `module-local-gpu` if you run the backend on the host only. The mock sidecar
-is safe to leave running; the URL wins at discovery time.
+Unset or stop `module-local-gpu` if you run the backend on the host only. An unconfigured sidecar is
+safe to leave running: it reports `configured: false` and refuses every invoke, so it can never
+substitute placeholder output for a render.
 
 For **RunPod `own-gpu`** or cloud i2v modules, enable `COMPOSE_PROFILES=cloud` and set the matching
 `MODULE_<NAME>_URL` to the module worker's HTTP base (same pattern as vivijure-cf `MODULE_*`
