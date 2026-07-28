@@ -41,13 +41,13 @@ docker compose up -d    # CPU media stack + optional MinIO
 | Studio API + UI | 8790 |
 | MinIO S3 API | 9000 |
 | MinIO console | 9001 |
+| Ollama (plan.enhance) | 11434 |
 | video-finish | 8780 |
 | image-prep | 8781 |
 | audio-beat-sync | 8782 |
 | audio-mix | 8783 |
 | audio-master | 8784 |
-| MinIO API | 9000 |
-| Module sidecars | 9100+ (see `.env.example`) |
+| Module sidecars | 9100+ (local-gpu 9102; RunPod keyframe cloud-only) |
 
 ## Crew identity
 

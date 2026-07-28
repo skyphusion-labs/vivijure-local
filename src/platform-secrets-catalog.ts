@@ -205,7 +205,9 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "LOCAL_BACKEND_URL",
     label: "Local GPU backend URL",
-    blurb: "Base URL for the homelab vivijure-local-backend (local-gpu module proxies here).",
+    blurb:
+      "Base URL for the homelab GPU door (local-gpu proxies here). Default path is the 16GB door " +
+      "(http://vivijure-local-16gb:8000). 12GB door is the alternate.",
     category: "providers",
     sensitive: false,
     applies_on: "immediate",
@@ -216,6 +218,22 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     blurb: "Optional bearer token for LOCAL_BACKEND_URL (defense in depth on public GPU backends).",
     category: "providers",
     sensitive: true,
+    applies_on: "immediate",
+  },
+  {
+    key: "OLLAMA_BASE_URL",
+    label: "Ollama base URL",
+    blurb: "Homelab plan.enhance provider (default http://ollama:11434). Unload runs before local-gpu keyframe.",
+    category: "ai",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "OLLAMA_PLAN_MODEL",
+    label: "Ollama plan.enhance model",
+    blurb: "Open-weight model tag for plan.enhance (default qwen2.5:14b; must fit the card after unload).",
+    category: "ai",
+    sensitive: false,
     applies_on: "immediate",
   },
   {
@@ -262,8 +280,10 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   },
   {
     key: "MODULE_KEYFRAME_URL",
-    label: "Keyframe module URL",
-    blurb: "HTTP base URL for MODULE_KEYFRAME sidecar.",
+    label: "Keyframe module URL (RunPod, cloud profile)",
+    blurb:
+      "HTTP base for the RunPod keyframe sidecar. Opt-in only (COMPOSE_PROFILES=cloud). " +
+      "Default homelab keyframes use MODULE_LOCAL_GPU_URL.",
     category: "modules",
     sensitive: false,
     applies_on: "immediate",
@@ -502,9 +522,9 @@ export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINIS
 /** Retired homelab Wan train key (CF prod only; Conrad ruling 2026-07-23). Purge when absent from env. */
 export const PLATFORM_LEGACY_WAN_TRAIN_KEYS = ["RUNPOD_WAN_TRAIN_ENDPOINT_ID"] as const;
 
-/** Homelab compose defaults: hardcoded in compose.yaml, upsert when set, never purge when unset. */
+/** Homelab compose defaults: hardcoded in compose.yaml, upsert when set, never purge when unset.
+ *  MODULE_KEYFRAME_URL is NOT here -- RunPod keyframe is cloud-profile only (local#265). */
 export const PLATFORM_MODULE_URL_COMPOSE_DEFAULTS = [
-  "MODULE_KEYFRAME_URL",
   "MODULE_LOCAL_GPU_URL",
   "MODULE_BEAT_SYNC_URL",
   "MODULE_AUDIO_MASTER_URL",

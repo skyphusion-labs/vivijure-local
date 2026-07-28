@@ -44,17 +44,29 @@ describe("syncPlatformSecretsFromEnv", () => {
 
   it("never purges homelab compose-default MODULE URLs when unset in env", async () => {
     const db = openDatabase(dbPath);
-    await upsertPlatformSecret(db, "MODULE_KEYFRAME_URL", "http://module-keyframe:9101");
     await upsertPlatformSecret(db, "MODULE_LOCAL_GPU_URL", "http://module-local-gpu:9102");
+    await upsertPlatformSecret(db, "MODULE_PLANENHANCE_URL", "http://module-plan-enhance:9140");
 
     const existing = await listPlatformSecrets(db);
     const result = await syncPlatformSecretsFromEnv(db, {}, existing);
 
-    expect(result.cleared).not.toContain("MODULE_KEYFRAME_URL");
     expect(result.cleared).not.toContain("MODULE_LOCAL_GPU_URL");
+    expect(result.cleared).not.toContain("MODULE_PLANENHANCE_URL");
     const after = await listPlatformSecrets(db);
-    expect(after.get("MODULE_KEYFRAME_URL")).toBe("http://module-keyframe:9101");
     expect(after.get("MODULE_LOCAL_GPU_URL")).toBe("http://module-local-gpu:9102");
+    expect(after.get("MODULE_PLANENHANCE_URL")).toBe("http://module-plan-enhance:9140");
+  });
+
+  it("purges RunPod MODULE_KEYFRAME_URL when unset (cloud opt-in only)", async () => {
+    const db = openDatabase(dbPath);
+    await upsertPlatformSecret(db, "MODULE_KEYFRAME_URL", "http://module-keyframe:9101");
+
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {}, existing);
+
+    expect(result.cleared).toContain("MODULE_KEYFRAME_URL");
+    const after = await listPlatformSecrets(db);
+    expect(after.has("MODULE_KEYFRAME_URL")).toBe(false);
   });
 
   it("upserts compose-default MODULE URLs when set in env", async () => {

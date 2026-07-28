@@ -98,7 +98,7 @@ still has the `change-me-local-dev-only` placeholder.
 | 8783 | audio-mix (default) |
 | 8784 | audio-master (default) |
 
-Module sidecars listen on the Docker network only (e.g. `module-keyframe:9101`). The studio
+Module sidecars listen on the Docker network only (e.g. `module-local-gpu:9102`). The studio
 container reaches them by hostname; use `npm run conformance:compose` to gate them from inside
 the studio container.
 
@@ -115,7 +115,9 @@ the studio container.
 | `PORT` | `8790` | HTTP listen port |
 | `PUBLIC_BASE_URL` | `http://127.0.0.1:8790` | Presign + artifact URLs for host clients |
 | `DATABASE_PATH` | `/app/data/studio.db` | SQLite file (persisted volume) |
-| `PLANNER_AI_MOCK` | `true` | Offline planner without API keys |
+| `PLANNER_AI_MOCK` | `false` | Set `true` for offline/CI without Ollama model pull |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` | Homelab plan.enhance provider |
+| `OLLAMA_PLAN_MODEL` | `qwen2.5:14b` | Open-weight model (fits 16GB after unload) |
 
 ### Object storage (MinIO)
 
@@ -177,21 +179,36 @@ recreate is needed after the sync.
 Update RunPod / remote GPU `S3_*` env to match. MinIO data volume keeps existing objects; only
 the root user password changes.
 
+### Homelab path: Ollama → unload → local-gpu (local#265)
+
+Default first-win sequence on one card:
+
+1. **Ollama** serves `plan.enhance` (`OLLAMA_PLAN_MODEL`, default `qwen2.5:14b`).
+2. After enhance completes, the module **unloads** the model (`keep_alive: 0`).
+3. **local-gpu** keyframe (`action: preview` on the door) claims VRAM. local-gpu also best-effort
+   unloads Ollama again immediately before submit.
+4. Motion continues on the same door; finish stays CPU assemble (+ optional satellites).
+
+Compose starts `ollama` + one-shot `ollama-pull`. On NVIDIA hosts, add a compose override with
+`gpus: all` on the `ollama` service so the LLM uses the card; without it Ollama runs on CPU
+(acceptable for CI / Mac). AI Gateway / Anthropic catalog rows remain available as an opt-in overlay
+when gateway creds are set and you pick an `anthropic/*` model id.
+
 ### Switching 12GB ↔ 16GB GPU doors (homelab)
 
-Co-located panels often run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
-(LTX) and [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) (CogVideoX)
-on the same host with door-pin scripts (see
+**Default door is 16GB** ([`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)).
+The 12GB door ([`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb), LTX)
+is the alternate. Co-located panels often run both with door-pin scripts (see
 [fleet#962](https://github.com/skyphusion-labs/fleet-chezmoi/issues/962) for IaC reconciliation).
-Only one door may hold the GPU at a time.
+Only one door may hold the GPU at a time (and Ollama must be unloaded before the door job starts).
 
 After pinning the target door up, **all three steps are mandatory** (skipping recreate leaves a
 stale `LOCAL_BACKEND_URL` in `platform_secrets` and in the studio process env; smokes will still
 point at the previous door):
 
 1. Update studio `.env`:
-   - 12GB: `LOCAL_BACKEND_URL=http://vivijure-local-12gb:8000`
-   - 16GB: `LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000`
+   - 16GB (default): `LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000`
+   - 12GB (alternate): `LOCAL_BACKEND_URL=http://vivijure-local-12gb:8000`
    - Set `LOCAL_BACKEND_TOKEN` to match the active door bearer token. A door swap ALWAYS
      regenerates the bearer (each door writes its own `/shared/token` in its own project-scoped
      runtime volume), so this is never a no-op.
@@ -244,15 +261,16 @@ Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
 ### Module sidecars
 
-Compose wires all CPU module URLs in-network by default. Override in `.env` to point at host-native
-sidecars or remote RunPod modules. Cloud i2v, own-gpu, speech-upscale (RunPod), and finish GPU URLs
-stay empty until you enable `COMPOSE_PROFILES=cloud` or `satellites`. `narration-gen` needs no RunPod:
-its default engine is Deepgram Aura-1 on Cloudflare AI (the RunPod MiniMax HD tier activates only when
-`RUNPOD_API_KEY` is set); its sidecar ships in the default stack (local#209).
+Compose wires all CPU module URLs in-network by default. **No RunPod modules** are registered in
+the default stack. Override in `.env` to point at host-native sidecars. RunPod keyframe, cloud i2v,
+own-gpu, speech-upscale, and finish GPU URLs stay empty until you enable `COMPOSE_PROFILES=cloud`
+or `satellites`. `narration-gen` needs no RunPod: its default engine is Deepgram Aura-1 on Cloudflare
+AI (the RunPod MiniMax HD tier activates only when `RUNPOD_API_KEY` is set); its sidecar ships in the
+default stack (local#209).
 
 | Variable | Compose default |
 |----------|-----------------|
-| `MODULE_KEYFRAME_URL` | `http://module-keyframe:9101` |
+| `MODULE_KEYFRAME_URL` | *(empty; `cloud` profile -- RunPod keyframe)* |
 | `MODULE_LOCAL_GPU_URL` | `http://module-local-gpu:9102` |
 | `MODULE_BEAT_SYNC_URL` | `http://module-beat-sync:9120` |
 | `MODULE_AUDIO_MASTER_URL` | `http://module-audio-master:9121` |
@@ -280,42 +298,37 @@ its default engine is Deepgram Aura-1 on Cloudflare AI (the RunPod MiniMax HD ti
 | `AUDIO_MIX_URL` | 8783 |
 | `AUDIO_MASTER_URL` | 8784 |
 
-### Live planner (optional)
+### Live planner (default: Ollama)
 
-Set `PLANNER_AI_MOCK=false` and provide **one** of:
+Compose defaults `PLANNER_AI_MOCK=false` and `OLLAMA_BASE_URL=http://ollama:11434`. Wait for
+`ollama-pull` (or `docker compose run --rm ollama-pull`) before the first real enhance.
 
-1. **AI Gateway (preferred):** `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN`
-2. **Direct BYOK:** `ANTHROPIC_API_KEY`
+**Opt-in overlays** (not required for the homelab path):
 
-Same variables as upstream `vivijure`.
+1. **AI Gateway:** `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID`, `CF_AIG_TOKEN` + pick an `anthropic/*` model
+2. **Direct BYOK:** `ANTHROPIC_API_KEY` (where the module stack supports it)
+
+Offline/CI without pulling weights: `PLANNER_AI_MOCK=true`.
 
 ---
 
 ## GPU backends: mock vs real
 
-**Default (demo path):** compose runs `scripts/runpod-module-server.ts` for `keyframe` and
-`scripts/local-gpu-module-server.ts` for `local-gpu`; each falls back to the GPU mock when its
-credentials are absent. Mocks write minimal PNG/MP4 artifacts to MinIO so the full orchestrator path
-runs without a GPU.
+**Default (demo path):** compose runs `scripts/local-gpu-module-server.ts` for dual-hook
+`local-gpu` (keyframe + motion). It falls back to the GPU mock when `LOCAL_BACKEND_URL` is unset.
+Mocks write minimal PNG/MP4 artifacts to MinIO so the orchestrator path runs without a GPU.
+There is **no RunPod keyframe sidecar** in the default stack.
 
-**The keyframe mock is a DEV affordance, not a user-facing tier (local#223).** With no RunPod
-credentials the `keyframe` sidecar reports `configured:false` on `/module.json`, so the panel hides
-it rather than advertising "GPU Keyframe (SDXL on RunPod)" and serving mock frames. The mock still
-answers `/invoke` on the sidecar port for direct dev use; it is simply unreachable through the
-panel. Keyframes on a no-RunPod install come from `local-gpu` (your own card) or the cloud keyframe
-door.
+**Real door (16GB first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
+(or the 12GB alternate) on your host. Set `LOCAL_BACKEND_URL` (e.g.
+`http://vivijure-local-16gb:8000` on a shared Docker network, or `http://host.docker.internal:8000`
+when the door publishes on the host). Recreate `module-local-gpu` and sync secrets (see door-switch
+section above).
 
-**Real own-GPU:** run [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb)
-or [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) on your host.
-Set `MODULE_LOCAL_GPU_URL` to the sidecar URL the backend exposes (from the studio container use
-`http://host.docker.internal:<port>` on Docker Desktop).
-
-**The no-RunPod render path (default):** a complete film needs no RunPod. Motion and keyframes render
-on the local GPU door (`LOCAL_BACKEND_URL`); the GPUless steps run on Cloudflare AI (`CF_AIG_TOKEN` +
-`CLOUDFLARE_ACCOUNT_ID`): cloud keyframe, `music-gen`, and `narration-gen` (Deepgram Aura-1 by default,
-no RunPod; MiniMax HD is the opt-in RunPod tier when `RUNPOD_API_KEY` is set). Finish assembles on the
-CPU `video-finish` container, with optional local lipsync / upscale sidecars. RunPod modules appear in
-the panel only once their credentials are set, so an unconfigured RunPod tier is never a broken button.
+**The no-RunPod render path (default):** Ollama for `plan.enhance` (unload after), local-gpu door for
+keyframes + motion, CPU `video-finish` to assemble. Optional CF AI for dialogue/music/narration
+overlays. RunPod modules only appear after `COMPOSE_PROFILES=cloud` (or satellites) and the matching
+`MODULE_*_URL` + credentials; an unconfigured RunPod tier is never a broken button.
 
 **RunPod escape hatch (optional):** set `FINISH_BACKEND=runpod` and `*_RUNPOD_ENDPOINT_ID`, or point
 `MODULE_*_URL` at deployed `vivijure-backend` workers. Not the homelab default; see
