@@ -232,22 +232,68 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: finish-rife-serve
-    # PR + main smoke builds stay on GitHub-hosted; only v* publish runs on org GPU runners.
-    runs-on: ${{ (github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/v')) && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    # local#260: this CUDA overlay is ~60GB uncompressed (the cache-to comment below says so in
+    # its own words, against a 10GB Actions cache limit), which no GitHub-hosted ubuntu-latest
+    # disk can hold. Three attempts at disk-reclaim on GitHub-hosted (toolchain removal, then
+    # relocating Docker to /mnt, then both plus a broader cleanup with survivability telemetry)
+    # all failed identically -- reverted on this PR rather than left as dead disk-shuffling that
+    # the next reader might mistake for load-bearing. What did NOT work is worth recording:
+    # in-workflow telemetry cannot diagnose a runner-fatal ENOSPC. The runner dies hard enough
+    # writing its OWN diagnostic log that the job log never finishes uploading (`gh run view
+    # --log` and the jobs/logs API both return nothing for a crashed job, on all three
+    # attempts), and `::notice::` workflow commands were not promoted to check-run annotations
+    # either -- only the error-level ENOSPC annotation survived. There was never a fourth
+    # free-disk variant that was going to fit 60GB into a 14GB root disk.
+    #
+    # THE FIX IS ROUTING, NOT RECLAIMING: Plane C (org group vivijure-gpu-builds,
+    # propagandhi/fatmike) already builds this exact image successfully on the tag/publish
+    # path. Same-repo PRs get routed there too, since the disk problem is identical on a PR
+    # build. Push-to-main keeps its original GitHub-hosted routing unchanged (out of scope for
+    # this issue, which is specifically about the PR path; flagged separately rather than
+    # silently folded in here).
+    #
+    # FORK PRs MUST NEVER REACH PLANE C. This is a public repo; a fork PR is untrusted
+    # Dockerfile content, and running it on our own GPU fleet hardware would be arbitrary code
+    # execution on our own boxes. Fork PRs get ubuntu-latest instead, but get no real build
+    # attempt there either -- ubuntu-latest still cannot fit this image, so the steps below
+    # skip the actual work for a fork PR and say so LOUDLY (the local#255 lesson: a silent skip
+    # reads as nothing happened; this one is not silent).
+    runs-on: ${{ ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || startsWith(github.ref, 'refs/tags/v')) && fromJSON('["self-hosted", "gpu"]') || 'ubuntu-latest' }}
     # 90, not 45: the uncached first bake of this CUDA overlay ran 45.3 and ~46 min into the v1.2.0
     # tag run's 45-minute budget and was killed by THIS timeout both times (reads as "cancelled" in
     # the UI, which cost a runner-defect investigation before anyone checked here). GHCR layer reuse
     # should bring later bakes down, but the budget must fit the cold case.
     timeout-minutes: 90
     steps:
+      - name: Determine whether this is an untrusted fork PR
+        id: fork_check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "is_fork_pr=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Fork PR: finish-rife-serve NOT built or verified this run"
+        if: steps.fork_check.outputs.is_fork_pr == 'true'
+        run: |
+          echo "::warning title=finish-rife-serve skipped::This is a fork PR. finish-rife-serve (~60GB CUDA overlay) only builds on the self-hosted GPU lane (Plane C), which fork PRs must never reach (arbitrary code execution risk on fleet hardware from untrusted Dockerfile content). This run did NOT build or verify the image. It builds and verifies on same-repo branches/PRs, merges to main, and tag publishes."
+          {
+            echo "## :warning: finish-rife-serve was NOT built for this fork PR"
+            echo ""
+            echo "Fork PRs never reach the self-hosted GPU runner (Plane C, the sole vivijure image-bake lane) this ~60GB image needs. That is a security boundary, not an oversight -- untrusted Dockerfile content from a fork must never execute on fleet hardware. This job ran but built nothing; treat it as unverified, not as a pass."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/checkout@v7
+        if: steps.fork_check.outputs.is_fork_pr == 'false'
         with:
           path: vivijure-local
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        if: steps.fork_check.outputs.is_fork_pr == 'false'
 
       - name: Log in to GHCR
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.fork_check.outputs.is_fork_pr == 'false' && startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
         with:
           registry: ghcr.io
@@ -256,6 +302,7 @@ jobs:
 
       - name: Set image tags
         id: meta
+        if: steps.fork_check.outputs.is_fork_pr == 'false'
         run: |
           image="${REGISTRY}/vivijure-local-finish-rife"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -272,6 +319,7 @@ jobs:
           fi
 
       - name: Build finish-rife-serve overlay
+        if: steps.fork_check.outputs.is_fork_pr == 'false'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.0.0
         with:
           context: ./vivijure-local/containers/finish-rife-serve
