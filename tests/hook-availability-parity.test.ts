@@ -28,6 +28,10 @@ import {
   VIDEO_FINISH_GATED_HOOKS,
   VIDEO_FINISH_UNAVAILABLE_REASON,
 } from "../src/video-finish-availability.js";
+import {
+  GPU_ENGINE_HOOKS,
+  LOCAL_DOOR_UNAVAILABLE_REASON,
+} from "../src/local-door-availability.js";
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 let dir: string;
@@ -41,7 +45,43 @@ class NoModules implements ModuleTransport {
   }
 }
 
-function platformWith(vars: Record<string, string>): Platform {
+/**
+ * A module that serves the GPU-engine hooks, so "fully configured" can mean what it says.
+ *
+ * local#229 added a gate for "this host has no keyframe/motion engine at all", and the NoModules
+ * fixture is exactly that host. Without a serving module here the omission test below could no
+ * longer distinguish "nothing is unavailable" from "the GPU gate fires unconditionally".
+ *
+ * Deliberately NOT named `local-gpu`: the gate asks which hooks are SERVED, never which module name
+ * serves them, and a fixture borrowing the first-party name would hide it if that ever changed.
+ */
+const fakeDoorManifest = {
+  name: "acme-door",
+  version: "1.0.0",
+  api: "vivijure-module/2",
+  hooks: [...GPU_ENGINE_HOOKS],
+  provides: [{ id: "acme-door", label: "ACME Door" }],
+  binding: "MODULE_ACMEDOOR",
+};
+
+class GpuDoorModule implements ModuleTransport {
+  resolve(): FetcherLike {
+    return {
+      fetch: async (input: string | URL) =>
+        new URL(String(input)).pathname === "/module.json"
+          ? new Response(JSON.stringify(fakeDoorManifest), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            })
+          : new Response(JSON.stringify({ ok: false, error: "not found" }), { status: 404 }),
+    } as FetcherLike;
+  }
+  listBindings(): string[] {
+    return ["MODULE_ACMEDOOR"];
+  }
+}
+
+function platformWith(vars: Record<string, string>, modules: ModuleTransport = new NoModules()): Platform {
   dir = mkdtempSync(join(tmpdir(), "vj-hooks-"));
   const dbPath = join(dir, "studio.db");
   migrateDatabase(dbPath, join(import.meta.dirname, "..", "migrations"));
@@ -52,7 +92,7 @@ function platformWith(vars: Record<string, string>): Platform {
     chatBucket: store,
     presigner: new LocalObjectPresigner("http://127.0.0.1:8790", SECRET),
     secrets: new EnvSecretStore({}),
-    modules: new NoModules(),
+    modules,
     vars: { AUTH_MODE: "token", STUDIO_API_TOKEN: SECRET, ...vars },
     // Built the way BOOT builds it: server.ts calls applyRuntimeEnvToPlatform, which sets
     // hostBindings from the runtime env (VIDEO_FINISH_URL -> the video-finish fetcher). A fixture
@@ -62,8 +102,11 @@ function platformWith(vars: Record<string, string>): Platform {
   } as unknown as Platform;
 }
 
-async function hostOf(vars: Record<string, string>): Promise<ModulesResponse["host"]> {
-  const app = createApp(testSettingsHost(platformWith(vars)));
+async function hostOf(
+  vars: Record<string, string>,
+  modules: ModuleTransport = new NoModules(),
+): Promise<ModulesResponse["host"]> {
+  const app = createApp(testSettingsHost(platformWith(vars, modules)));
   const res = await app.request("/api/modules", { headers: { authorization: `Bearer ${SECRET}` } });
   expect(res.status).toBe(200);
   const body = (await res.json()) as ModulesResponse;
@@ -101,15 +144,18 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
   });
 
   it("OMITS the block when EVERY tier is configured -- absence means available", async () => {
-    const host = await hostOf(FULLY_CONFIGURED);
+    // A GPU module must be installed for this to mean "everything is available" (local#229): a host
+    // with no keyframe/motion engine genuinely cannot render, and saying nothing would be the
+    // over-claim.
+    const host = await hostOf(FULLY_CONFIGURED, new GpuDoorModule());
     expect(host?.hooks_unavailable).toBeUndefined();
   });
 
   it("reports the VIDEO-FINISH hooks when only that tier is missing (cf#118)", async () => {
-    // The gateway is configured, so plan.enhance is fine and anything reported here can ONLY have
-    // come from the video-finish gate -- which is what makes this a test of that gate rather than a
-    // test that something, somewhere, is unavailable.
-    const host = await hostOf(GATEWAY_CONFIGURED);
+    // The gateway is configured and a GPU module is installed, so plan.enhance and the engine hooks
+    // are fine -- anything reported here can ONLY have come from the video-finish gate, which is what
+    // makes this a test of that gate rather than a test that something, somewhere, is unavailable.
+    const host = await hostOf(GATEWAY_CONFIGURED, new GpuDoorModule());
     expect(Object.keys(host?.hooks_unavailable ?? {}).sort()).toEqual([
       "capability:video-finish",
       "film.finish",
@@ -117,6 +163,39 @@ describe("GET /api/modules host.hooks_unavailable (cf#98 parity)", () => {
       "notify",
     ]);
     expect(host?.hooks_unavailable?.["plan.enhance"]).toBeUndefined();
+  });
+
+  // local#229: the GPU-engine gate. The mock that used to answer for an unconfigured door is
+  // deleted, so a bare studio serves NO keyframe/motion engine -- and must say so before a render is
+  // spent rather than offer controls whose every option 400s at submit.
+  describe("GPU-engine hooks (local#229)", () => {
+    it("reports keyframe + motion.backend when NO module serves them", async () => {
+      const host = await hostOf(FULLY_CONFIGURED);
+      for (const hook of GPU_ENGINE_HOOKS) {
+        expect(host?.hooks_unavailable?.[hook]).toBe(LOCAL_DOOR_UNAVAILABLE_REASON);
+      }
+    });
+
+    it("STOPS reporting them once any module serves them (POSITIVE CONTROL)", async () => {
+      // The discriminating half: the gate is driven by what is SERVED, not by LOCAL_BACKEND_URL. A
+      // studio on the optional `cloud` profile has no local door and renders fine, so reading env
+      // here would grey out working capability.
+      const host = await hostOf(FULLY_CONFIGURED, new GpuDoorModule());
+      const named = Object.keys(host?.hooks_unavailable ?? {});
+      for (const hook of GPU_ENGINE_HOOKS) expect(named).not.toContain(hook);
+    });
+
+    it("names the operator's own knob and never fabricates a fallback", async () => {
+      // Same local#226 rule as the video-finish reason: the reader IS the operator.
+      expect(LOCAL_DOOR_UNAVAILABLE_REASON).toMatch(/LOCAL_BACKEND_URL/);
+      expect(LOCAL_DOOR_UNAVAILABLE_REASON).not.toMatch(/Ask whoever/);
+      // The point of the change, pinned: no placeholder output is offered as a consolation.
+      expect(LOCAL_DOOR_UNAVAILABLE_REASON).toMatch(/placeholder frames/);
+    });
+
+    it("uses bare dotted hook keys, never the capability: namespace", () => {
+      for (const hook of GPU_ENGINE_HOOKS) expect(hook).not.toContain(":");
+    });
   });
 
   it("cf#229 parity: score is REPORTED SERVABLE, because bed generation works here too", async () => {

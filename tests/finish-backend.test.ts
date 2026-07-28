@@ -8,8 +8,19 @@ import {
 } from "../src/modules/finish-backend.js";
 
 describe("finish-backend", () => {
-  it("defaults to runpod when FINISH_BACKEND unset", () => {
-    expect(resolveFinishBackend("finish-lipsync", finishBackendFromProcess({}))).toBe("runpod");
+  // local#229: the default FLIPPED from runpod to local. This is the self-hosted panel, and the old
+  // default meant bringing the finish satellites up without setting FINISH_BACKEND dispatched
+  // homelab finish jobs to a cloud provider the operator never opted into. Unconfigured `local`
+  // refuses by name instead (see the local-finish handler tests).
+  it("defaults to LOCAL when FINISH_BACKEND unset (RunPod is opt-in)", () => {
+    expect(resolveFinishBackend("finish-lipsync", finishBackendFromProcess({}))).toBe("local");
+    expect(resolveFinishBackend("finish-upscale", finishBackendFromProcess({}))).toBe("local");
+  });
+
+  it("honors an EXPLICIT FINISH_BACKEND=runpod (the opt-in still works)", () => {
+    const env = finishBackendFromProcess({ FINISH_BACKEND: "runpod" });
+    expect(resolveFinishBackend("finish-lipsync", env)).toBe("runpod");
+    expect(resolveFinishBackend("finish-upscale", env)).toBe("runpod");
   });
 
   it("honors FINISH_BACKEND=local for lipsync/upscale", () => {

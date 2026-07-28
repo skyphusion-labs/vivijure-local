@@ -7,6 +7,45 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(local-gpu)!: delete the GPU mock; refuse loudly instead of fabricating frames (local#229)
+
+**A bare `compose up` was shipping films assembled from fabricated frames.** `LOCAL_BACKEND_URL` is
+empty by default and `scripts/local-gpu-module-server.ts` passed the real artifact store in as a
+*mock* store unconditionally, so `local-gpu` served `invokeKeyframeMock` (a 1x1 red PNG per shot) and
+`invokeLocalGpuMock` (a black 320x240 clip per shot) under the label "Local GPU Keyframe (SDXL on your
+own card)" and reported the render COMPLETED. `/module.json` answered from the mock branch with the
+bare manifest, so `configured` was absent -- and absent means *keep* at the registry choke point,
+which is why the local#201 filter never hid it. The CPU finish stage then honestly assembled those
+placeholders into a deliverable film.
+
+Conrad's call, settling the product question local#229 was parked on: **gone, not relabelled.**
+
+- **Deleted:** `src/modules/dev/gpu-mock-handlers.ts`, `src/modules/dev/gpu-mock-app.ts`,
+  `scripts/gpu-mock-module-server.ts`, `src/modules/runpod/keyframe-sidecar.ts` (its only purpose was
+  the mock fallback), and `MIN_PNG` / `buildStructuralMp4` from `src/dev/minimal-media.ts`. No flag,
+  no env var, no commented-out branch.
+- **`local-gpu` now reports `configured`** from the same predicate its routing reads, so an
+  unconfigured door is dropped by `filterConfiguredModules`: neither visible nor submittable. Every
+  `/invoke` refuses by name (`LOCAL_BACKEND_URL must be an absolute http(s) URL`) and writes nothing.
+- **New honest-refusal gate** `src/local-door-availability.ts`: `GET /api/modules` reports `keyframe`
+  and `motion.backend` in `host.hooks_unavailable` (the existing core#98 / v1.2.14 channel, alongside
+  the video-finish twin) when **no installed module serves them**, with a reason naming
+  `LOCAL_BACKEND_URL`. Derived from the discovered modules, not from env, so a `cloud`-profile studio
+  with RunPod credentials reports nothing.
+- **RunPod is no longer the finish default:** `FINISH_BACKEND` defaults to `local` (was `runpod`).
+  Bringing the `satellites` profile up without setting it used to dispatch homelab finish jobs to
+  RunPod; it now refuses by name when `LOCAL_FINISH_*_URL` is unset. Explicit `FINISH_BACKEND=runpod`
+  and the per-module overrides are unchanged. Completes the local#180 cutover.
+- **Breaking for anyone who relied on the GPU-less "demo path":** a studio with no GPU door and no
+  cloud module now renders nothing and says so, instead of producing placeholder output. Docs
+  (README, DEPLOYMENT, quickstart, install-profiles, `.env.example`) no longer advertise it.
+- `vivijure-cf` is untouched: it has no GPU mock and no configured-filter, so no parity obligation
+  attaches. The genuine local pipeline (real door, CPU `video-finish` assemble, local finish
+  sidecars) is unchanged.
+
+Epic [local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200) (RunPod strictly
+opt-in), issue [local#229](https://github.com/skyphusion-labs/vivijure-local/issues/229).
+
 ### feat(ollama): harden creative home path for qwen3:14b (local#265)
 
 Keep **`qwen3:14b`** as the 16GB default (strongest Ollama-library creative/instruction fit
