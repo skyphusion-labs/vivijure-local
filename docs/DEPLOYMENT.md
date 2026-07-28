@@ -227,11 +227,10 @@ Finish GPU sidecars (`module-finish-{lipsync,upscale}`) are **opt-in**: compose 
 `profiles: [satellites]` and leaves `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` empty by default so
 discovery skips the per-clip finish chain. Minimal homelab assembles via CPU `video-finish` only.
 
-**RIFE is opt-in local (local#204).** `containers/finish-rife-serve` wraps the pinned backend RIFE
-handler in a long-running HTTP server; point `LOCAL_FINISH_RIFE_URL` at it with `FINISH_RIFE_BACKEND=local`
-to run RIFE on your own GPU. It is OFF by default (the homelab default stays CPU `video-finish` assemble;
-no `finish-rife` compose sidecar ships by default). RIFE also runs on the RunPod backend worker for
-vivijure-cf/production.
+**No local RIFE** (Conrad 2026-07-28). vivijure-local does not ship a finish-rife image or
+`LOCAL_FINISH_RIFE_URL` path. Homelab default is CPU `video-finish` assemble. RIFE runs on the
+RunPod backend worker for vivijure-cf/production (and only as explicit RunPod opt-in on the local
+panel).
 
 When registered, lipsync/upscale sidecars proxy to **RunPod** (`FINISH_BACKEND=runpod`) or **local
 GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL`). A

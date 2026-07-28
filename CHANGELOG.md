@@ -7,6 +7,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(finish): retire finish-rife-serve from vivijure-local (Conrad ruling)
+
+No local RIFE image. Removes `containers/finish-rife-serve`, the GHCR bake job
+(`vivijure-local-finish-rife`), and `LOCAL_FINISH_RIFE_URL` / `FINISH_RIFE_BACKEND` wiring.
+RIFE stays RunPod-only (vivijure-cf / explicit opt-in). Supersedes local#204; closes local#260.
+
 ## v1.5.1
 
 PATCH: makes v1.5.0 installable. **v1.5.0 is a PARTIAL RELEASE and should not be pinned** -- its tag
