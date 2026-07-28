@@ -117,7 +117,7 @@ the studio container.
 | `DATABASE_PATH` | `/app/data/studio.db` | SQLite file (persisted volume) |
 | `PLANNER_AI_MOCK` | `false` | Set `true` for offline/CI without Ollama model pull |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Homelab plan.enhance provider |
-| `OLLAMA_PLAN_MODEL` | `qwen2.5:14b` | Open-weight model (fits 16GB after unload) |
+| `OLLAMA_PLAN_MODEL` | `qwen3:14b` | Default open-weight planner (~9.3GB Q4; 16GB headroom) |
 
 ### Object storage (MinIO)
 
@@ -183,11 +183,17 @@ the root user password changes.
 
 Default first-win sequence on one card:
 
-1. **Ollama** serves `plan.enhance` (`OLLAMA_PLAN_MODEL`, default `qwen2.5:14b`).
+1. **Ollama** serves `plan.enhance` (`OLLAMA_PLAN_MODEL`, default **`qwen3:14b`**).
 2. After enhance completes, the module **unloads** the model (`keep_alive: 0`).
 3. **local-gpu** keyframe (`action: preview` on the door) claims VRAM. local-gpu also best-effort
    unloads Ollama again immediately before submit.
 4. Motion continues on the same door; finish stays CPU assemble (+ optional satellites).
+
+**Why `qwen3:14b`:** Ollama Q4_K_M ~9.3GB, comfortable on a 16GB door with KV headroom. Qwen3
+beats qwen2.5 on creative writing, scripts, and instruction following (video ideation +
+auto-direction); hybrid thinking is available for chat. Catalog also offers `deepseek-r1:14b`
+(~9GB, heavier reasoning) and `qwen3:8b` (~5.2GB, smaller cards). Structured enhance/plan calls
+send `think: false` so CoT does not break JSON arrays; chat opts into `think: true`.
 
 Compose starts `ollama` + one-shot `ollama-pull`. On NVIDIA hosts, add a compose override with
 `gpus: all` on the `ollama` service so the LLM uses the card; without it Ollama runs on CPU

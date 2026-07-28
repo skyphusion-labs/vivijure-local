@@ -191,7 +191,8 @@ export async function invokePlanEnhance(
     if (systemMessage) messages.push({ role: "system", content: systemMessage });
     messages.push({ role: "user", content: userMessage });
     try {
-      const { reply } = await directPlanEnhance(env, messages, modelId);
+      // Chat / ideation: allow thinking models (qwen3, deepseek-r1) to reason.
+      const { reply } = await directPlanEnhance(env, messages, modelId, { think: true });
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
         return { ok: true, output: { storyboard: { scenes: [] }, notes: ["chat skipped: empty reply"] } };

@@ -54,7 +54,7 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for 
 
 | Piece | Default |
 |-------|---------|
-| Planner | Ollama (`OLLAMA_BASE_URL` + `OLLAMA_PLAN_MODEL=qwen2.5:14b`); unload before keyframe |
+| Planner | Ollama (`OLLAMA_BASE_URL` + `OLLAMA_PLAN_MODEL=qwen3:14b`); unload before keyframe |
 | Keyframe + motion | `module-local-gpu` (mock when `LOCAL_BACKEND_URL` unset; **16GB door** when set) |
 | Dialogue / music-gen | AI Gateway sidecars (honest degrade when gateway creds unset) |
 | RunPod keyframe | **not started** (`profiles: [cloud]`; `MODULE_KEYFRAME_URL` unset) |

@@ -15,6 +15,14 @@ describe("plan.enhance core", () => {
     expect(enhanced).toEqual(["shot one directed", "shot two directed"]);
   });
 
+  it("parses enhance arrays even when a thinking model left chrome", () => {
+    const enhanced = parseEnhanced(
+      '<think>framing pass</think>\n```json\n["dock wide", "close on hands"]\n```',
+      2,
+    );
+    expect(enhanced).toEqual(["dock wide", "close on hands"]);
+  });
+
   it("merges enhanced prompts back into scenes", () => {
     const sb = { scenes: [{ prompt: "a" }, { prompt: "b" }] };
     const out = mergeEnhanced(sb, ["A+", "B+"]);
