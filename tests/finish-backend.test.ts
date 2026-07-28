@@ -12,9 +12,15 @@ describe("finish-backend", () => {
     expect(resolveFinishBackend("finish-lipsync", finishBackendFromProcess({}))).toBe("runpod");
   });
 
-  it("honors FINISH_BACKEND=local", () => {
+  it("honors FINISH_BACKEND=local for lipsync/upscale", () => {
     const env = finishBackendFromProcess({ FINISH_BACKEND: "local" });
-    expect(resolveFinishBackend("finish-rife", env)).toBe("local");
+    expect(resolveFinishBackend("finish-lipsync", env)).toBe("local");
+    expect(resolveFinishBackend("finish-upscale", env)).toBe("local");
+  });
+
+  it("finish-rife is always runpod (no local image)", () => {
+    const env = finishBackendFromProcess({ FINISH_BACKEND: "local" });
+    expect(resolveFinishBackend("finish-rife", env)).toBe("runpod");
   });
 
   it("per-module override wins over global", () => {
@@ -23,12 +29,21 @@ describe("finish-backend", () => {
       FINISH_LIPSYNC_BACKEND: "runpod",
     });
     expect(resolveFinishBackend("finish-lipsync", env)).toBe("runpod");
-    expect(resolveFinishBackend("finish-rife", env)).toBe("local");
+    expect(resolveFinishBackend("finish-upscale", env)).toBe("local");
   });
 
   it("localFinishUrlFor normalizes trailing slash", () => {
-    const env = finishBackendFromProcess({ LOCAL_FINISH_RIFE_URL: "http://gpu:8080/" });
-    expect(localFinishUrlFor("finish-rife", env)).toBe("http://gpu:8080");
+    const env = finishBackendFromProcess({ LOCAL_FINISH_LIPSYNC_URL: "http://gpu:8080/" });
+    expect(localFinishUrlFor("finish-lipsync", env)).toBe("http://gpu:8080");
+  });
+
+  it("localFinishUrlFor returns null for finish-rife (no local path)", () => {
+    const env = finishBackendFromProcess({
+      LOCAL_FINISH_LIPSYNC_URL: "http://gpu:8080",
+      LOCAL_FINISH_RIFE_URL: "http://gpu:8010",
+    } as NodeJS.ProcessEnv);
+    expect(localFinishUrlFor("finish-rife", env)).toBeNull();
+    expect(localFinishConfigured("finish-rife", env)).toBe(false);
   });
 
   it("localFinishConfigured is false when URL missing in local mode", () => {

@@ -24,8 +24,10 @@ import {
   passthroughOutput,
 } from "../runpod/finish-core.js";
 import { classifyGoneState, runpodJobGone, runpodTerminalFailure, terminalErrorInOutput } from "../runpod/shared.js";
+import { ensureOllamaUnloadedForGpu } from "../chain/ollama.js";
 
-export type LocalFinishModuleName = "finish-rife" | "finish-lipsync" | "finish-upscale";
+/** Local HTTP finish modules only — finish-rife has no local image (Conrad 2026-07-28). */
+export type LocalFinishModuleName = "finish-lipsync" | "finish-upscale";
 
 export function localFinishEnvFromProcess(env: NodeJS.ProcessEnv): FinishBackendEnv {
   return finishBackendFromProcess(env);
@@ -42,18 +44,14 @@ function cfgError(moduleName: string, env: FinishBackendEnv): string | null {
   }
   if (localFinishConfigured(moduleName, env)) return null;
   const urlKey =
-    moduleName === "finish-rife"
-      ? "LOCAL_FINISH_RIFE_URL"
-      : moduleName === "finish-lipsync"
-        ? "LOCAL_FINISH_LIPSYNC_URL"
-        : "LOCAL_FINISH_UPSCALE_URL";
+    moduleName === "finish-lipsync" ? "LOCAL_FINISH_LIPSYNC_URL" : "LOCAL_FINISH_UPSCALE_URL";
   return `${moduleName}: FINISH_BACKEND=local but ${urlKey} is unset`;
 }
 
 export async function invokeLocalFinish(
   env: FinishBackendEnv,
   moduleName: LocalFinishModuleName,
-  action: "finish_clip" | "lipsync_clip" | "upscale_clip",
+  action: "lipsync_clip" | "upscale_clip",
   req: InvokeRequest<FinishInput>,
   extra?: Record<string, unknown>,
 ): Promise<InvokeResponse<FinishOutput>> {
@@ -65,9 +63,6 @@ export async function invokeLocalFinish(
     return { ok: true, output: passthroughOutput(input, "no-dialogue", { degraded: false }) };
   }
   const cfg = coerceFinishConfig(req.config ?? {});
-  if (moduleName === "finish-rife" && !cfg.interpolate && cfg.face_restore === "none") {
-    return { ok: true, output: passthroughOutput(input, "nothing-enabled", { degraded: false }) };
-  }
   const misconfigured = cfgError(moduleName, env);
   if (misconfigured) return { ok: false, error: misconfigured };
   const baseUrl = localFinishUrlFor(moduleName, env)!;
@@ -75,6 +70,8 @@ export async function invokeLocalFinish(
     action === "lipsync_clip"
       ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
       : buildFinishBody(input, cfg, req.context.project, action, extra);
+  // Sequential VRAM: local finish GPU shares the card with Ollama + the door.
+  await ensureOllamaUnloadedForGpu(env);
   try {
     const r = await fetch(`${baseUrl}/run`, {
       method: "POST",

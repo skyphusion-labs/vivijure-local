@@ -1,26 +1,29 @@
-/** FINISH_BACKEND routing (local#180): homelab finish GPU via LOCAL_FINISH_*_URL or RunPod escape hatch. */
+/** FINISH_BACKEND routing (local#180): homelab finish GPU via LOCAL_FINISH_*_URL or RunPod escape hatch.
+ *
+ * Local RIFE is NOT supported (Conrad 2026-07-28): there is no vivijure-local finish-rife image
+ * and no LOCAL_FINISH_RIFE_URL path. RIFE, when wanted, is RunPod-only (vivijure-cf / opt-in).
+ */
 
 export type FinishBackendMode = "local" | "runpod";
 
 export interface FinishBackendEnv {
   FINISH_BACKEND?: string;
-  FINISH_RIFE_BACKEND?: string;
   FINISH_LIPSYNC_BACKEND?: string;
   FINISH_UPSCALE_BACKEND?: string;
-  LOCAL_FINISH_RIFE_URL?: string;
   LOCAL_FINISH_LIPSYNC_URL?: string;
   LOCAL_FINISH_UPSCALE_URL?: string;
   LOCAL_FINISH_TOKEN?: string;
+  /** Homelab sequential VRAM: unload before local finish GPU jobs (local#265). */
+  OLLAMA_BASE_URL?: string;
+  OLLAMA_PLAN_MODEL?: string;
 }
 
 const MODULE_BACKEND_KEY: Record<string, keyof FinishBackendEnv> = {
-  "finish-rife": "FINISH_RIFE_BACKEND",
   "finish-lipsync": "FINISH_LIPSYNC_BACKEND",
   "finish-upscale": "FINISH_UPSCALE_BACKEND",
 };
 
 const MODULE_LOCAL_URL_KEY: Record<string, keyof FinishBackendEnv> = {
-  "finish-rife": "LOCAL_FINISH_RIFE_URL",
   "finish-lipsync": "LOCAL_FINISH_LIPSYNC_URL",
   "finish-upscale": "LOCAL_FINISH_UPSCALE_URL",
 };
@@ -28,13 +31,13 @@ const MODULE_LOCAL_URL_KEY: Record<string, keyof FinishBackendEnv> = {
 export function finishBackendFromProcess(env: NodeJS.ProcessEnv): FinishBackendEnv {
   return {
     FINISH_BACKEND: env.FINISH_BACKEND?.trim() || undefined,
-    FINISH_RIFE_BACKEND: env.FINISH_RIFE_BACKEND?.trim() || undefined,
     FINISH_LIPSYNC_BACKEND: env.FINISH_LIPSYNC_BACKEND?.trim() || undefined,
     FINISH_UPSCALE_BACKEND: env.FINISH_UPSCALE_BACKEND?.trim() || undefined,
-    LOCAL_FINISH_RIFE_URL: env.LOCAL_FINISH_RIFE_URL?.trim() || undefined,
     LOCAL_FINISH_LIPSYNC_URL: env.LOCAL_FINISH_LIPSYNC_URL?.trim() || undefined,
     LOCAL_FINISH_UPSCALE_URL: env.LOCAL_FINISH_UPSCALE_URL?.trim() || undefined,
     LOCAL_FINISH_TOKEN: env.LOCAL_FINISH_TOKEN?.trim() || undefined,
+    OLLAMA_BASE_URL: env.OLLAMA_BASE_URL?.trim() || undefined,
+    OLLAMA_PLAN_MODEL: env.OLLAMA_PLAN_MODEL?.trim() || undefined,
   };
 }
 
@@ -46,6 +49,8 @@ function parseMode(raw: string | undefined, fallback: FinishBackendMode): Finish
 
 /** Default runpod until homelab cutover; set FINISH_BACKEND=local on propagandhi after local finish HTTP lands. */
 export function resolveFinishBackend(moduleName: string, env: FinishBackendEnv): FinishBackendMode {
+  // finish-rife has no local path; always RunPod when this resolver is asked about it.
+  if (moduleName === "finish-rife") return "runpod";
   const globalDefault = parseMode(env.FINISH_BACKEND, "runpod");
   const overrideKey = MODULE_BACKEND_KEY[moduleName];
   const override = overrideKey ? parseMode(env[overrideKey], globalDefault) : globalDefault;

@@ -101,6 +101,8 @@ describe("GET /api/storyboard/models", () => {
     const body = (await res.json()) as { models: Array<{ id: string }> };
     expect(body.models.length).toBeGreaterThan(0);
     // ids are the declared model ids; the module NAME is not among them when an enum is declared
+    expect(body.models.some((m) => m.id === "ollama/qwen3:14b")).toBe(true);
+    expect(body.models.some((m) => m.id === "ollama/deepseek-r1:14b")).toBe(true);
     expect(body.models.some((m) => m.id === "anthropic/claude-opus-4-8")).toBe(true);
     expect(body.models.some((m) => m.id === "plan-enhance")).toBe(false);
   });

@@ -4,6 +4,8 @@ import { plannerEnvFromProcess } from "../../planner-env.js";
 export type ChainModuleEnv = PlannerEnv & {
   CLOUDFLARE_API_TOKEN?: string;
   ENHANCE_MODEL?: string;
+  OLLAMA_BASE_URL?: string;
+  OLLAMA_PLAN_MODEL?: string;
   RUNPOD_API_KEY?: string;
   RUNPOD_ENDPOINT_ID?: string;
   AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?: string;
@@ -15,6 +17,8 @@ export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = proces
     ...plannerEnvFromProcess(processEnv),
     CLOUDFLARE_API_TOKEN: processEnv.CLOUDFLARE_API_TOKEN,
     ENHANCE_MODEL: processEnv.ENHANCE_MODEL,
+    OLLAMA_BASE_URL: processEnv.OLLAMA_BASE_URL?.trim() || undefined,
+    OLLAMA_PLAN_MODEL: processEnv.OLLAMA_PLAN_MODEL?.trim() || undefined,
     RUNPOD_API_KEY: processEnv.RUNPOD_API_KEY?.trim() || undefined,
     RUNPOD_ENDPOINT_ID: processEnv.RUNPOD_ENDPOINT_ID?.trim() || undefined,
     AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: processEnv.AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID?.trim() || undefined,

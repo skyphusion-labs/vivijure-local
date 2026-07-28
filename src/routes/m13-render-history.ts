@@ -26,6 +26,7 @@ import type { Platform } from "../platform/types.js";
 import { badRequest, httpErrorResponse, notFound } from "../errors.js";
 import { json, readBody } from "../http.js";
 import { animateFromPreview } from "../finalize-from-keyframes.js";
+import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
 import { pollScoreBedGenerate, startScoreBedGenerate } from "../score-bed.js";
 import { resolveRenderId } from "../resolve-id.js";
 
@@ -89,8 +90,10 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
       const tier = coerceQualityTier(row.quality_tier) ?? "final";
       const mapped = mapRenderOverridesToModuleConfigs(row.render_overrides, tier, modules);
 
+      const oenv = env();
+      await unloadOllamaBeforeRender(oenv);
       const job = await startFilmJob(
-        env(),
+        oenv,
         {
           project: row.project,
           bundle_key: row.bundle_key,

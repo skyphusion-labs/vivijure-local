@@ -63,6 +63,8 @@ import {
   type ChatMessage,
   type Intensity,
 } from "./plan-enhance-core.js";
+import { augmentSystemForOllama } from "./ollama-prompts.js";
+import { ollamaConfigured } from "./ollama.js";
 import { direct as directPlanEnhance } from "./plan-enhance-provider.js";
 import { coerceConfig as coerceSpeechConfig, processSpeechLocal } from "./speech-upscale-core.js";
 import {
@@ -146,7 +148,10 @@ export async function invokePlanEnhance(
       modelLabel = "dev-mock";
     } else {
       const messages: ChatMessage[] = [];
-      if (systemMessage) messages.push({ role: "system", content: systemMessage });
+      const system = ollamaConfigured(env)
+        ? augmentSystemForOllama(systemMessage, mode)
+        : systemMessage;
+      if (system) messages.push({ role: "system", content: system });
       messages.push({ role: "user", content: userMessage });
       try {
         const { reply, model } = await directPlanEnhance(env, messages, modelId);
@@ -188,10 +193,14 @@ export async function invokePlanEnhance(
       return { ok: true, output: { storyboard: { scenes: [] }, notes: [text] } };
     }
     const messages: ChatMessage[] = [];
-    if (systemMessage) messages.push({ role: "system", content: systemMessage });
+    const system = ollamaConfigured(env)
+      ? augmentSystemForOllama(systemMessage, "chat")
+      : systemMessage;
+    if (system) messages.push({ role: "system", content: system });
     messages.push({ role: "user", content: userMessage });
     try {
-      const { reply } = await directPlanEnhance(env, messages, modelId);
+      // Chat / ideation: allow thinking models (qwen3, deepseek-r1) to reason.
+      const { reply } = await directPlanEnhance(env, messages, modelId, { think: true });
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
         return { ok: true, output: { storyboard: { scenes: [] }, notes: ["chat skipped: empty reply"] } };
@@ -207,7 +216,13 @@ export async function invokePlanEnhance(
     return { ok: false, error: "plan.enhance: input.storyboard has no scenes" };
   }
   const intensity = ((req.config?.intensity as Intensity) || "medium") as Intensity;
-  const messages = buildMessages(prompts, intensity);
+  let messages = buildMessages(prompts, intensity);
+  if (ollamaConfigured(env) && messages[0]?.role === "system") {
+    messages = [
+      { role: "system", content: augmentSystemForOllama(messages[0].content, "enhance") },
+      ...messages.slice(1),
+    ];
+  }
 
   let reply: string | string[] | undefined;
   let model: string;

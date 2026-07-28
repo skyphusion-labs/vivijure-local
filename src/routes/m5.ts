@@ -60,6 +60,7 @@ import {
   shouldProjectWanLoras,
   WAN_LORA_BACKEND,
 } from "../wan-lora-projection.js";
+import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -162,6 +163,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       }
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
+      await unloadOllamaBeforeRender(oenv);
       const job = await startFilmJob(
         oenv,
         {
@@ -302,6 +304,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       }
 
       try {
+        await unloadOllamaBeforeRender(oenv);
         const job = await startScatterRender(oenv, {
           project,
           bundle_key: b.bundleKey,
@@ -397,6 +400,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           400,
         );
       }
+      await unloadOllamaBeforeRender(oenv);
       const job = await startFilmFromKeyframes(
         oenv,
         {

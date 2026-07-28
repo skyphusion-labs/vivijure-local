@@ -1,8 +1,8 @@
 /**
  * plan.enhance model layer (ported from vivijure/modules/plan-enhance/provider.ts).
  *
- * Model choice lives HERE, in the module -- not in core planner code. Opus via AI Gateway when
- * configured; otherwise Workers AI local open-weight. Swap the whole module worker to change stack.
+ * Homelab first-win (local#265): Ollama open-weight when OLLAMA_BASE_URL is set.
+ * AI Gateway / Workers AI remain opt-in overlays. Swap the module to change stack.
  */
 import {
   aiGatewayConfig,
@@ -11,11 +11,20 @@ import {
 } from "../../platform/ai-gateway.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import type { ChatMessage } from "./plan-enhance-core.js";
+import {
+  callOllama,
+  isOllamaModelId,
+  ollamaConfigured,
+  ollamaPlanModel,
+  unloadOllamaModelBestEffort,
+  type CallOllamaOptions,
+  type OllamaEnv,
+} from "./ollama.js";
 
 export const LOCAL_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 export const DEFAULT_OPUS_MODEL = "claude-opus-4-8";
 
-export interface ProviderEnv {
+export interface ProviderEnv extends OllamaEnv {
   CLOUDFLARE_ACCOUNT_ID?: string;
   GATEWAY_ID?: string;
   CF_AIG_TOKEN?: string;
@@ -24,7 +33,7 @@ export interface ProviderEnv {
   PLANNER_AI_MOCK?: string;
 }
 
-export type Provider = "opus" | "local";
+export type Provider = "ollama" | "opus" | "local";
 
 function isAnthropicModelId(id: string): boolean {
   const s = id.trim();
@@ -41,8 +50,21 @@ export function opusModel(env: ProviderEnv, override?: string): string {
   return m && m.length > 0 ? m.replace(/^anthropic\//, "") : DEFAULT_OPUS_MODEL;
 }
 
+/**
+ * Provider pick order (homelab first-win):
+ * 1. Explicit @cf/ → Workers AI local
+ * 2. Explicit anthropic/claude → opus (when gateway configured)
+ * 3. OLLAMA_BASE_URL → ollama
+ * 4. Gateway creds → opus
+ * 5. else → Workers AI local
+ */
 export function pickProvider(env: ProviderEnv, modelId?: string): Provider {
   if (modelId?.startsWith("@cf/")) return "local";
+  if (modelId && isAnthropicModelId(modelId) && env.GATEWAY_ID?.trim() && env.CF_AIG_TOKEN?.trim()) {
+    return "opus";
+  }
+  if (modelId && isOllamaModelId(modelId) && ollamaConfigured(env)) return "ollama";
+  if (ollamaConfigured(env)) return "ollama";
   return env.GATEWAY_ID?.trim() && env.CF_AIG_TOKEN?.trim() ? "opus" : "local";
 }
 
@@ -140,15 +162,41 @@ export async function direct(
   env: ProviderEnv,
   messages: ChatMessage[],
   modelId?: string,
+  ollamaOpts?: CallOllamaOptions,
 ): Promise<{ reply: string | string[] | undefined; model: string }> {
   if (plannerAiMockEnabled(env)) {
     return { reply: undefined, model: "dev-mock" };
   }
+
+  const provider = pickProvider(env, modelId);
+  // Structured plan/enhance defaults to think:false + cooler temp; chat may opt into thinking.
+  const ollamaCallOpts: CallOllamaOptions = { think: false, ...ollamaOpts };
+
+  if (provider === "ollama") {
+    const model = ollamaPlanModel(env, modelId);
+    try {
+      const reply = await callOllama(env, messages, modelId, ollamaCallOpts);
+      return { reply, model: `ollama/${model}` };
+    } finally {
+      // Free VRAM before local-gpu keyframe claims the same card (local#265).
+      await unloadOllamaModelBestEffort(env, modelId);
+    }
+  }
+
   const localModel = modelId?.startsWith("@cf/") ? modelId : LOCAL_MODEL;
-  if (pickProvider(env, modelId) === "opus") {
+  if (provider === "opus") {
     try {
       return { reply: await callOpus(env, messages, modelId), model: opusModel(env, modelId) };
     } catch {
+      if (ollamaConfigured(env)) {
+        try {
+          const model = ollamaPlanModel(env, modelId);
+          const reply = await callOllama(env, messages, modelId, ollamaCallOpts);
+          return { reply, model: `ollama/${model} (opus fell back)` };
+        } finally {
+          await unloadOllamaModelBestEffort(env, modelId);
+        }
+      }
       return { reply: await callLocal(env, messages, localModel), model: `${localModel} (opus fell back)` };
     }
   }

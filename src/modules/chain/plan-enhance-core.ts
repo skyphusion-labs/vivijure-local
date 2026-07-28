@@ -7,11 +7,11 @@ export type Intensity = "light" | "medium" | "bold";
 
 const INTENSITY_GUIDE: Record<Intensity, string> = {
   light:
-    "Add a light touch of cinematic direction: one concrete camera or lighting detail per shot. Stay close to the original.",
+    "Add a light touch of filmable direction: one concrete camera angle or lighting cue per shot that an SDXL keyframe can show. Stay close to the original.",
   medium:
-    "Add clear cinematic direction: camera framing or movement, lens feel, and lighting or mood, in a natural sentence or two per shot.",
+    "Add clear shot-list direction: camera framing or gentle movement, subject action, and lighting or mood, in one or two natural sentences per shot (keyframe-ready, not prose fiction).",
   bold:
-    "Direct each shot vividly: camera framing and movement, lens, lighting, mood, and a sense of motion, while keeping the original subject and action.",
+    "Direct each shot vividly for short AI video: camera framing and movement, lens feel, lighting, mood, and a sense of motion, while keeping the original subject and action.",
 };
 
 export interface ChatMessage {
@@ -26,17 +26,31 @@ export function buildMessages(prompts: string[], intensity: Intensity): ChatMess
     {
       role: "system",
       content:
-        "You are a film director doing a pass over a storyboard's shot descriptions. " +
+        "You are a film director rewriting storyboard shot lines for a local AI film studio " +
+        "(SDXL keyframes → short motion clips). " +
         guide +
         " Preserve each shot's subject, action, and meaning; do not add or remove shots; do not change who appears. " +
-        "Reply with ONLY a JSON array of strings: the rewritten shot descriptions, in the same order, the same length as the input. No prose, no keys, no markdown fences.",
+        "Write visual, filmable language (who/what, framing, light); avoid abstract theme essays and style words that belong in a global style_prefix. " +
+        "Reply with ONLY a JSON array of strings: the rewritten shot descriptions, in the same order, the same length as the input. " +
+        "No prose before or after the array, no keys, no markdown fences, no thinking tags.",
     },
-    { role: "user", content: `Rewrite these ${prompts.length} shot descriptions:\n${numbered}` },
+    {
+      role: "user",
+      content: `Rewrite these ${prompts.length} shot descriptions for keyframe-ready direction:\n${numbered}`,
+    },
   ];
 }
 
+/** Drop CoT wrappers before structured parse (belt-and-suspenders vs think:false). */
+function stripModelChrome(raw: string): string {
+  return raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/gi, "")
+    .trim();
+}
+
 function tryJsonArray(raw: string, n: number): string[] | null {
-  let s = raw.trim();
+  let s = stripModelChrome(raw);
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) s = fence[1]!.trim();
   const start = s.indexOf("[");
@@ -55,7 +69,7 @@ function tryJsonArray(raw: string, n: number): string[] | null {
 
 function tryNumberedList(raw: string, n: number): string[] | null {
   const items: string[] = [];
-  for (const line of raw.split(/\r?\n/)) {
+  for (const line of stripModelChrome(raw).split(/\r?\n/)) {
     const m = line.match(/^\s*(?:\d+[.)]|[-*])\s+(.*\S)\s*$/);
     if (m) items.push(m[1]!.replace(/^["']|["']$/g, "").trim());
   }
@@ -96,14 +110,23 @@ export function parsePlanStoryboard(raw: unknown): PlanEnhanceStoryboard | null 
     if (Array.isArray(o.scenes)) return o;
   }
   if (typeof raw !== "string") return null;
-  let text = raw.trim();
+  let text = stripModelChrome(raw);
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) text = fence[1]!.trim();
   try {
     const parsed = JSON.parse(text) as PlanEnhanceStoryboard;
     if (parsed && Array.isArray(parsed.scenes)) return parsed;
   } catch {
-    return null;
+    // Model sometimes wraps the object in prose; extract the outermost {...}.
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end < start) return null;
+    try {
+      const parsed = JSON.parse(text.slice(start, end + 1)) as PlanEnhanceStoryboard;
+      if (parsed && Array.isArray(parsed.scenes)) return parsed;
+    } catch {
+      return null;
+    }
   }
   return null;
 }

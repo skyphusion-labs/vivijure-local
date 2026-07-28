@@ -1,26 +1,29 @@
 {
   "name": "plan-enhance",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "api": "vivijure-module/2",
   "hooks": [
     "plan.enhance"
   ],
   "provides": [
     {
-      "id": "auto-direction",
-      "label": "Opus auto-direction"
+      "id": "ollama-direction",
+      "label": "Ollama auto-direction (homelab)"
     }
   ],
   "config_schema": {
     "model": {
       "type": "enum",
       "values": [
+        "ollama/qwen3:14b",
+        "ollama/deepseek-r1:14b",
+        "ollama/qwen3:8b",
         "anthropic/claude-opus-4-8",
         "anthropic/claude-opus-4-7",
         "anthropic/claude-sonnet-5",
         "anthropic/claude-sonnet-4-6"
       ],
-      "default": "anthropic/claude-opus-4-8",
+      "default": "ollama/qwen3:14b",
       "label": "model"
     },
     "intensity": {

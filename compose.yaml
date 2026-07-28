@@ -14,12 +14,13 @@
 # MinIO S3 API:  http://127.0.0.1:9000  (in-network); public HTTPS via Caddy + S3_PRESIGN_ENDPOINT
 #               COMPOSE_PROFILES=edge requires non-placeholder S3_* (npm run install:edge mints them).
 #
-# Default homelab stack (Conrad ruling 2026-07-22): all CPU modules + homelab motion (local-gpu).
-# CPU sidecars, VPC shims, and score/chain modules run by default; only RunPod/cloud GPU is gated.
+# Default homelab stack (Conrad ruling 2026-07-28 / local#265):
+#   Ollama plan.enhance → unload → local-gpu keyframe (16GB door first). NO RunPod modules in default.
+# CPU sidecars, VPC shims, score/chain modules, Ollama, and local-gpu run by default.
 # Optional profiles (see docs/install-profiles.md):
-#   cloud      -- own-gpu, cloud i2v (seedance/kling/veo/wan/...), cloud-keyframe, speech-upscale (RunPod)
+#   cloud      -- RunPod keyframe, own-gpu, cloud i2v, cloud-keyframe, speech-upscale
 #   satellites -- finish-lipsync, finish-upscale GPU sidecars (+ MODULE_LIPSYNC_URL / MODULE_UPSCALE_URL)
-# Keyframe mock when RUNPOD_* unset; local-gpu mock when LOCAL_BACKEND_URL unset (offline default).
+# local-gpu mock when LOCAL_BACKEND_URL unset (offline default). Default door hostname: vivijure-local-16gb.
 # FINISH_BACKEND=local + LOCAL_FINISH_*_URL for homelab GPU finish (docs/FINISH_BACKEND.md); RunPod escape hatch.
 
 name: vivijure-local
@@ -31,6 +32,7 @@ networks:
 volumes:
   minio-data:
   studio-data:
+  ollama-data:
   caddy-data:
   caddy-config:
 
@@ -88,6 +90,9 @@ x-runpod-module: &runpod-module
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
+    # Sequential VRAM (local#265): finish sidecars unload Ollama before local GPU /run.
+    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+    OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
     # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3, quota headroom on the backend render EP; id removed from tracked docs, scheduled for teardown per cf#215, see fleet-chezmoi runpod endpoints runbook; satellites override below)
     RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
     S3_ENDPOINT: http://minio:9000
@@ -189,8 +194,61 @@ services:
       <<: *cpu-health
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
 
+  # Homelab LLM for plan.enhance (local#265). Shares the GPU with the 16GB door serially:
+  # plan → unload → keyframe. On NVIDIA hosts use compose.ollama-nvidia.yaml (see
+  # docs/DEPLOYMENT.md); without it Ollama runs on CPU (fine for CI / Mac).
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks: [studio]
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # One-shot pull for default qwen3:14b (~9.3GB Q4; fits 16GB with headroom before unload).
+  # First boot downloads the model; retries on transient registry errors; verifies with `show`.
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks: [studio]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        model="$$OLLAMA_PLAN_MODEL"
+        echo "ollama-pull: ensuring $$model is present (first boot may download ~9GB)"
+        i=1
+        while [ "$$i" -le 5 ]; do
+          if ollama pull "$$model"; then
+            ollama show "$$model" >/dev/null
+            echo "ollama-pull: $$model ready"
+            exit 0
+          fi
+          echo "ollama-pull: attempt $$i failed; retrying in 8s"
+          i=$$((i + 1))
+          sleep 8
+        done
+        echo "ollama-pull: failed to pull $$model after retries" >&2
+        exit 1
+    restart: "no"
+
+  # RunPod keyframe sidecar -- cloud profile only (not in default homelab stack).
   module-keyframe:
-    <<: *runpod-module
+    <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9101", "keyframe"]
     healthcheck:
       <<: *module-health-url
@@ -203,8 +261,12 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9102/module.json"]
     environment:
+      # 16GB door first (local#265). Override to 12gb hostname or host URL as needed.
+      # Unset / empty → mock sidecar (offline compose). Set in .env for a real door.
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -394,9 +456,18 @@ services:
     healthcheck:
       <<: *module-health
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9140/module.json"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
     environment:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
-      PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
+      # Offline/CI: PLANNER_AI_MOCK=true. Homelab real planning: false (default) + Ollama.
+      PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
+      # AI Gateway remains an opt-in overlay (explicit anthropic/* model ids).
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -499,7 +570,9 @@ services:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       AUTH_MODE: ${AUTH_MODE:-token}
       STUDIO_API_TOKEN: ${STUDIO_API_TOKEN:-change-me-local-dev-only}
-      PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-true}
+      PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       S3_ENDPOINT: http://minio:9000
       S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT:-http://minio:9000}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -512,14 +585,17 @@ services:
       AUDIO_BEAT_SYNC_URL: http://audio-beat-sync:8000
       AUDIO_MIX_URL: http://audio-mix:8000
       AUDIO_MASTER_URL: http://audio-master:8000
+      # RunPod env retained for opt-in cloud profile overlays only (unset in default homelab).
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
       RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
       VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
       MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+      # Default documented door: vivijure-local-16gb (set in .env). Empty → local-gpu mock.
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
-      MODULE_KEYFRAME_URL: http://module-keyframe:9101
+      # RunPod keyframe module is cloud-profile only; leave unset in default stack.
+      MODULE_KEYFRAME_URL: ${MODULE_KEYFRAME_URL:-}
       MODULE_LOCAL_GPU_URL: http://module-local-gpu:9102
       MODULE_OWN_GPU_URL: ${MODULE_OWN_GPU_URL:-}
       MODULE_LIPSYNC_URL: ${MODULE_LIPSYNC_URL:-}
@@ -563,7 +639,7 @@ services:
         condition: service_healthy
       audio-master:
         condition: service_healthy
-      module-keyframe:
+      ollama:
         condition: service_healthy
       module-local-gpu:
         condition: service_healthy

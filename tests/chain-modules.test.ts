@@ -15,6 +15,14 @@ describe("plan.enhance core", () => {
     expect(enhanced).toEqual(["shot one directed", "shot two directed"]);
   });
 
+  it("parses enhance arrays even when a thinking model left chrome", () => {
+    const enhanced = parseEnhanced(
+      '<think>framing pass</think>\n```json\n["dock wide", "close on hands"]\n```',
+      2,
+    );
+    expect(enhanced).toEqual(["dock wide", "close on hands"]);
+  });
+
   it("merges enhanced prompts back into scenes", () => {
     const sb = { scenes: [{ prompt: "a" }, { prompt: "b" }] };
     const out = mergeEnhanced(sb, ["A+", "B+"]);
@@ -28,7 +36,17 @@ describe("plan.enhance core", () => {
 });
 
 describe("plan.enhance provider selection", () => {
-  it("picks opus when gateway creds are set", () => {
+  it("picks ollama when OLLAMA_BASE_URL is set (homelab first-win)", () => {
+    expect(
+      pickProvider({
+        OLLAMA_BASE_URL: "http://ollama:11434",
+        GATEWAY_ID: "gw",
+        CF_AIG_TOKEN: "tok",
+      }),
+    ).toBe("ollama");
+  });
+
+  it("picks opus when gateway creds are set and Ollama is not", () => {
     expect(pickProvider({ GATEWAY_ID: "gw", CF_AIG_TOKEN: "tok" })).toBe("opus");
   });
 
@@ -36,6 +54,15 @@ describe("plan.enhance provider selection", () => {
     expect(pickProvider({ GATEWAY_ID: "gw", CF_AIG_TOKEN: "tok" }, "@cf/meta/llama-3.3-70b-instruct-fp8-fast")).toBe(
       "local",
     );
+  });
+
+  it("picks opus for explicit anthropic id even when Ollama is configured", () => {
+    expect(
+      pickProvider(
+        { OLLAMA_BASE_URL: "http://ollama:11434", GATEWAY_ID: "gw", CF_AIG_TOKEN: "tok" },
+        "anthropic/claude-opus-4-8",
+      ),
+    ).toBe("opus");
   });
 
   it("uses default opus when override is the module id", () => {

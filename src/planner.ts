@@ -22,6 +22,8 @@ import {
   buildRefinementUserMessage,
 } from "@skyphusion-labs/vivijure-core/planner-prompt";
 import { resolvePlanningTarget } from "./planning-models.js";
+import { isOllamaModelId } from "./modules/chain/ollama.js";
+import { OLLAMA_CHAT_SYSTEM_DEFAULT } from "./modules/chain/ollama-prompts.js";
 
 export type { PlannerCharacter };
 
@@ -261,7 +263,9 @@ export async function chatComplete(
   host: PlanningHost,
   args: ChatCompleteArgs,
 ): Promise<ChatCompleteResult> {
-  const systemMessage = args.system_prompt?.trim() || "You are a helpful assistant.";
+  const systemMessage =
+    args.system_prompt?.trim() ||
+    (isOllamaModelId(args.model) ? OLLAMA_CHAT_SYSTEM_DEFAULT : "You are a helpful assistant.");
   const r = await invokePlanningModule(host, {
     mode: "chat",
     model: args.model,
