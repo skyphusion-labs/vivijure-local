@@ -17,6 +17,7 @@ import {
   ollamaConfigured,
   ollamaPlanModel,
   unloadOllamaModelBestEffort,
+  type CallOllamaOptions,
   type OllamaEnv,
 } from "./ollama.js";
 
@@ -161,17 +162,20 @@ export async function direct(
   env: ProviderEnv,
   messages: ChatMessage[],
   modelId?: string,
+  ollamaOpts?: CallOllamaOptions,
 ): Promise<{ reply: string | string[] | undefined; model: string }> {
   if (plannerAiMockEnabled(env)) {
     return { reply: undefined, model: "dev-mock" };
   }
 
   const provider = pickProvider(env, modelId);
+  // Structured plan/enhance defaults to think:false; chat may opt into thinking.
+  const ollamaCallOpts: CallOllamaOptions = { think: false, ...ollamaOpts };
 
   if (provider === "ollama") {
     const model = ollamaPlanModel(env, modelId);
     try {
-      const reply = await callOllama(env, messages, modelId);
+      const reply = await callOllama(env, messages, modelId, ollamaCallOpts);
       return { reply, model: `ollama/${model}` };
     } finally {
       // Free VRAM before local-gpu keyframe claims the same card (local#265).
@@ -187,7 +191,7 @@ export async function direct(
       if (ollamaConfigured(env)) {
         try {
           const model = ollamaPlanModel(env, modelId);
-          const reply = await callOllama(env, messages, modelId);
+          const reply = await callOllama(env, messages, modelId, ollamaCallOpts);
           return { reply, model: `ollama/${model} (opus fell back)` };
         } finally {
           await unloadOllamaModelBestEffort(env, modelId);

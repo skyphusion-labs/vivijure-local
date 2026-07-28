@@ -40,8 +40,8 @@ CF path: [vivijure-cf quickstart](https://github.com/skyphusion-labs/vivijure-cf
 You never need a RunPod account. A complete film renders with **zero RunPod modules** in the default
 compose stack:
 
-- **Planning (`plan.enhance`)** runs on **local Ollama** (default `qwen2.5:14b`); the model is
-  unloaded before keyframe work claims the GPU.
+- **Planning (`plan.enhance`)** runs on **local Ollama** (default `qwen3:14b`, ~9.3GB Q4 on a
+  16GB card); the model is unloaded before keyframe work claims the GPU.
 - **Motion and keyframes** render on your own GPU through the local door
   ([`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) first;
   [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb) alternate); set

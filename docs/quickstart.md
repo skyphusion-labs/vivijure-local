@@ -78,7 +78,7 @@ One `compose.yaml` brings up:
 
 1. **studio** -- Node control plane (API + static UI from the shared `public/`).
 2. **minio** -- S3-compatible object store for renders, bundles, and job state.
-3. **ollama** -- open-weight `plan.enhance` (default `qwen2.5:14b`); unloaded before keyframe.
+3. **ollama** -- open-weight `plan.enhance` (default `qwen3:14b`, ~9.3GB on a 16GB card); unloaded before keyframe.
 4. **CPU media** -- `video-finish`, `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`.
 5. **Module sidecars** -- `local-gpu` (keyframe + motion; mock when no door), plan-enhance, beat-sync,
    audio-master, film-titles, subtitle, and the other CPU/chain modules.
