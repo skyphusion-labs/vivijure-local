@@ -211,7 +211,7 @@ services:
       retries: 12
       start_period: 20s
 
-  # One-shot model pull for the default open-weight planner (fits 16GB after unload).
+  # One-shot pull for default qwen3:14b (~9.3GB Q4; fits 16GB with headroom before unload).
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
@@ -220,7 +220,7 @@ services:
     networks: [studio]
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen2.5:14b}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -249,7 +249,7 @@ services:
       LOCAL_BACKEND_URL: ${LOCAL_BACKEND_URL:-}
       LOCAL_BACKEND_TOKEN: ${LOCAL_BACKEND_TOKEN:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen2.5:14b}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -447,7 +447,7 @@ services:
       # Offline/CI: PLANNER_AI_MOCK=true. Homelab real planning: false (default) + Ollama.
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-false}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen2.5:14b}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       # AI Gateway remains an opt-in overlay (explicit anthropic/* model ids).
       <<: *ai-gateway-env
       S3_ENDPOINT: http://minio:9000
@@ -553,7 +553,7 @@ services:
       STUDIO_API_TOKEN: ${STUDIO_API_TOKEN:-change-me-local-dev-only}
       PLANNER_AI_MOCK: ${PLANNER_AI_MOCK:-false}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen2.5:14b}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       S3_ENDPOINT: http://minio:9000
       S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT:-http://minio:9000}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}

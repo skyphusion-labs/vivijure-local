@@ -15,7 +15,10 @@ epic [local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200)):
 - **Compose:** `ollama` + `ollama-pull` services; `module-keyframe` (RunPod) moved to `cloud` profile;
   studio no longer sets `MODULE_KEYFRAME_URL` by default.
 - **plan.enhance:** Ollama first-win when `OLLAMA_BASE_URL` is set; default catalog model
-  `ollama/qwen2.5:14b`; AI Gateway / Anthropic remain opt-in overlays. `plan-enhance.json` is
+  **`ollama/qwen3:14b`** (~9.3GB Q4, fits 16GB with headroom). Chosen over qwen2.5:14b for
+  stronger creative writing / scripts / video ideation; catalog also lists `deepseek-r1:14b`
+  (max reasoning) and `qwen3:8b` (smaller fallback). Structured enhance/plan uses `think: false`;
+  chat opts into thinking. AI Gateway / Anthropic remain opt-in overlays. `plan-enhance.json` is
   local-only (excluded from cf manifest drift).
 - **Sequential VRAM:** unload Ollama (`keep_alive: 0`) after enhance and again before local-gpu
   keyframe submit.

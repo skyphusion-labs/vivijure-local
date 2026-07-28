@@ -231,7 +231,8 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
   {
     key: "OLLAMA_PLAN_MODEL",
     label: "Ollama plan.enhance model",
-    blurb: "Open-weight model tag for plan.enhance (default qwen2.5:14b; must fit the card after unload).",
+    blurb:
+      "Open-weight model tag for plan.enhance (default qwen3:14b ~9.3GB Q4; must fit 16GB with headroom before unload).",
     category: "ai",
     sensitive: false,
     applies_on: "immediate",
