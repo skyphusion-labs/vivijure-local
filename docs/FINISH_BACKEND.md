@@ -83,13 +83,17 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 | `FINISH_BACKEND` | `local` (default after cutover) or `runpod` |
 | `LOCAL_FINISH_LIPSYNC_URL` | HTTP base for MuseTalk / `lipsync_clip` |
 | `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip` |
+| `LOCAL_FINISH_RIFE_URL` | HTTP base for opt-in RIFE (`containers/finish-rife-serve`); unset = RIFE not offered |
 | `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`) |
 | `FINISH_LIPSYNC_BACKEND` | Optional per-module override (`local` \| `runpod`) |
 | `FINISH_UPSCALE_BACKEND` | Optional per-module override |
+| `FINISH_RIFE_BACKEND` | Optional per-module override (`local` \| `runpod`) |
 
-**Not supported on vivijure-local:** `LOCAL_FINISH_RIFE_URL`, `MODULE_FINISH_RIFE_URL`,
-`finish-rife-serve`, or any on-box RIFE HTTP service. RIFE stays on the RunPod backend worker for
-vivijure-cf only.
+**RIFE (local#204):** opt-in only. Build/run `containers/finish-rife-serve`, set
+`LOCAL_FINISH_RIFE_URL` + `FINISH_RIFE_BACKEND=local`. It is **not** in the default compose stack and
+not required for a complete film (CPU `video-finish` assemble is enough). `MODULE_FINISH_RIFE_URL`
+(the old module-sidecar discovery path) stays unused on the local panel; use the local-finish URL
+path above. vivijure-cf keeps RIFE on the RunPod backend worker for production.
 
 When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **fail-loud**
 (`ok: false`, not silent RunPod fallback or passthrough). Homelabbers who want RunPod finish set
@@ -126,7 +130,7 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 | `scripts/local-finish-module-server.ts` (new) | Sidecar entrypoint (like `local-gpu-module-server.ts`) |
 | `scripts/runpod-module-server.ts` | Gate behind `resolveFinishBackend()`; keep RunPod path for `runpod` mode |
 | `compose.yaml` | No `module-finish-rife`; lipsync/upscale gated behind `profiles: [satellites]` |
-| `src/platform-secrets-catalog.ts` | Catalog entries (no local RIFE keys as supported paths) |
+| `src/platform-secrets-catalog.ts` | Catalog entries; `LOCAL_FINISH_RIFE_URL` purgeable when unset (opt-in) |
 | `.env.example`, `docs/DEPLOYMENT.md`, `docs/install-profiles.md` | Operator docs |
 | `scripts/smoke-exhaustive.ts` | Homelab smoke: local-gpu + CPU assemble; no RIFE step |
 
@@ -156,6 +160,7 @@ Post-cutover **propagandhi homelab bar**:
 |------|--------|----------|------------|------|-----------------|
 | Default homelab smoke | `local-gpu` → door | local keyframe module (#153) | None (CPU assemble) | No | **No** |
 | Optional local finish smoke | any | any | lipsync/upscale `FINISH_BACKEND=local` | No | No |
+| Optional local RIFE smoke | any | any | + `LOCAL_FINISH_RIFE_URL` / `FINISH_RIFE_BACKEND=local` | Yes (opt-in serve) | No |
 | Optional RunPod finish smoke | any | any | `SMOKE_FINISH_BACKEND=runpod` | No (local panel) | Yes (lipsync/upscale EPs) |
 | CF production regression | own-gpu / cloud | RunPod SDXL | RunPod finish chain | Yes (RunPod) | Yes (prod EPs) |
 
@@ -189,7 +194,7 @@ Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does
 
 ## Non-goals
 
-- Local RIFE (any form: serve overlay, on-box GPU, RunPod escape hatch on local panel).
+- Shipping local RIFE in the **default** compose stack (it stays opt-in via `finish-rife-serve`).
 - Changing **vivijure-cf** default finish routing (stays RunPod, including RIFE).
 - Live propagandhi cutover before musetalk jitter smoke completes.
 - MuseTalk handler jitter fixes (owned by agent `582d5f29`; do not touch those files in this lane).
