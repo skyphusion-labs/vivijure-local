@@ -21,15 +21,14 @@ Design platform interfaces in `src/platform/types.ts` so v2 extraction is mechan
 - **Module contract is sacred.** `../vivijure-core/src/modules/types.ts` must match upstream byte-for-byte unless the epoch bumps in both repos together. Beat-sync planner types live in `vivijure-core/src/beat-sync-types.ts` (upstream: `modules/beat-sync/src/contract.ts`). Sync: `npm run sync:module-types`.
 - **Object storage is S3-compatible (MinIO default).** Use `S3_*` env vars; R2/S3 is a config swap. Filesystem (`ARTIFACT_ROOT`) is CI fallback only.
 - **Required CI check is `ci`** (typecheck, test, and conformance run inside that job). Run `npm run typecheck` locally before push.
-- **Upstream parity before merge.** Required check `upstream-parity` diffs `public/` vs `vivijure` `main`. Before every PR/merge recommendation, run `npm run upstream:parity` (and `npm run upstream:parity:verbatim` when touching migrations or `vivijure-core` `modules/types.ts`). Sync drift before push; see `.cursor/rules/upstream-parity-pre-merge.mdc`.
+- **Dual-panel release gate (PRODUCT parity, unchanged).** Every studio feature ships to `vivijure-cf` and `vivijure-local` in the same release wave: same-time releases, no community edition, no pay gates. This is a review obligation, not a CI check.
+- **There is no byte-identity check on `public/` any more.** The `upstream-parity` workflow diffed shared `public/` against `vivijure-cf` `main`; it was retired in local#263 because the two hosts' projectors legitimately diverged, so byte-identity stopped being a true statement about a working system. `scripts/sync-from-vivijure.sh` survives as a manual porting aid. Nothing now detects a shared-UI change landing in only one panel: that is on review.
 
 ## Commands
 
 ```bash
 npm run typecheck
 npm test
-npm run upstream:parity          # before PR/merge (CI gate)
-npm run upstream:parity:verbatim # + migrations, types.ts
 npm run dev
 docker compose up -d    # CPU media stack + optional MinIO
 ```

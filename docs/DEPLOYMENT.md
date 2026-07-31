@@ -457,23 +457,24 @@ flat config succeeded (`film-0542ed5e`). Same rule applies to `npm run smoke:exi
 ## Syncing from upstream
 
 During Option B, orchestration code is copied from `vivijure/src/` and adapted at platform call
-sites. Three surfaces are **verbatim copies** and must stay aligned with `vivijure` `main`:
+sites. `public/` (studio UI), `migrations/` (SQLite schema) and `src/modules/types.ts` (the
+`vivijure-module/2` contract) started as verbatim copies of the upstream files.
 
-- `public/` (studio UI)
-- `migrations/` (SQLite schema)
-- `src/modules/types.ts` (`vivijure-module/2` contract)
+**There is no longer a CI check asserting they stay byte-identical.** `upstream-parity` diffed
+shared `public/` against `skyphusion-labs/vivijure-cf` `main` on every PR; it was retired in
+local#263. The two hosts' backends now legitimately emit different wire shapes, so byte-identity
+of the shared frontend stopped being a true statement about a working system and started
+reporting the honest change as the defect.
 
-CI runs `upstream-parity` on every PR: it checks out `skyphusion-labs/vivijure-cf` `main` and diffs
-`public/` (the studio UI). For the full verbatim set including migrations and types:
+What is left is a manual porting aid, which OVERWRITES local copies with upstream's:
 
 ```bash
-VIVIJURE_SRC=../vivijure-cf npm run upstream:parity       # public/ only (CI gate)
-VIVIJURE_SRC=../vivijure-cf npm run upstream:parity:verbatim # + migrations, types.ts
 ./scripts/sync-from-vivijure.sh   # requires sibling ../vivijure-cf clone
 ```
 
-When vivijure v2.0 lands `vivijure-core`, this repo will depend on the package instead of
-manual sync for orchestration; `public/` parity remains until the UI is packaged separately.
+**What still holds is PRODUCT parity, and it is a review obligation now:** every studio feature
+ships to both panels in the same release wave (same-time releases, no community edition, no pay
+gates). Nothing in CI detects a shared-UI change landing in only one panel.
 See [ROADMAP.md](ROADMAP.md).
 
 ---

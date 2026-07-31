@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Copy / refresh shared surfaces from vivijure-cf into this repo.
 #
-# public/: force-sync shared files (respects the same LOCAL_PUBLIC_SKIP list as
-#   upstream-public-parity.sh). This is the remedy the parity gate names on FAIL.
+# public/: force-sync shared files (all but LOCAL_PUBLIC_SKIP below). A MANUAL porting aid, used
+#   when deliberately adopting upstream UI changes. It used to be the remedy the `upstream-parity`
+#   gate named on FAIL; that gate is retired (local#263) and this is no longer anything's automatic
+#   remedy. It OVERWRITES local copies, so run it when you mean to take upstream's version.
 # Other paths: extraction-era helper -- copy_if_missing only (does not overwrite).
 # Staged port batches still land under .sync-staging/ for manual merge.
 set -euo pipefail
@@ -15,7 +17,9 @@ if [[ ! -d "$UP/src" && ! -d "$UP/public" ]]; then
   exit 1
 fi
 
-# Keep in lockstep with scripts/upstream-public-parity.sh LOCAL_PUBLIC_SKIP.
+# Files this script must never overwrite: local-only end to end (vivijure-cf uses Workers secrets
+# and ships no such form). This list used to be kept in lockstep with upstream-public-parity.sh;
+# that script is retired, so this is now its only home.
 LOCAL_PUBLIC_SKIP=(
   public/settings.html
   public/settings-secrets.css
@@ -100,4 +104,3 @@ do
 done
 
 echo "done. public/ shared files synced; staged port candidates in $STAGE (merge manually into src/ with platform adapters)"
-echo "re-check: bash scripts/upstream-public-parity.sh \"$UP\""
