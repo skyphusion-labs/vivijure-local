@@ -27,8 +27,9 @@ You do **not** need:
 
 - A Cloudflare account or AI Gateway (planning defaults to local Ollama).
 - A RunPod account (RunPod modules are `COMPOSE_PROFILES=cloud` only).
-- A GPU for the first smoke (compose ships a `local-gpu` mock when `LOCAL_BACKEND_URL` is unset;
-  Ollama can run on CPU until you attach an NVIDIA GPU).
+- A GPU to bring the stack **up** (Ollama can run on CPU). You do need one to **render**: with
+  `LOCAL_BACKEND_URL` unset the `local-gpu` module is hidden and the host reports `keyframe` /
+  `motion.backend` unavailable rather than producing placeholder frames (local#229).
 
 ## The three steps
 
@@ -83,7 +84,7 @@ One `compose.yaml` brings up:
    fits a 16GB door with headroom). `npm run compose:up` waits for the pull on first boot.
    Unloaded after plan and before keyframe (never concurrent with the door on the same card).
 4. **CPU media** -- `video-finish`, `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`.
-5. **Module sidecars** -- `local-gpu` (keyframe + motion; mock when no door), plan-enhance, beat-sync,
+5. **Module sidecars** -- `local-gpu` (keyframe + motion; hidden when no door), plan-enhance, beat-sync,
    audio-master, film-titles, subtitle, and the other CPU/chain modules.
 
 Compose defaults `PLANNER_AI_MOCK=false` and points plan.enhance at Ollama. For offline CI without
@@ -117,8 +118,8 @@ npm run conformance:compose
 - **Real GPU (16GB door first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
   (or the 12GB alternate) on your host; set `LOCAL_BACKEND_URL` and recreate `module-local-gpu`.
   See [DEPLOYMENT.md](DEPLOYMENT.md).
-- **Local finish sidecars:** `FINISH_BACKEND=local` + `LOCAL_FINISH_*_URL` (planned default after
-  [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180); see [FINISH_BACKEND.md](FINISH_BACKEND.md)).
+- **Local finish sidecars:** `FINISH_BACKEND` already defaults to `local`; add `LOCAL_FINISH_*_URL`
+  ([FINISH_BACKEND.md](FINISH_BACKEND.md)).
 - **Public HTTPS** (studio + MinIO for remote GPU fetch): [EDGE.md](EDGE.md)
   (`npm run install:edge`, then `COMPOSE_PROFILES=edge npm run compose:up`).
 - **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).

@@ -70,7 +70,7 @@ you control and a strong token.
 | Docker + Compose v2 | Runs the full demo stack |
 | Node.js >= 22.5 | Host scripts, `npm test`, optional `npm run dev` |
 | ~4 GB disk | Images + MinIO volume + render artifacts |
-| Optional: GPU host | For real motion, not required for mock demo path |
+| GPU host (local door) | **Required to render** keyframes/motion; the stack boots without one but reports those hooks unavailable |
 
 ---
 
@@ -331,12 +331,21 @@ Offline/CI without pulling weights: `PLANNER_AI_MOCK=true`.
 
 ---
 
-## GPU backends: mock vs real
+## GPU backends: no door vs real door
 
-**Default (demo path):** compose runs `scripts/local-gpu-module-server.ts` for dual-hook
-`local-gpu` (keyframe + motion). It falls back to the GPU mock when `LOCAL_BACKEND_URL` is unset.
-Mocks write minimal PNG/MP4 artifacts to MinIO so the orchestrator path runs without a GPU.
-There is **no RunPod keyframe sidecar** in the default stack.
+**There is no mock GPU tier** (local#229). Compose runs `scripts/local-gpu-module-server.ts` for
+dual-hook `local-gpu` (keyframe + motion), and that sidecar proxies to `LOCAL_BACKEND_URL` or
+refuses. With the variable unset:
+
+- `/module.json` reports `configured: false`, so `discoverConfiguredModules` drops the module and the
+  panel neither shows nor accepts it;
+- `GET /api/modules` reports `keyframe` and `motion.backend` in `host.hooks_unavailable`, naming
+  `LOCAL_BACKEND_URL`, so the panel greys the controls out **before** a render is started;
+- any direct `/invoke` returns a named error and writes nothing.
+
+Previously this configuration wrote a 1x1 PNG per keyframe and a black clip per shot to MinIO and
+reported the render COMPLETED. That produced films assembled from fabricated frames, so it was
+deleted rather than relabelled. There is **no RunPod keyframe sidecar** in the default stack either.
 
 **Real door (16GB first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
 (or the 12GB alternate) on your host. Set `LOCAL_BACKEND_URL` (e.g.

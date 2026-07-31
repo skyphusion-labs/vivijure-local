@@ -11,13 +11,65 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 Additive wire fields on GET `/api/storyboard/models` (and the planning half of `/api/models`):
 
-- **`module`** — registry name of the plan.enhance module that declared the row, so consumers do
+- **`module`** -- registry name of the plan.enhance module that declared the row, so consumers do
   not parse `group` for ownership.
-- **`default: true`** — the row matching `config_schema.model.default` (or the sole no-enum row).
+- **`default: true`** -- the row matching `config_schema.model.default` (or the sole no-enum row).
 
 The planner picker lands on the declared default when there is no saved preference, and prefers it
 over "first option" when a saved id has left the catalog. Image rows are unchanged (fields omitted).
 cf ports this projector after merge (upstream-first, cf#62).
+
+### docs(legal): USE.md, the software vs the model weights (local#283)
+
+The software stays AGPL-3.0-only and free for any use including commercial; the model weights
+on the local inference path carry their own upstream licenses, several of which restrict
+commercial use (CogVideoX registration + visits cap; the LTX revenue threshold; OpenRAIL++ use
+restrictions), and we cannot grant those rights. New top-level `USE.md` states the per-model
+truth (license, delivery mode, commercial answer; upstream-verified 2026-07-31), the two
+supported commercial paths (Workers AI licensed inference, or hosted vivijure-cf), and that
+homelab / non-commercial use is unaffected on every path. README points to it beside the
+license section; `docs/PARITY.md` gains a scope note: parity covers our software, and the
+commercial difference on local inference is imposed by weight licensors, not by us.
+
+### fix(local-gpu)!: delete the GPU mock; refuse loudly instead of fabricating frames (local#229)
+
+**A bare `compose up` was shipping films assembled from fabricated frames.** `LOCAL_BACKEND_URL` is
+empty by default and `scripts/local-gpu-module-server.ts` passed the real artifact store in as a
+*mock* store unconditionally, so `local-gpu` served `invokeKeyframeMock` (a 1x1 red PNG per shot) and
+`invokeLocalGpuMock` (a black 320x240 clip per shot) under the label "Local GPU Keyframe (SDXL on your
+own card)" and reported the render COMPLETED. `/module.json` answered from the mock branch with the
+bare manifest, so `configured` was absent -- and absent means *keep* at the registry choke point,
+which is why the local#201 filter never hid it. The CPU finish stage then honestly assembled those
+placeholders into a deliverable film.
+
+Conrad's call, settling the product question local#229 was parked on: **gone, not relabelled.**
+
+- **Deleted:** `src/modules/dev/gpu-mock-handlers.ts`, `src/modules/dev/gpu-mock-app.ts`,
+  `scripts/gpu-mock-module-server.ts`, `src/modules/runpod/keyframe-sidecar.ts` (its only purpose was
+  the mock fallback), and `MIN_PNG` / `buildStructuralMp4` from `src/dev/minimal-media.ts`. No flag,
+  no env var, no commented-out branch.
+- **`local-gpu` now reports `configured`** from the same predicate its routing reads, so an
+  unconfigured door is dropped by `filterConfiguredModules`: neither visible nor submittable. Every
+  `/invoke` refuses by name (`LOCAL_BACKEND_URL must be an absolute http(s) URL`) and writes nothing.
+- **New honest-refusal gate** `src/local-door-availability.ts`: `GET /api/modules` reports `keyframe`
+  and `motion.backend` in `host.hooks_unavailable` (the existing core#98 / v1.2.14 channel, alongside
+  the video-finish twin) when **no installed module serves them**, with a reason naming
+  `LOCAL_BACKEND_URL`. Derived from the discovered modules, not from env, so a `cloud`-profile studio
+  with RunPod credentials reports nothing.
+- **RunPod is no longer the finish default:** `FINISH_BACKEND` defaults to `local` (was `runpod`).
+  Bringing the `satellites` profile up without setting it used to dispatch homelab finish jobs to
+  RunPod; it now refuses by name when `LOCAL_FINISH_*_URL` is unset. Explicit `FINISH_BACKEND=runpod`
+  and the per-module overrides are unchanged. Completes the local#180 cutover.
+- **Breaking for anyone who relied on the GPU-less "demo path":** a studio with no GPU door and no
+  cloud module now renders nothing and says so, instead of producing placeholder output. Docs
+  (README, DEPLOYMENT, quickstart, install-profiles, `.env.example`) no longer advertise it.
+- `vivijure-cf` is untouched: it has no GPU mock and no configured-filter, so no parity obligation
+  attaches. The genuine local pipeline (real door, CPU `video-finish` assemble, local finish
+  sidecars) is unchanged.
+
+Epic [local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200) (RunPod strictly
+opt-in), issue [local#229](https://github.com/skyphusion-labs/vivijure-local/issues/229).
+
 ### feat(ollama): harden creative home path for qwen3:14b (local#265)
 
 Keep **`qwen3:14b`** as the 16GB default (strongest Ollama-library creative/instruction fit
@@ -457,6 +509,13 @@ PATCH: dual-panel parity with vivijure-cf v1.7.4 + core 1.2.2 (cf#29).
 
 Paired release with cf#179 / v1.7.4. Do not roll propagandhi until GHCR `:1.1.5` publish is green.
 
+## v1.1.4 -- 2026-07-21
+
+- **fix(deps): Pillow 12.3.0 in the image-prep sidecar (#140).**
+- **fix(finish): faster sweep ticks, and finish-chain poll progress**, so a finishing film reports
+  movement instead of looking stalled.
+  (Backfilled 2026-07-28 from the v1.1.4 GitHub release; the row was missing from this file.)
+
 ## v1.1.3 -- 2026-07-21
 
 PATCH: Wan LoRA UI + planner preflight + test parity with vivijure-cf v1.7.3 (cf#29 follow-up).
@@ -522,4 +581,27 @@ issue's completion contract). Carries one BREAKING response-shape change, below.
 - **`S3_CHAT_BUCKET` is retired and ignored.** Its only observable effect was breaking chat image
   previews (above). If it is still set, the studio logs a warning naming it at startup and continues
   using `S3_BUCKET`; nothing fails to boot. Remove it from your env.
+
+## v1.0.1 -- 2026-07-18
+
+- **fix(panel): sync the shared planner assets from vivijure-cf `main` (cf#62, #102).** The panel
+  stops inventing core-owned quality tiers, and a stale saved model or tier now drops **visibly**
+  through one guarded restore mechanism rather than silently resolving to something else. Panel
+  parity with vivijure-cf v1.4.0 was verified live, per surface.
+- **fix(containers): revert video-finish to a python 3.11 base (#97).**
+- **fix(ci): make `upstream-parity` check the shared stylesheet and stop overclaiming (#92)**, then
+  check `settings.js` verbatim now that the copies are identical (#96); make
+  `npm run upstream:parity` actually work and stop advising an ignored variable (#94).
+- **fix(planner): style the cancel-render control as destructive (#90).**
+- **deps:** `@skyphusion-labs/vivijure-core` to `^1.0.0` (#89).
+- GHCR images track `main` and already carried these files.
+  (Backfilled 2026-07-28 from the v1.0.1 GitHub release; the row was missing from this file.)
+
+## v1.0.0 -- 2026-07-15
+
+- **First constellation-stable release of the local / homelab studio host.** Matches the GHCR
+  `vivijure-local-studio` tip.
+- **Carries no commits of its own**: the tag marks the stable line rather than shipping content, so
+  the tree is identical to the plane-C tag before it.
+  (Backfilled 2026-07-28 from the v1.0.0 GitHub release; the row was missing from this file.)
 

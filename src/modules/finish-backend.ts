@@ -1,4 +1,4 @@
-/** FINISH_BACKEND routing (local#180): homelab finish GPU via LOCAL_FINISH_*_URL or RunPod escape hatch.
+/** FINISH_BACKEND routing (local#180): homelab finish GPU via LOCAL_FINISH_*_URL, RunPod opt-in.
  *
  * Local RIFE is NOT supported (Conrad 2026-07-28): there is no vivijure-local finish-rife image
  * and no LOCAL_FINISH_RIFE_URL path. RIFE, when wanted, is RunPod-only (vivijure-cf / opt-in).
@@ -47,11 +47,21 @@ function parseMode(raw: string | undefined, fallback: FinishBackendMode): Finish
   return fallback;
 }
 
-/** Default runpod until homelab cutover; set FINISH_BACKEND=local on propagandhi after local finish HTTP lands. */
+/**
+ * DEFAULT IS `local` (local#229, epic local#200): this is the self-hosted panel, so an operator who
+ * never set FINISH_BACKEND gets the local path.
+ *
+ * It used to default to `runpod`, which meant bringing up the finish satellites without setting the
+ * variable dispatched homelab finish jobs to RunPod -- a cloud call nobody asked for, on the host
+ * whose whole premise is that RunPod is opt-in. Unconfigured `local` now refuses by name
+ * (`LOCAL_FINISH_*_URL is unset`, see local-finish/handlers.ts) instead of silently reaching for a
+ * credential the operator may not even have. RunPod stays fully supported, explicitly:
+ * FINISH_BACKEND=runpod, or the per-module FINISH_*_BACKEND override.
+ */
 export function resolveFinishBackend(moduleName: string, env: FinishBackendEnv): FinishBackendMode {
   // finish-rife has no local path; always RunPod when this resolver is asked about it.
   if (moduleName === "finish-rife") return "runpod";
-  const globalDefault = parseMode(env.FINISH_BACKEND, "runpod");
+  const globalDefault = parseMode(env.FINISH_BACKEND, "local");
   const overrideKey = MODULE_BACKEND_KEY[moduleName];
   const override = overrideKey ? parseMode(env[overrideKey], globalDefault) : globalDefault;
   return override;

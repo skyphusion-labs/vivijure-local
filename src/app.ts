@@ -38,6 +38,7 @@ import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.
 import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-module-config";
 import { resolveStudioPage } from "./studio-pages.js";
 import { videoFinishHooksUnavailable } from "./video-finish-availability.js";
+import { localDoorHooksUnavailable } from "./local-door-availability.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export const repoRoot = join(__dirname, "..");
@@ -125,6 +126,11 @@ export function createApp(host: SettingsHost): Hono {
       // capability. hostBindings is where reload.ts puts the fetcher it builds from
       // VIDEO_FINISH_URL, so it is the authoritative answer to "can this host reach the tier".
       ...videoFinishHooksUnavailable({ VIDEO_FINISH_VPC: platform.hostBindings?.VIDEO_FINISH_VPC }),
+      // local#229: with the GPU mock deleted, a studio with no door and no cloud module serves no
+      // keyframe/motion engine at all. Say so here rather than let the panel offer controls whose
+      // every option 400s at submit. Derived from the FILTERED module list, so a `cloud`-profile
+      // studio with RunPod creds reports nothing.
+      ...localDoorHooksUnavailable(modules),
     };
     const anyHookUnavailable = Object.keys(hooksUnavailable).length > 0;
     // control-plane#130 twin: where a reporter is sent for abuse of THIS studio. Absent unless the

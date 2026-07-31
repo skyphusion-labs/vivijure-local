@@ -1,22 +1,21 @@
 #!/usr/bin/env tsx
 /**
  * RunPod-backed module sidecar (keyframe, own-gpu, finish-*, cloud motion backends).
- * Falls back to GPU mock for keyframe when RUNPOD_API_KEY / RUNPOD_ENDPOINT_ID are unset; the mock
- * never answers /module.json, so an uncredentialed keyframe module reports configured:false and the
- * panel hides it (local#223). See src/modules/runpod/keyframe-sidecar.ts.
+ *
+ * Every module here is OPT-IN cloud: with RUNPOD_API_KEY / the endpoint id unset the sidecar reports
+ * `configured: false` on /module.json and the panel hides it (local#201). There is no mock fallback
+ * on any path -- the keyframe mock composition was deleted in local#229, so an uncredentialed
+ * keyframe module refuses instead of fabricating frames.
  *
  * Usage: tsx scripts/runpod-module-server.ts <port> <module-name>
  */
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRunpodModuleApp } from "../src/modules/runpod/app.js";
 import { runpodModuleEnvFromRuntime } from "../src/modules/runpod/env.js";
 import { isRunpodModuleName, runpodModuleConfigured } from "../src/modules/runpod/handlers.js";
-import { createKeyframeSidecarApp } from "../src/modules/runpod/keyframe-sidecar.js";
-import { createStorage } from "../src/platform/create-storage.js";
 import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
@@ -41,20 +40,12 @@ async function getEnv() {
 
 const runtime = await loadModuleRuntimeEnv();
 const env = runpodModuleEnvFromRuntime(runtime);
-const storage = createStorage(runtime.asProcessEnv());
 
-const app: Hono =
-  moduleName === "keyframe"
-    ? createKeyframeSidecarApp(manifest, getEnv, storage.renders)
-    : createRunpodModuleApp(manifest, moduleName, getEnv);
+const app = createRunpodModuleApp(manifest, moduleName, getEnv);
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
-  // The unconfigured keyframe mock is now HIDDEN from the panel (local#223): it stays reachable as a
-  // direct dev affordance, so say both halves rather than a bare "(mock)".
   const mode = runpodModuleConfigured(env, moduleName)
     ? "runpod"
-    : moduleName === "keyframe"
-      ? "mock; hidden from the panel until RunPod creds are set"
-      : "runpod-unconfigured";
+    : "hidden from the panel until RunPod creds are set";
   console.log(`runpod module ${moduleName} on http://127.0.0.1:${port} (${mode})`);
 });

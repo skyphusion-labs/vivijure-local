@@ -1,3 +1,20 @@
+// local#229: the local-gpu sidecar serves the GPU door and NOTHING ELSE.
+//
+// It used to carry a mock branch: with LOCAL_BACKEND_URL unset it wrote a 1x1 red PNG per keyframe
+// and a black 320x240 clip per shot, under the manifest label "Local GPU Keyframe (SDXL on your own
+// card)". `scripts/local-gpu-module-server.ts` passed the real artifact store as the mock store
+// unconditionally, so that branch was live in the SHIPPED compose stack (LOCAL_BACKEND_URL is empty
+// by default), not just in dev. A bare `compose up` therefore rendered a film out of fabricated
+// frames and reported it COMPLETED. That is the defect Conrad hit; the fabricators are deleted.
+//
+// The honest replacement is the local#201 choke point, used exactly as the RunPod sidecars use it:
+// `/module.json` reports `configured` from the SAME predicate the routing reads, so an
+// unconfigured door self-reports `configured: false` and `filterConfiguredModules` drops it. A
+// dropped module is neither visible in the panel nor submittable, and the host says WHY before a
+// render starts (src/local-door-availability.ts -> host.hooks_unavailable).
+//
+// `configured` is computed from `localGpuConfigured` and the invoke handlers refuse on the same
+// condition, so the manifest's honesty and the routing decision cannot drift apart.
 import { Hono } from "hono";
 import type {
   CancelRequest,
@@ -6,8 +23,6 @@ import type {
   MotionBackendInput,
   PollRequest,
 } from "@skyphusion-labs/vivijure-core";
-import type { ArtifactStore } from "../../platform/create-storage.js";
-import { invokeKeyframeMock, invokeLocalGpuMock, pollLocalGpuMock } from "../dev/gpu-mock-handlers.js";
 import {
   cancelLocalGpu,
   doorDurationGrid,
@@ -24,16 +39,17 @@ import { decodePoll } from "./i2v-core.js";
 export function createLocalGpuModuleApp(
   manifest: Record<string, unknown>,
   getEnv: () => Promise<LocalGpuEnv>,
-  mockStore?: ArtifactStore,
 ): Hono {
   const app = new Hono();
 
   app.get("/module.json", async (c) => {
     const env = await getEnv();
-    const useMock = !localGpuConfigured(env) && mockStore != null;
-    if (useMock) return c.json(manifest);
+    const configured = localGpuConfigured(env);
+    // 200 in both states: the compose healthcheck curls this path, and an unconfigured door is a
+    // hidden module, not a broken container.
+    if (!configured) return c.json({ ...manifest, configured });
     const grid = await doorDurationGrid(env);
-    return c.json(grid ? { ...manifest, duration_grid: grid } : manifest);
+    return c.json({ ...manifest, ...(grid ? { duration_grid: grid } : {}), configured });
   });
 
   app.post("/invoke", async (c) => {
@@ -44,19 +60,12 @@ export function createLocalGpuModuleApp(
       return c.json({ ok: false, error: "invalid JSON body" });
     }
     const env = await getEnv();
-    const useMock = !localGpuConfigured(env) && mockStore != null;
 
     if (req.hook === "keyframe") {
-      if (useMock && mockStore) {
-        return c.json(await invokeKeyframeMock(mockStore, req as InvokeRequest<KeyframeInput>));
-      }
       return c.json(await invokeLocalKeyframe(env, req as InvokeRequest<KeyframeInput>));
     }
     if (req.hook !== "motion.backend") {
       return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
-    }
-    if (useMock && mockStore) {
-      return c.json(await invokeLocalGpuMock(mockStore, req as InvokeRequest<MotionBackendInput>));
     }
     return c.json(await invokeLocalGpu(env, req as InvokeRequest<MotionBackendInput>));
   });
@@ -72,8 +81,6 @@ export function createLocalGpuModuleApp(
       return c.json({ ok: false, error: "poll token required" });
     }
     const env = await getEnv();
-    const useMock = !localGpuConfigured(env) && mockStore != null;
-    if (useMock) return c.json(await pollLocalGpuMock(body));
 
     const kfSt = decodeKeyframePoll(body.poll);
     const motionSt = decodePoll(body.poll);
@@ -87,8 +94,6 @@ export function createLocalGpuModuleApp(
 
   app.post("/cancel", async (c) => {
     const env = await getEnv();
-    const useMock = !localGpuConfigured(env) && mockStore != null;
-    if (useMock) return c.json({ ok: true });
     let body: CancelRequest;
     try {
       body = (await c.req.json()) as CancelRequest;

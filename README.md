@@ -51,9 +51,11 @@ compose stack:
 - **Finish** runs on the CPU `video-finish` container (assemble and mux), plus optional local
   lipsync / upscale sidecars.
 
-The instant demo needs nothing at all: compose ships a `local-gpu` mock when `LOCAL_BACKEND_URL` is
-unset, so `npm run smoke:exit` can run without a GPU. Set `PLANNER_AI_MOCK=true` if you skip the
-Ollama model pull.
+**A GPU engine is required to render.** Compose brings the whole stack up without one, but with
+`LOCAL_BACKEND_URL` unset the `local-gpu` module reports itself unconfigured, the panel hides it, and
+`GET /api/modules` says `keyframe` and `motion.backend` are unavailable with the knob named. Nothing
+is rendered with placeholder frames (see [local#229](https://github.com/skyphusion-labs/vivijure-local/issues/229)).
+Set `PLANNER_AI_MOCK=true` if you skip the Ollama model pull.
 
 **Optional: wire RunPod** via `COMPOSE_PROFILES=cloud` (or satellites) for cloud i2v, RunPod
 keyframe, MiniMax HD narration, RunPod finish. Strictly opt-in. Wiring guide:
@@ -147,3 +149,7 @@ Everything else is ported behind `src/platform/` adapters. Object storage defaul
 ## License
 
 AGPL-3.0-only (same as the rest of the Vivijure constellation).
+
+That grant covers the SOFTWARE. The model weights the local GPU door runs carry their own
+third-party licenses, several of which restrict commercial use; the per-model truth, and the
+two supported commercial paths, are in [USE.md](USE.md).

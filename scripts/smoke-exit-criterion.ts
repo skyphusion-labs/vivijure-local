@@ -4,7 +4,8 @@
  *
  *   STUDIO_URL=http://127.0.0.1:8790 STUDIO_API_TOKEN=... npm run smoke:exit
  *
- * Requires `docker compose up` (studio + CPU containers + gpu mocks + minio).
+ * Requires `docker compose up` (studio + CPU containers + minio) AND a configured GPU door
+ * (LOCAL_BACKEND_URL): there is no mock GPU tier to render against (local#229).
  */
 import { api, BASE, fail, type SmokeStoryboard } from "./smoke-lib.js";
 
