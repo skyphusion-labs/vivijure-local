@@ -523,10 +523,28 @@ export const PLATFORM_LEGACY_RIFE_KEYS = ["LOCAL_FINISH_RIFE_URL", "MODULE_FINIS
 /** Retired homelab Wan train key (CF prod only; Conrad ruling 2026-07-23). Purge when absent from env. */
 export const PLATFORM_LEGACY_WAN_TRAIN_KEYS = ["RUNPOD_WAN_TRAIN_ENDPOINT_ID"] as const;
 
+/** DERIVED keys: computed by the installer from another operator knob, so env/compose is the ONLY
+ *  authority and platform_secrets must never hold a copy (local#281).
+ *
+ *  MODULE_LOCAL_GPU_URL is derived from LOCAL_BACKEND_URL by localGpuLaneUpdates: door set -> the
+ *  `localgpu` profile plus the module URL, door cleared -> both dropped. A stored copy outlives the
+ *  derivation it came from, and because RuntimeEnv merges DB OVER env with DB winning, that copy wins
+ *  over the empty value the installer just wrote to .env -- so a studio with the lane deliberately off
+ *  would still bind MODULE_LOCAL_GPU to a container the `localgpu` profile guarantees is not running.
+ *  Three rules keep the copy from existing: bootstrap never seeds a derived key, sync purges it
+ *  UNCONDITIONALLY (not merely when unset -- upserting the value while the lane is on would just
+ *  rebuild the copy that goes stale the moment the lane goes off), and migration 0015 deletes the row
+ *  every pre-local#280 studio already has.
+ *
+ *  A Settings-GUI write is deliberately still allowed: that row is one the operator chose and can see
+ *  (the field reports source `database`), which is the opposite of the invisible seeded row above. */
+export const PLATFORM_SECRET_DERIVED_KEYS: readonly string[] = ["MODULE_LOCAL_GPU_URL"];
+
 /** Homelab compose defaults: hardcoded in compose.yaml, upsert when set, never purge when unset.
- *  MODULE_KEYFRAME_URL is NOT here -- RunPod keyframe is cloud-profile only (local#265). */
+ *  MODULE_KEYFRAME_URL is NOT here -- RunPod keyframe is cloud-profile only (local#265).
+ *  MODULE_LOCAL_GPU_URL is NOT here either: local#280 stopped hardcoding it in compose.yaml, so
+ *  never-purge stopped being true for it (local#281). It is a derived key now, see above. */
 export const PLATFORM_MODULE_URL_COMPOSE_DEFAULTS = [
-  "MODULE_LOCAL_GPU_URL",
   "MODULE_BEAT_SYNC_URL",
   "MODULE_AUDIO_MASTER_URL",
   "MODULE_FILM_TITLES_URL",
@@ -539,10 +557,13 @@ export const PLATFORM_MODULE_URL_COMPOSE_DEFAULTS = [
   "MODULE_NOTIFY_EMAIL_URL",
 ] as const;
 
-/** Optional cloud / satellite module URLs: upsert when set, purge from DB when unset in env. */
+/** Optional cloud / satellite module URLs: upsert when set, purge from DB when unset in env.
+ *  Derived keys are excluded: they are never upserted at all (see PLATFORM_SECRET_DERIVED_KEYS). */
 export const PLATFORM_MODULE_URL_PURGEABLE_KEYS: readonly string[] = [
   ...PLATFORM_MODULE_URL_KEYS.filter(
-    (k) => !(PLATFORM_MODULE_URL_COMPOSE_DEFAULTS as readonly string[]).includes(k),
+    (k) =>
+      !(PLATFORM_MODULE_URL_COMPOSE_DEFAULTS as readonly string[]).includes(k) &&
+      !PLATFORM_SECRET_DERIVED_KEYS.includes(k),
   ),
   ...PLATFORM_LEGACY_RIFE_KEYS,
   ...PLATFORM_LEGACY_WAN_TRAIN_KEYS,
@@ -552,10 +573,29 @@ export const PLATFORM_MODULE_URL_PURGEABLE_KEYS: readonly string[] = [
 export const PLATFORM_MODULE_URL_SYNC_KEYS: readonly string[] = [
   ...PLATFORM_MODULE_URL_COMPOSE_DEFAULTS,
   ...PLATFORM_MODULE_URL_PURGEABLE_KEYS,
+  ...PLATFORM_SECRET_DERIVED_KEYS,
 ];
 
 /** Install/bootstrap keys: never writable from the Settings GUI (install script / compose only). */
 export const PLATFORM_SECRET_INSTALL_ONLY = new Set(["STUDIO_API_TOKEN", "DATABASE_PATH", "PORT"]);
+
+/** Every key PATCH /api/settings/secrets must refuse to store.
+ *
+ *  Derived keys are here for the reason the whole of local#281 exists: a stored copy of a derived key
+ *  outvotes env and outlives the derivation. That is true of a copy an OPERATOR typed as much as one
+ *  boot seeded -- MODULE_LOCAL_GPU_URL set by hand to another host still wins over env after the lane
+ *  is turned off, and still names a container the `localgpu` profile does not start. An earlier draft
+ *  of this fix allowed the deliberate GUI write on the grounds that the operator can see it (the field
+ *  reports source `database`); that carve-out contradicted sync:secrets, which purges derived keys
+ *  unconditionally and cannot tell a typed row from a seeded one. Two rules disagreeing about the same
+ *  row is the defect, not the fix. Env is the only authority, for everyone.
+ *
+ *  The field stays VISIBLE in Settings: reading the live value and its source is useful, and a
+ *  read-only row is honest in a way a silently-discarded write is not. */
+export const PLATFORM_SECRET_NOT_GUI_WRITABLE: ReadonlySet<string> = new Set([
+  ...PLATFORM_SECRET_INSTALL_ONLY,
+  ...PLATFORM_SECRET_DERIVED_KEYS,
+]);
 
 export function platformSecretField(key: string): PlatformSecretField | undefined {
   return PLATFORM_SECRET_FIELDS.find((f) => f.key === key);

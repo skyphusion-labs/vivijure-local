@@ -1,6 +1,7 @@
 import {
   PLATFORM_MODULE_URL_COMPOSE_DEFAULTS,
   PLATFORM_MODULE_URL_PURGEABLE_KEYS,
+  PLATFORM_SECRET_DERIVED_KEYS,
   PLATFORM_SECRET_FIELDS,
 } from "./platform-secrets-catalog.js";
 import { deletePlatformSecret, upsertPlatformSecret } from "./platform-secrets-db.js";
@@ -79,6 +80,18 @@ export async function syncPlatformSecretsFromEnv(
     const prior = existing.get(key);
     await upsertPlatformSecret(db, key, value);
     updated.push(prior && prior !== value ? `${key} (changed)` : key);
+  }
+
+  // local#281: a DERIVED key is recomputed from its source knob, so a stored copy is only ever a way
+  // for a retired value to outvote env (DB wins in RuntimeEnv). Purge unconditionally -- upserting it
+  // while the lane is on just rebuilds the copy that goes stale the moment the lane goes off.
+  for (const key of PLATFORM_SECRET_DERIVED_KEYS) {
+    if (existing.has(key)) {
+      await deletePlatformSecret(db, key);
+      cleared.push(key);
+      continue;
+    }
+    skipped.push(`${key} (derived from env; never stored)`);
   }
 
   for (const key of PLATFORM_MODULE_URL_PURGEABLE_KEYS) {

@@ -82,6 +82,36 @@ describe("settings secrets API", () => {
     expect(gw!.display).toBe("vivijure-test");
   });
 
+  it("PATCH /api/settings/secrets refuses a DERIVED key, and accepts its peer (local#281)", async () => {
+    // Reachability check for the question this fix raises: before local#281 this write was ACCEPTED
+    // (the key is a catalog field and was not install-only), so an operator running the door module on
+    // another host could have set it by hand -- and that typed row goes stale on lane-off exactly like
+    // a seeded one, because RuntimeEnv cannot tell them apart. The CONTROL is a sibling module URL:
+    // the route still stores that, so the refusal below is the gate, not a broken PATCH.
+    app = createApp(testSettingsHost(makePlatform()));
+    const patch = await auth("/api/settings/secrets", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        values: {
+          MODULE_LOCAL_GPU_URL: "http://another-host:9102",
+          MODULE_UPSCALE_URL: "http://module-finish-upscale:9112",
+        },
+      }),
+    });
+    expect(patch.status).toBe(200);
+    const body = (await patch.json()) as { applied: string[] };
+    expect(body.applied).not.toContain("MODULE_LOCAL_GPU_URL");
+    expect(body.applied).toContain("MODULE_UPSCALE_URL");
+
+    const get = await auth("/api/settings/secrets");
+    const fields = ((await get.json()) as { fields: { key: string; source: string | null }[] }).fields;
+    const derived = fields.find((f) => f.key === "MODULE_LOCAL_GPU_URL");
+    expect(derived).toBeDefined(); // still VISIBLE: read-only, not hidden
+    expect(derived?.source).toBeNull(); // and nothing was stored
+    expect(fields.find((f) => f.key === "MODULE_UPSCALE_URL")?.source).toBe("database");
+  });
+
   it("PATCH /api/settings/secrets ignores install-only STUDIO_API_TOKEN", async () => {
     const platform = makePlatform();
     app = createApp(testSettingsHost(platform));

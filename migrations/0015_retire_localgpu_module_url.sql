@@ -1,0 +1,30 @@
+-- Vivijure Local -- retire the stored MODULE_LOCAL_GPU_URL row (migration 0015, local#281).
+--
+-- Until local#280, compose.yaml hardcoded MODULE_LOCAL_GPU_URL=http://module-local-gpu:9102 and the
+-- studio seeded it into platform_secrets on first boot, where the sync rule deliberately never purged
+-- it ("homelab compose default: hardcoded in compose.yaml"). local#280 moved that module into the
+-- `localgpu` compose profile and made the URL derived from the operator door address, so the stored
+-- row now names a container that does not exist whenever the lane is off.
+--
+-- RuntimeEnv merges platform_secrets OVER process.env with the DB winning, so the stale row survives
+-- `npm run install:studio` writing MODULE_LOCAL_GPU_URL="" into .env: the studio binds MODULE_LOCAL_GPU
+-- to an address nothing answers, core discovery burns three manifest attempts per pass before dropping
+-- it, and every discovery logs an unreachable-module warning for a module nobody installed.
+--
+-- Deleting the row hands the key back to env, which is now its only honest source. For the seeded
+-- compose default this loses nothing: with the lane ON, compose passes the value from .env and
+-- RuntimeEnv reads it straight from env; with the lane OFF the value was describing a container the
+-- `localgpu` profile guarantees is absent.
+--
+-- ONE CASE IS A REAL DISCARD, and it is stated in the CHANGELOG rather than left for an operator to
+-- discover: before this release the Settings GUI accepted a write to MODULE_LOCAL_GPU_URL, so an
+-- operator running the door module on a DIFFERENT host than the compose default could have set it by
+-- hand. This DELETE drops that choice too, and PATCH /api/settings/secrets no longer accepts the key
+-- (PLATFORM_SECRET_NOT_GUI_WRITABLE) -- a derived key with an honest single source is the entire fix,
+-- and a typed row goes stale on lane-off exactly like a seeded one. The setting is not gone, it moved:
+-- put MODULE_LOCAL_GPU_URL in .env, which compose passes through and which nothing overrides.
+--
+-- One-shot by construction: migrations run once per studio (see _migrations), and nothing re-creates
+-- the row -- bootstrap skips derived keys and sync:secrets now purges this key when it is unset.
+
+DELETE FROM platform_secrets WHERE secret_key = 'MODULE_LOCAL_GPU_URL';

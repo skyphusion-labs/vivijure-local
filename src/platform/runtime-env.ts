@@ -22,13 +22,22 @@ export class RuntimeEnv {
     return new RuntimeEnv(base, db);
   }
 
-  /** In-memory runtime env for tests (no platform_secrets table reads). */
+  /**
+   * In-memory runtime env for tests (no platform_secrets table reads).
+   *
+   * HERMETIC: the base is `{}`, not `process.env`. Inheriting the ambient shell made fixtures mean
+   * different things on different machines -- a developer with CF_AIG_TOKEN exported turned the
+   * "partial AI Gateway config" fixture into a complete one, so the assertion that a partial config is
+   * reported unavailable passed in CI and failed locally (local#275). A test that reads the shell can
+   * also hide a real regression on the one machine that happens to have the variable set. Anything a
+   * test needs, it passes in.
+   */
   static forTests(values: Record<string, string | undefined> = {}): RuntimeEnv {
     const map = new Map<string, string>();
     for (const [key, value] of Object.entries(values)) {
       if (value !== undefined) map.set(key, value);
     }
-    return new RuntimeEnv(process.env, map);
+    return new RuntimeEnv({}, map);
   }
 
   asProcessEnv(): NodeJS.ProcessEnv {

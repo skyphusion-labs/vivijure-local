@@ -290,7 +290,7 @@ default stack (local#209).
 | Variable | Compose default |
 |----------|-----------------|
 | `MODULE_KEYFRAME_URL` | *(empty; `cloud` profile -- RunPod keyframe)* |
-| `MODULE_LOCAL_GPU_URL` | `http://module-local-gpu:9102` |
+| `MODULE_LOCAL_GPU_URL` | *(empty; `localgpu` profile -- set by `install:studio` from `LOCAL_BACKEND_URL`)* |
 | `MODULE_BEAT_SYNC_URL` | `http://module-beat-sync:9120` |
 | `MODULE_AUDIO_MASTER_URL` | `http://module-audio-master:9121` |
 | `MODULE_FILM_TITLES_URL` | `http://module-film-titles:9130` |
@@ -333,25 +333,34 @@ Offline/CI without pulling weights: `PLANNER_AI_MOCK=true`.
 
 ## GPU backends: no door vs real door
 
-**There is no mock GPU tier** (local#229). Compose runs `scripts/local-gpu-module-server.ts` for
-dual-hook `local-gpu` (keyframe + motion), and that sidecar proxies to `LOCAL_BACKEND_URL` or
-refuses. With the variable unset:
+**There is no mock GPU tier** (local#229) and **no doorless GPU service** (local#280). The GPU door
+module lives in the `localgpu` compose profile. With no door configured:
 
-- `/module.json` reports `configured: false`, so `discoverConfiguredModules` drops the module and the
-  panel neither shows nor accepts it;
-- `GET /api/modules` reports `keyframe` and `motion.backend` in `host.hooks_unavailable`, naming
-  `LOCAL_BACKEND_URL`, so the panel greys the controls out **before** a render is started;
-- any direct `/invoke` returns a named error and writes nothing.
+- `module-local-gpu` **is not in the stack**. Not started, not unhealthy, not hidden -- absent.
+  `docker compose config --services` does not list it, and `studio` does not `depends_on` it, so a
+  box with no GPU boots normally;
+- no `MODULE_LOCAL_GPU_URL` is bound, so the studio's module registry has no keyframe/motion module
+  to offer and cannot advertise one;
+- `GET /api/modules` reports `keyframe` and `motion.backend` in `host.hooks_unavailable`, naming the
+  knob, so the panel greys the controls out **before** a render is started. That is the host
+  describing its own composition, not a service describing its own absence.
 
-Previously this configuration wrote a 1x1 PNG per keyframe and a black clip per shot to MinIO and
-reported the render COMPLETED. That produced films assembled from fabricated frames, so it was
-deleted rather than relabelled. There is **no RunPod keyframe sidecar** in the default stack either.
+Two earlier shapes of this are both gone. The original wrote a 1x1 PNG per keyframe and a black clip
+per shot to MinIO and reported the render COMPLETED, producing films assembled from fabricated frames.
+The first fix kept the container running to answer `configured: false` about itself -- rejected: "We
+shouldn't have to build a shim for a module that isn't even there." There is **no RunPod keyframe
+sidecar** in the default stack either.
 
 **Real door (16GB first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
-(or the 12GB alternate) on your host. Set `LOCAL_BACKEND_URL` (e.g.
-`http://vivijure-local-16gb:8000` on a shared Docker network, or `http://host.docker.internal:8000`
-when the door publishes on the host). Recreate `module-local-gpu` and sync secrets (see door-switch
-section above).
+(or the 12GB alternate) on your host, set `LOCAL_BACKEND_URL` (e.g. `http://vivijure-local-16gb:8000`
+on a shared Docker network, or `http://host.docker.internal:8000` when the door publishes on the
+host), then run `npm run install:studio`. That derives the rest of the lane into `.env`
+(`COMPOSE_PROFILES` gains `localgpu`, `MODULE_LOCAL_GPU_URL` is set), so the door address stays the
+only thing you edit. Then recreate `module-local-gpu` and sync secrets (see door-switch section
+above).
+
+If you enable the profile by hand but leave `LOCAL_BACKEND_URL` empty, `localgpu-door-gate` fails the
+lane at startup rather than bringing a sidecar up pointing at nothing.
 
 **The no-RunPod render path (default):** Ollama for `plan.enhance` (unload after), local-gpu door for
 keyframes + motion, CPU `video-finish` to assemble. Optional CF AI for dialogue/music/narration

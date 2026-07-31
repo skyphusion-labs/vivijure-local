@@ -43,18 +43,34 @@ describe("syncPlatformSecretsFromEnv", () => {
   });
 
   it("never purges homelab compose-default MODULE URLs when unset in env", async () => {
+    // MODULE_LOCAL_GPU_URL used to be the first example here. It is NOT a compose default any more
+    // (local#280 stopped hardcoding it, local#281 reclassified it) -- see the purge test below.
     const db = openDatabase(dbPath);
-    await upsertPlatformSecret(db, "MODULE_LOCAL_GPU_URL", "http://module-local-gpu:9102");
+    await upsertPlatformSecret(db, "MODULE_BEAT_SYNC_URL", "http://module-beat-sync:9130");
     await upsertPlatformSecret(db, "MODULE_PLANENHANCE_URL", "http://module-plan-enhance:9140");
 
     const existing = await listPlatformSecrets(db);
     const result = await syncPlatformSecretsFromEnv(db, {}, existing);
 
-    expect(result.cleared).not.toContain("MODULE_LOCAL_GPU_URL");
+    expect(result.cleared).not.toContain("MODULE_BEAT_SYNC_URL");
     expect(result.cleared).not.toContain("MODULE_PLANENHANCE_URL");
     const after = await listPlatformSecrets(db);
-    expect(after.get("MODULE_LOCAL_GPU_URL")).toBe("http://module-local-gpu:9102");
+    expect(after.get("MODULE_BEAT_SYNC_URL")).toBe("http://module-beat-sync:9130");
     expect(after.get("MODULE_PLANENHANCE_URL")).toBe("http://module-plan-enhance:9140");
+  });
+
+  it("purges the derived MODULE_LOCAL_GPU_URL when unset in env (local#281)", async () => {
+    // The lane is derived from LOCAL_BACKEND_URL now, so a stored copy that outlives the lane is a
+    // binding to a container the `localgpu` profile guarantees is not running.
+    const db = openDatabase(dbPath);
+    await upsertPlatformSecret(db, "MODULE_LOCAL_GPU_URL", "http://module-local-gpu:9102");
+
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {}, existing);
+
+    expect(result.cleared).toContain("MODULE_LOCAL_GPU_URL");
+    const after = await listPlatformSecrets(db);
+    expect(after.has("MODULE_LOCAL_GPU_URL")).toBe(false);
   });
 
   it("purges RunPod MODULE_KEYFRAME_URL when unset (cloud opt-in only)", async () => {
@@ -73,12 +89,25 @@ describe("syncPlatformSecretsFromEnv", () => {
     const db = openDatabase(dbPath);
     const existing = await listPlatformSecrets(db);
     const result = await syncPlatformSecretsFromEnv(db, {
+      MODULE_BEAT_SYNC_URL: "http://module-beat-sync:9130",
+    }, existing);
+
+    expect(result.updated).toContain("MODULE_BEAT_SYNC_URL");
+    const after = await listPlatformSecrets(db);
+    expect(after.get("MODULE_BEAT_SYNC_URL")).toBe("http://module-beat-sync:9130");
+  });
+
+  it("never stores a derived MODULE URL, even when it IS set in env (local#281)", async () => {
+    // The value is live in compose whenever the lane is on, so a stored copy adds nothing and
+    // survives the lane being turned off. Env is the only authority.
+    const db = openDatabase(dbPath);
+    const existing = await listPlatformSecrets(db);
+    const result = await syncPlatformSecretsFromEnv(db, {
       MODULE_LOCAL_GPU_URL: "http://module-local-gpu:9102",
     }, existing);
 
-    expect(result.updated).toContain("MODULE_LOCAL_GPU_URL");
-    const after = await listPlatformSecrets(db);
-    expect(after.get("MODULE_LOCAL_GPU_URL")).toBe("http://module-local-gpu:9102");
+    expect(result.updated).not.toContain("MODULE_LOCAL_GPU_URL");
+    expect((await listPlatformSecrets(db)).has("MODULE_LOCAL_GPU_URL")).toBe(false);
   });
 
   it("upserts optional MODULE_* URLs when set in env", async () => {

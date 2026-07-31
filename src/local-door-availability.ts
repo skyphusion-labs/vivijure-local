@@ -1,29 +1,49 @@
-// WHICH HOOKS DIE WHEN NO GPU DOOR IS CONFIGURED (local#229).
+// WHICH HOOKS DIE WHEN NO GPU ENGINE IS INSTALLED (local#229, local#280).
 //
 // Companion to src/video-finish-availability.ts, on the SAME channel (`host.hooks_unavailable` on
 // GET /api/modules, core#98 / core v1.2.14). One attribute on a control, one answer from the host --
 // not a second bespoke wire for "is there a GPU".
 //
-// WHY THIS EXISTS. Until local#229 a bare `compose up` (no LOCAL_BACKEND_URL, no RunPod) still
-// offered "Local GPU Keyframe (SDXL on your own card)" and served the dev mock: a 1x1 PNG per
-// keyframe, a black clip per shot, reported COMPLETED. Deleting the mock is the fix, but deletion
-// alone would leave the OTHER failure shape -- a panel that offers motion and keyframe controls
-// whose every option 400s at submit, the local#201 broken-button class. So the host now says the
-// hooks are unavailable, with the knob named, BEFORE a render is spent.
+// THIS IS SELF-DESCRIPTION, NOT A SHIM, and the distinction is the whole point of local#280. Conrad
+// rejected the first version of that fix because it kept a local-gpu container running just to answer
+// `configured: false` about itself. Nothing here does that. This module never starts a process, never
+// synthesizes a module entry, and never speaks on an absent module's behalf: it reads the host's OWN
+// composition -- the registry the host built from its MODULE_*_URL bindings -- and reports which hooks
+// that composition leaves unserved. A host describing its own capabilities is exactly what core
+// v1.2.14 added this channel for.
+//
+// WHY IT IS STILL NEEDED once the module is gated out of the stack. Removing the container removes the
+// fabrication and the fake advertisement, but a panel with no keyframe engine would still render
+// motion and keyframe controls whose every option 400s at submit -- the local#201 broken-button class.
+// Composition is the host's knowledge, so the host is the right one to say it, once, before a render
+// is spent.
 //
 // DERIVED FROM THE DISCOVERED MODULES, NOT FROM ENV, and that is load-bearing. Reading
 // LOCAL_BACKEND_URL here would report "no keyframe engine" on a studio running the `cloud` profile
 // with RunPod credentials, which serves both hooks perfectly well -- over-claiming, the failure
 // direction that hides working capability (the same trap video-finish-availability.ts documents for
-// VIDEO_FINISH_VPC). The honest question is not "is the local door configured" but "does ANY
-// installed module still serve this hook", asked after `discoverConfiguredModules` has dropped
-// everything that self-reports `configured: false`.
+// VIDEO_FINISH_VPC). The honest question is not "is the local door configured" but "does ANY installed
+// module serve this hook".
+//
+// It does NOT depend on anything self-reporting. With the localgpu lane off there is no
+// MODULE_LOCAL_GPU_URL, so moduleUrlsFromEnv builds no binding and core discovery never sees the
+// module -- the gap is a real hole in the registry, not a module that asked to be hidden. The
+// `configured: false` filter (local#201) still covers the RunPod sidecars, which are a different case:
+// those are cloud modules whose credentials, not their existence, are optional.
+//
+// "There is no MODULE_LOCAL_GPU_URL" is a claim about the MERGED env (platform_secrets over
+// process.env, DB winning), not about .env, and local#281 is what made the two agree: the key is
+// derived, so nothing seeds a stored copy, sync purges an unset one, and migration 0015 removed the
+// row every pre-local#280 studio carried. Before that the lane-off invariant held on a fresh install
+// and failed on an upgraded one. This function stays honest either way -- it reads the DISCOVERED
+// modules, and an unreachable binding is dropped by core discovery -- but it would have been reporting
+// the gap correctly while the studio paid three failed manifest reads per discovery to find it.
 //
 // ABSENT KEY MEANS AVAILABLE, matching the video-finish twin: a host with any serving module reports
 // nothing at all, so the panel's positive control is a real observation rather than a missing field.
 //
-// NOT MIRRORED TO vivijure-cf. The hosted panel has no GPU-door concept and no configured-filter;
-// there is no twin and no parity obligation attaches (see local#229 scope note).
+// NOT MIRRORED TO vivijure-cf. The hosted panel has no GPU-door concept and no compose profiles; there
+// is no twin and no parity obligation attaches (see local#229 scope note).
 
 import { servingForHook, type RegisteredModule } from "@skyphusion-labs/vivijure-core";
 import type { HookName } from "@skyphusion-labs/vivijure-core/modules/types";
@@ -40,10 +60,11 @@ import type { HookName } from "@skyphusion-labs/vivijure-core/modules/types";
  * "demo" needs to know it is gone deliberately, not broken.
  */
 export const LOCAL_DOOR_UNAVAILABLE_REASON =
-  "No GPU engine is installed on this studio: no local door and no cloud module is configured, so " +
-  "keyframes and motion cannot be rendered here. Set LOCAL_BACKEND_URL to your GPU door " +
-  "(vivijure-local-12gb / -16gb) to render locally, or enable the optional `cloud` compose profile " +
-  "with RunPod credentials. Nothing is rendered with placeholder frames.";
+  "No GPU engine is installed on this studio, so keyframes and motion cannot be rendered here. To " +
+  "render on your own card, run `npm run install:studio` and give it your GPU door address " +
+  "(vivijure-local-16gb / -12gb) -- that enables the `localgpu` compose profile and sets " +
+  "LOCAL_BACKEND_URL. To render in the cloud instead, enable the `cloud` profile with RunPod " +
+  "credentials. Nothing is rendered with placeholder frames.";
 
 /** The hooks a GPU engine is the sole provider of. Read off the module manifests, not intuition. */
 export const GPU_ENGINE_HOOKS = ["keyframe", "motion.backend"] as const;

@@ -19,6 +19,71 @@ The planner picker lands on the declared default when there is no saved preferen
 over "first option" when a saved id has left the catalog. Image rows are unchanged (fields omitted).
 cf ports this projector after merge (upstream-first, cf#62).
 
+### fix(local-gpu)!: an absent GPU door installs no module at all (local#280)
+
+Follow-up correcting the shape of the local#229 fix below, which Conrad rejected in review:
+**"We shouldn't have to build a shim for a module that isn't even there."**
+
+local#229 deleted the fabricators (correct) but replaced them with a `module-local-gpu` container that
+still ran in the default stack, answering `/module.json` with `configured: false` *about itself*. It was
+kept alive because the compose healthcheck curled that path -- a detail of our own stack definition
+deciding that a process must exist to stand in for a module that does not. An absent capability is
+absent; it is not a running service that describes its own absence.
+
+- **The door module moved into a `localgpu` compose profile**, the same mechanism `cloud` /
+  `satellites` / `edge` already use. With no door, `docker compose config --services` does not list
+  `module-local-gpu` -- nothing started, nothing to hide, nothing to refuse.
+- **Corrected the compose assumptions that forced the shim.** `studio` no longer `depends_on`
+  `module-local-gpu: service_healthy` (a studio must boot on a box with no GPU), and
+  `MODULE_LOCAL_GPU_URL` is no longer hardcoded to `http://module-local-gpu:9102` -- an empty
+  `MODULE_*_URL` binds nothing, so the registry has no module to advertise.
+- **Deleted the stub behaviour:** the `configured` field and its early-return branch are gone from
+  `src/modules/local-gpu/app.ts`. `scripts/local-gpu-module-server.ts` now **exits before binding a
+  port** when there is no door, so no entry point can produce a doorless local-gpu service.
+- **Still one operator knob.** `npm run install:studio` derives the whole lane from
+  `LOCAL_BACKEND_URL` (`src/localgpu-lane.ts`): it adds/removes `localgpu` in `COMPOSE_PROFILES` and
+  sets/clears `MODULE_LOCAL_GPU_URL` in `.env`, which compose reads on its own, so a plain
+  `docker compose up -d` sees the same lane. New `localgpu-door-gate` is fail-closed for the one case
+  profiles cannot catch (lane on, door address blank), mirroring `edge-minio-creds-gate`.
+- **The lane-off invariant now survives an UPGRADE, not only a fresh install** (local#281). This
+  change is what stopped compose hardcoding `MODULE_LOCAL_GPU_URL`, which is exactly what made the
+  key's sync rule ("homelab compose default: upsert when set, never purge when unset") wrong for it:
+  every studio that ever booted an earlier version has that value sitting in `platform_secrets`, and
+  `RuntimeEnv` merges the DB OVER env with the DB winning, so `install:studio` writing an empty value
+  into `.env` could not clear it. The registry bound `MODULE_LOCAL_GPU` to a container the `localgpu`
+  profile guarantees is absent; core discovery then dropped it after three failed manifest reads, so
+  the panel stayed correct while every discovery pass absorbed a connection failure and logged a
+  warning for a module nobody installed. `MODULE_LOCAL_GPU_URL` is reclassified as a DERIVED key
+  (env/compose is its only authority): boot never seeds a copy, `sync:secrets` purges it
+  unconditionally, and new migration `0015` deletes the row existing studios already carry.
+- **`host.hooks_unavailable` stays** (`src/local-door-availability.ts`). It is self-description, not a
+  shim: it starts no process and synthesizes no module entry, it reads the host's own registry and
+  reports which hooks that composition leaves unserved. Without it, a doorless panel would still offer
+  keyframe/motion controls whose every option 400s at submit.
+- **UPGRADE NOTE, one setting is discarded.** Migration `0015` deletes any stored
+  `MODULE_LOCAL_GPU_URL`, and before this release the Settings GUI accepted a write to it, so an
+  operator running the door module on a host OTHER than the compose default could have set it by hand.
+  That choice is dropped on upgrade, and `PATCH /api/settings/secrets` no longer stores the key: a
+  typed row goes stale when the lane is turned off exactly like a seeded one, and a derived key with a
+  single honest source is the whole point of the fix. **The setting moved rather than vanished** --
+  put `MODULE_LOCAL_GPU_URL` in `.env`, which compose passes through and which nothing now overrides.
+  The field stays visible in Settings (read-only) so the live value and its source are still legible.
+- **The door gate applies the same test as the code it guards.** `localgpu-door-gate` checked only
+  that `LOCAL_BACKEND_URL` was non-empty while `isDoorConfigured` requires an absolute `http(s)` URL,
+  so a malformed door address passed the check that advertises itself as the fail-closed one and was
+  caught a layer later by the sidecar. `setProfile` also leaves an already-correct `COMPOSE_PROFILES`
+  byte-identical instead of rewriting `localgpu,cloud` to `cloud,localgpu` on the first run.
+- **Test fixtures are hermetic now** (fixes local#275). `RuntimeEnv.forTests` no longer inherits
+  `process.env`; a developer with `CF_AIG_TOKEN` exported was silently turning the "partial AI Gateway
+  config" fixture into a complete one, so `hook-availability-parity`'s partial-gateway assertion passed
+  in CI and failed locally. A fixture that reads the shell can also hide a real regression on the one
+  machine that has the variable set.
+- The configured path and the `cloud` profile are unchanged.
+
+Issues [local#280](https://github.com/skyphusion-labs/vivijure-local/issues/280),
+[local#281](https://github.com/skyphusion-labs/vivijure-local/issues/281),
+[local#275](https://github.com/skyphusion-labs/vivijure-local/issues/275).
+
 ### docs(legal): USE.md, the software vs the model weights (local#283)
 
 The software stays AGPL-3.0-only and free for any use including commercial; the model weights
@@ -48,14 +113,14 @@ Conrad's call, settling the product question local#229 was parked on: **gone, no
   `scripts/gpu-mock-module-server.ts`, `src/modules/runpod/keyframe-sidecar.ts` (its only purpose was
   the mock fallback), and `MIN_PNG` / `buildStructuralMp4` from `src/dev/minimal-media.ts`. No flag,
   no env var, no commented-out branch.
-- **`local-gpu` now reports `configured`** from the same predicate its routing reads, so an
-  unconfigured door is dropped by `filterConfiguredModules`: neither visible nor submittable. Every
-  `/invoke` refuses by name (`LOCAL_BACKEND_URL must be an absolute http(s) URL`) and writes nothing.
+- **`local-gpu` no longer has a doorless mode at all.** This entry originally shipped a sidecar that
+  self-reported `configured: false`; local#280 above replaced that with a compose profile, so an
+  unconfigured door means no service rather than a hidden one.
 - **New honest-refusal gate** `src/local-door-availability.ts`: `GET /api/modules` reports `keyframe`
   and `motion.backend` in `host.hooks_unavailable` (the existing core#98 / v1.2.14 channel, alongside
-  the video-finish twin) when **no installed module serves them**, with a reason naming
-  `LOCAL_BACKEND_URL`. Derived from the discovered modules, not from env, so a `cloud`-profile studio
-  with RunPod credentials reports nothing.
+  the video-finish twin) when **no installed module serves them**, with a reason naming the operator's
+  own knob. Derived from the discovered modules, not from env, so a `cloud`-profile studio with RunPod
+  credentials reports nothing.
 - **RunPod is no longer the finish default:** `FINISH_BACKEND` defaults to `local` (was `runpod`).
   Bringing the `satellites` profile up without setting it used to dispatch homelab finish jobs to
   RunPod; it now refuses by name when `LOCAL_FINISH_*_URL` is unset. Explicit `FINISH_BACKEND=runpod`
