@@ -1,10 +1,15 @@
 // control-plane#130 TWIN: the abuse-report link on the self-host panel (local#242).
 //
-// WHY THIS FILE EXISTS AT ALL, since the panel bytes are shared: public/ is synced verbatim from
-// vivijure-cf and guarded by scripts/upstream-public-parity.sh, so the RENDERER needs no second
-// test here. What is genuinely this repo is the HOST half -- the projection of an operator var into
+// WHAT THIS FILE COVERS: the HOST half -- the projection of an operator var into
 // host.abuse_report_url through this panel own platform.vars, and the Settings catalog entry that
-// makes the knob findable by the person who can turn it. Those are what these tests cover.
+// makes the knob findable by the person who can turn it.
+//
+// THE RENDERER IS NOT COVERED, HERE OR ANYWHERE IN THIS REPO. This header used to say the renderer
+// needed no test because public/ was synced verbatim from vivijure-cf and guarded by
+// scripts/upstream-public-parity.sh. That gate was retired (local#263), so the reason is gone and
+// the gap is real: nothing now guarantees this repo's copy of the panel matches the one vivijure-cf
+// tests. Tracked in local#287. Stating it plainly beats leaving a justification that is no longer
+// true, which would read as coverage that exists.
 //
 // THE PARITY BLOCK BELOW IS NOT CEREMONY. This IS the self-host bundle the hosted rule was written
 // to protect: our abuse address must never ship inside the bundle a self-hoster installs. On the
@@ -62,7 +67,7 @@ describe("abuseReportUrl (the host side: what this studio advertises about itsel
 
   it("passes through an operator address, http or https", () => {
     expect(abuseReportUrl({ ABUSE_REPORT_URL: "https://example.org/report" })).toBe("https://example.org/report");
-    expect(abuseReportUrl({ ABUSE_REPORT_URL: "http://10.1.1.9:8080/report" })).toBe("http://10.1.1.9:8080/report");
+    expect(abuseReportUrl({ ABUSE_REPORT_URL: "http://192.0.2.9:8080/report" })).toBe("http://192.0.2.9:8080/report");
   });
 
   it("REFUSES a scheme that is not http(s), and says so out loud", () => {

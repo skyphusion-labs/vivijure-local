@@ -457,23 +457,24 @@ flat config succeeded (`film-0542ed5e`). Same rule applies to `npm run smoke:exi
 ## Syncing from upstream
 
 During Option B, orchestration code is copied from `vivijure/src/` and adapted at platform call
-sites. Three surfaces are **verbatim copies** and must stay aligned with `vivijure` `main`:
+sites. `public/` (studio UI), `migrations/` (SQLite schema) and `src/modules/types.ts` (the
+`vivijure-module/2` contract) started as verbatim copies of the upstream files.
 
-- `public/` (studio UI)
-- `migrations/` (SQLite schema)
-- `src/modules/types.ts` (`vivijure-module/2` contract)
+**There is no longer a CI check asserting they stay byte-identical.** `upstream-parity` diffed
+shared `public/` against `skyphusion-labs/vivijure-cf` `main` on every PR; it was retired in
+local#263. The two hosts' backends now legitimately emit different wire shapes, so byte-identity
+of the shared frontend stopped being a true statement about a working system and started
+reporting the honest change as the defect.
 
-CI runs `upstream-parity` on every PR: it checks out `skyphusion-labs/vivijure-cf` `main` and diffs
-`public/` (the studio UI). For the full verbatim set including migrations and types:
+What is left is a manual porting aid, which OVERWRITES local copies with upstream's:
 
 ```bash
-VIVIJURE_SRC=../vivijure-cf npm run upstream:parity       # public/ only (CI gate)
-VIVIJURE_SRC=../vivijure-cf npm run upstream:parity:verbatim # + migrations, types.ts
 ./scripts/sync-from-vivijure.sh   # requires sibling ../vivijure-cf clone
 ```
 
-When vivijure v2.0 lands `vivijure-core`, this repo will depend on the package instead of
-manual sync for orchestration; `public/` parity remains until the UI is packaged separately.
+**What still holds is PRODUCT parity, and it is a review obligation now:** every studio feature
+ships to both panels in the same release wave (same-time releases, no community edition, no pay
+gates). Nothing in CI detects a shared-UI change landing in only one panel.
 See [ROADMAP.md](ROADMAP.md).
 
 ---
@@ -507,8 +508,12 @@ hobbyist host with full contract parity, not the production deploy path:
 ## Production: propagandhi (fleet overlay)
 
 The live public studio at `https://vivijure-local.skyphusion.org` runs on **propagandhi**
-(`10.1.1.7`) behind a Hetzner L4 edge load balancer. This is **not** the homelab
+behind a Hetzner L4 edge load balancer. This is **not** the homelab
 `COMPOSE_PROFILES=edge` path from [EDGE.md](EDGE.md). Fleet IaC owns the overlay files.
+
+Addresses below are RFC 5737 documentation placeholders: `192.0.2.7` stands for this
+host's own VLAN address, `198.51.100.0/24` for the edge load balancer's subnet.
+Substitute your own; nothing here is a literal to copy.
 
 **Every release roll must:**
 
@@ -525,15 +530,16 @@ The live public studio at `https://vivijure-local.skyphusion.org` runs on **prop
    The override mounts the fleet Caddyfile (PROXY protocol wrapper for the edge LB). Without
    it, Caddy listens but the public URL breaks.
 
-3. Set **`EDGE_BIND_IP=10.1.1.7`** in `.env`. Compose publishes Caddy on this VLAN address
-   only. Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
+3. Set **`EDGE_BIND_IP`** in `.env` to this host's own VLAN address (with the placeholder
+   above, `EDGE_BIND_IP=192.0.2.7`). Compose publishes Caddy on that VLAN address only.
+   Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
 
 4. Roll the **full** stack with the reverse-proxy profile:
 
    ```bash
    COMPOSE_PROFILES=reverse-proxy docker compose pull
    COMPOSE_PROFILES=reverse-proxy docker compose up -d --pull always
-   ss -ltnp | grep ':443'   # must show 10.1.1.7, not 0.0.0.0
+   ss -ltnp | grep ':443'   # must show $EDGE_BIND_IP, not 0.0.0.0
    ```
 
 5. Reconcile host firewall after deploy:
@@ -542,8 +548,9 @@ The live public studio at `https://vivijure-local.skyphusion.org` runs on **prop
    sudo /opt/fleet-chezmoi/system/ufw/apply-ufw.sh propagandhi
    ```
 
-   Allows edge LB traffic (`10.1.0.0/16`) to `10.1.1.7:443`. VLAN bind remains the
-   load-bearing control; ufw is belt-and-suspenders.
+   Allows edge LB traffic (the load balancer subnet, `198.51.100.0/24` here) to port
+   443 on `$EDGE_BIND_IP`. VLAN bind remains the load-bearing control; ufw is
+   belt-and-suspenders.
 
 Canonical operator checklist:
 [fleet-chezmoi `vivijure-local-propagandhi-release.md`](https://github.com/skyphusion-labs/fleet-chezmoi/blob/main/docs/runbooks/vivijure-local-propagandhi-release.md).

@@ -19,6 +19,54 @@ The planner picker lands on the declared default when there is no saved preferen
 over "first option" when a saved id has left the catalog. Image rows are unchanged (fields omitted).
 cf ports this projector after merge (upstream-first, cf#62).
 
+### ci: retire the upstream-parity byte-identity check (local#263)
+
+The `upstream-parity` workflow diffed this repo's shared `public/` files against
+`skyphusion-labs/vivijure-cf` `main` and failed on any byte difference. It is removed, with the
+workflow renamed to `manifest-drift` (see below).
+
+**Why.** Byte-identity of the shared frontend was only ever a proxy, and it held while both hosts'
+backends emitted the same wire shape. They no longer do: `vivijure-cf`'s planning projector
+deliberately omits fields this repo's projector stamps, and its own source says so. Once the
+backends legitimately diverge, the check cannot tell "someone forgot to ship the twin" from "these
+two products differ here on purpose" -- and it answers as though it can, reporting the honest change
+as the defect. Its named remedy on failure made that worse: `sync-from-vivijure.sh` overwrites local
+`public/` from upstream, so the gate's default fix was to delete the work it had just flagged.
+Re-scoping was considered and rejected: the check's own contract forbids exempting a file that mixes
+shared and local content ("the gate goes quietly blind"), and the alternative, splitting each
+diverging file into shared and local halves, is a design tax re-paid on every legitimate divergence.
+
+**THIS DOES NOT WEAKEN HOSTED/SELF-HOST PARITY.** That invariant is about the PRODUCT: every studio
+feature ships to both panels in the same release wave, same-time releases, no community edition, no
+pay gates. It is unchanged and non-negotiable. What was deleted is a much stronger and different
+claim -- that two independently released codebases hold byte-identical files -- which the two repos
+have outgrown. Prose that conflated the two (`CLAUDE.md`, `docs/DEPLOYMENT.md`) was untangled rather
+than deleted, so the product rule is still written down where the check used to be.
+
+**WHAT IS LOST, plainly.** Nothing now notices a shared-UI change landing in one panel and not the
+other. That was the check's real value and it is gone; keeping the two copies aligned is a review
+obligation now, with no mechanical backstop. No replacement is proposed here on purpose. One
+knock-on is recorded rather than papered over: `tests/abuse-link.test.ts` justified its own missing
+renderer coverage by citing this gate, so that justification is void and the comment now says the
+renderer is untested, tracked in local#287.
+
+- The workflow is **renamed to `manifest-drift`, not deleted.** It also ran
+  `check-module-manifest-drift.sh`, which is a different check, unaffected by any of the above, and
+  needs the same `vivijure-cf` checkout. Deleting the workflow would have removed it silently. The
+  rename is deliberate: a check named for something it no longer does is how the next reader builds
+  on a false belief. **`manifest-drift` must be re-added as a required status check** -- the old
+  `upstream-parity` context was removed from the ruleset first so this PR could land.
+- Removed: `scripts/upstream-public-parity.sh`, the `upstream:parity` / `upstream:parity:verbatim`
+  npm scripts, and `.cursor/rules/upstream-parity-pre-merge.mdc` (the Cursor lane is retired
+  estate-wide).
+- **Kept:** `scripts/sync-from-vivijure.sh`, with the gate language stripped. It is a working manual
+  porting aid cited on its own merits in `docs/ARCHITECTURE.md`; deleting a tool because its
+  enforcement went away is throwing out the hammer because the inspector left. It now owns the
+  local-only skip list outright.
+
+Issue [local#263](https://github.com/skyphusion-labs/vivijure-local/pull/263), follow-up
+[local#287](https://github.com/skyphusion-labs/vivijure-local/issues/287).
+
 ### fix(local-gpu)!: an absent GPU door installs no module at all (local#280)
 
 Follow-up correcting the shape of the local#229 fix below, which Conrad rejected in review:

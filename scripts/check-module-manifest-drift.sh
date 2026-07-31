@@ -3,14 +3,16 @@
 #
 # Regenerates into a temp dir via scripts/sync-module-manifests.ts, then diffs against
 # the committed fixtures. Excludes:
-#   - bare-planner.json — deliberate enum-less fixture for gate / e2e (not from sync)
-#   - plan-enhance.json — local-only Ollama first-win catalog (Conrad 2026-07-28 / #265);
+#   - bare-planner.json -- deliberate enum-less fixture for gate / e2e (not from sync)
+#   - plan-enhance.json -- local-only Ollama first-win catalog (Conrad 2026-07-28 / #265);
 #     cf keeps the Anthropic/AI Gateway MANIFEST; do not re-sync this file from cf.
 #
 #   bash scripts/check-module-manifest-drift.sh [vivijure-cf-clone]
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-module-manifest-drift.sh
 #
-# Ride the upstream-parity CI job (already checks out cf main).
+# Runs in the manifest-drift CI job, which checks out cf main for this script. That job was named
+# `upstream-parity` until local#263 retired the parity half it also carried; this check is
+# unchanged and was never part of that argument.
 
 set -euo pipefail
 

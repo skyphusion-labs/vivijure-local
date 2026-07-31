@@ -71,10 +71,12 @@ HTTPS protects the token on the wire. It does not add multi-user logins. See
   host) **or** stays with you and offers to issue certificates in the same command,
   showing each TXT value when Let's Encrypt asks for it.
 
-Optional: if Caddy should bind only a private NIC (VLAN behind a load balancer):
+Optional: if Caddy should bind only a private NIC (VLAN behind a load balancer). Use
+that NIC's own address; `192.0.2.7` here is an RFC 5737 documentation placeholder, not
+a value to copy:
 
 ```
-EDGE_BIND_IP=10.1.1.7
+EDGE_BIND_IP=192.0.2.7
 ```
 
 Omit it to listen on all interfaces.
