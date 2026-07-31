@@ -41,7 +41,10 @@ services governed by provider terms; no weights land on your box for those steps
 In review, not yet shipped: a fully local cast.image path on **FLUX.2 Klein 4B** (Apache-2.0)
 is PR [#272](https://github.com/skyphusion-labs/vivijure-local/pull/272). When it lands, the
 table gains a commercially unrestricted local image-generation path; until then it is not in
-any tagged release.
+any tagged release. Mind the family split, verified 2026-07-31 across every published variant:
+the FLUX.2 klein **4B** line is Apache-2.0, while the klein **9B** line and FLUX.2-dev carry
+the FLUX Non-Commercial License. That is exactly why the local path builds on the 4B, and why
+the larger klein is consumed only as licensed inference via Workers AI, never self-hosted.
 
 ## What this means in practice
 
