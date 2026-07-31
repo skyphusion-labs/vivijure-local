@@ -152,3 +152,7 @@ Everything else is ported behind `src/platform/` adapters. Object storage defaul
 ## License
 
 AGPL-3.0-only (same as the rest of the Vivijure constellation).
+
+That grant covers the SOFTWARE. The model weights the local GPU door runs carry their own
+third-party licenses, several of which restrict commercial use; the per-model truth, and the
+two supported commercial paths, are in [USE.md](USE.md).
