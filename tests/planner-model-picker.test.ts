@@ -26,6 +26,7 @@ class OptEl {
   value = "";
   disabled = false;
   textContent = "";
+  dataset: Record<string, string> = {};
 }
 
 class SelectStub {
@@ -60,8 +61,17 @@ function serveModels(models: unknown[] | null, ok = true) {
 }
 
 const MODELS = [
-  { id: "anthropic/claude-opus-4-8", label: "plan-enhance · opus" },
-  { id: "anthropic/claude-sonnet-5", label: "plan-enhance · sonnet-5" },
+  {
+    id: "anthropic/claude-opus-4-8",
+    label: "plan-enhance · opus",
+    module: "plan-enhance",
+    default: true,
+  },
+  {
+    id: "anthropic/claude-sonnet-5",
+    label: "plan-enhance · sonnet-5",
+    module: "plan-enhance",
+  },
 ];
 
 beforeAll(() => {
@@ -117,11 +127,28 @@ describe("loadModels (cf#62 FE-4: the catalog is projected, so restores must not
     selectPlanningModel("anthropic/claude-opus-4-7"); // a model this deploy no longer serves
     serveModels(MODELS);
     await loadModels();
-    expect(sel.value).toBe("anthropic/claude-opus-4-8"); // a REAL id, never ""
+    expect(sel.value).toBe("anthropic/claude-opus-4-8"); // the declared default (local#101), never ""
     expect(statusCalls.length).toBe(1);
     expect(statusCalls[0].text).toContain("anthropic/claude-opus-4-7"); // names what was lost
     expect(statusCalls[0].text).toContain("no longer available");
     expect(statusCalls[0].kind).toBe("error"); // surfaced, not swallowed
+  });
+
+  // local#101: with no pending restore and no previous selection, land on default:true rather
+  // than whichever option happens to be first in the wire order.
+  it("FIRST LOAD: with no saved preference, lands on the module-declared default", async () => {
+    const reordered = [
+      { id: "anthropic/claude-sonnet-5", label: "sonnet", module: "plan-enhance" },
+      {
+        id: "anthropic/claude-opus-4-8",
+        label: "opus",
+        module: "plan-enhance",
+        default: true,
+      },
+    ];
+    serveModels(reordered);
+    await loadModels();
+    expect(sel.value).toBe("anthropic/claude-opus-4-8"); // NOT the first wire row
   });
 
   it("an EMPTY catalog degrades honestly and PRESERVES the pending restore", async () => {

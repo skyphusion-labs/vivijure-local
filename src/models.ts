@@ -35,4 +35,15 @@ export interface ModelEntry {
   // "vision" = accepts image input in chat; "image-input" = image-to-video source image required.
   capabilities: Array<"vision" | "image-input">;
   provider?: Provider; // defaults to "workers-ai" when omitted
+  /**
+   * Registry name of the module that declared this row (local#101 / cf#62).
+   * Present on planning rows projected from plan.enhance; optional elsewhere.
+   * Lets consumers own a row without parsing `group`.
+   */
+  module?: string;
+  /**
+   * True on the row the host would pick when the user has no saved preference
+   * (the module's config_schema.model.default, or the sole row when no enum).
+   */
+  default?: boolean;
 }

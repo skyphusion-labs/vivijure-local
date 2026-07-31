@@ -11,9 +11,10 @@
 // planning vs image vs a hook name. Callers supply the noun for the empty state and their
 // own wording for a dropped selection, so no product copy is baked in here.
 //
-// Row shape (key-pinned with the backend, cf#129): { id, label, group, type, capabilities }.
+// Row shape (key-pinned with the backend, cf#129 / local#101):
+// { id, label, group, type, capabilities, module?, default? }.
 // `group` is carried by the wire shape but not yet rendered as <optgroup>; see the note on
-// renderRows below.
+// renderRows below. `module` / `default` are additive (planning rows); image rows omit them.
 //
 // Vanilla JS, classic <script>, no bundler, matching the planner.js / cast.js idiom.
 // Load order matters: this file must come BEFORE any file that hydrates a picker.
@@ -52,10 +53,20 @@ var modelCatalog = (function () {
   function renderRows(select, rows) {
     select.innerHTML = "";
     for (var i = 0; i < rows.length; i++) {
-      addOption(select, rows[i].id, rows[i].label || rows[i].id, false);
+      var opt = addOption(select, rows[i].id, rows[i].label || rows[i].id, false);
+      if (rows[i].default) opt.dataset.default = "1";
+      if (rows[i].module) opt.dataset.module = String(rows[i].module);
     }
     select.disabled = false;
     return rows.map(function (m) { return String(m.id); });
+  }
+
+  // The host-declared default id, if any option carries data-default (local#101).
+  function defaultOptionId(select) {
+    var found = Array.from(select.options).find(function (o) {
+      return o.dataset.default === "1" && o.value;
+    });
+    return found ? String(found.value) : "";
   }
 
   // HONEST FAIL. A visible, disabled option that NAMES what is missing, and a picker whose
@@ -85,7 +96,9 @@ var modelCatalog = (function () {
       select.value = want;
       return;
     }
-    select.value = ids[0];
+    // Prefer the module-declared default over "first option" when a saved id is gone.
+    var def = defaultOptionId(select);
+    select.value = def && ids.includes(def) ? def : ids[0];
     if (onDropped) onDropped(want, select.value);
   }
 
@@ -96,6 +109,7 @@ var modelCatalog = (function () {
     renderEmpty: renderEmpty,
     renderError: renderError,
     applyChoice: applyChoice,
+    defaultOptionId: defaultOptionId,
   };
 })();
 
