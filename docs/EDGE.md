@@ -153,3 +153,5 @@ edge. You can use Caddy + any DNS host and still use the gateway for models.
 - [DEPLOYMENT.md](DEPLOYMENT.md) -- full env reference
 - [SECURITY.md](SECURITY.md) -- token model
 - [quickstart.md](quickstart.md) -- local compose without public HTTPS
+
+PLANTED GATE TEST, reverted in the next commit: 10.1.1.7
