@@ -7,6 +7,18 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### docs(legal): USE.md, the software vs the model weights (local#283)
+
+The software stays AGPL-3.0-only and free for any use including commercial; the model weights
+on the local inference path carry their own upstream licenses, several of which restrict
+commercial use (CogVideoX registration + visits cap; the LTX revenue threshold; OpenRAIL++ use
+restrictions), and we cannot grant those rights. New top-level `USE.md` states the per-model
+truth (license, delivery mode, commercial answer; upstream-verified 2026-07-31), the two
+supported commercial paths (Workers AI licensed inference, or hosted vivijure-cf), and that
+homelab / non-commercial use is unaffected on every path. README points to it beside the
+license section; `docs/PARITY.md` gains a scope note: parity covers our software, and the
+commercial difference on local inference is imposed by weight licensors, not by us.
+
 ### fix(local-gpu)!: delete the GPU mock; refuse loudly instead of fabricating frames (local#229)
 
 **A bare `compose up` was shipping films assembled from fabricated frames.** `LOCAL_BACKEND_URL` is
