@@ -1,0 +1,49 @@
+name: manifest-drift
+
+# Fail when committed dev/manifests/*.json drift from the real module MANIFESTs (#117). The
+# regenerator reads them out of a vivijure-cf checkout, which is why this job checks that repo out.
+#
+# HISTORY, because the name changed: this workflow used to be `upstream-parity` and ran TWO checks --
+# a byte-identity diff of shared `public/` against vivijure-cf main, and this manifest-drift check
+# riding along on the same checkout. The parity half was retired (local#263): it asserted that two
+# independently released hosts ship byte-identical shared frontends, which stopped being true once
+# their projectors legitimately diverged, so it reported the honest change as the defect. The
+# manifest-drift half was never part of that argument and is unchanged here.
+#
+# The workflow was RENAMED rather than left as `upstream-parity` because a check named for something
+# it no longer does is how the next reader builds on a false belief.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manifest-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifest-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+
+      - uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure-cf
+          ref: main
+          path: vivijure-local/.upstream/vivijure
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Diff dev/manifests against regenerated vivijure-cf MANIFESTs
+        working-directory: vivijure-local
+        run: bash scripts/check-module-manifest-drift.sh .upstream/vivijure
