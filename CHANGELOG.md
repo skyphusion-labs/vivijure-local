@@ -43,12 +43,13 @@ claim -- that two independently released codebases hold byte-identical files -- 
 have outgrown. Prose that conflated the two (`CLAUDE.md`, `docs/DEPLOYMENT.md`) was untangled rather
 than deleted, so the product rule is still written down where the check used to be.
 
-**WHAT IS LOST, plainly.** Nothing now notices a shared-UI change landing in one panel and not the
-other. That was the check's real value and it is gone; keeping the two copies aligned is a review
-obligation now, with no mechanical backstop. No replacement is proposed here on purpose. One
-knock-on is recorded rather than papered over: `tests/abuse-link.test.ts` justified its own missing
-renderer coverage by citing this gate, so that justification is void and the comment now says the
-renderer is untested, tracked in local#287.
+**WHAT IS LOST, stated no bigger than it is.** The obligation itself survives, written at the top of
+this file: the dual-panel release gate, every studio feature shipping to both panels in the same
+release wave. What died is the MECHANICAL proxy for it. Nothing in CI now notices a shared-UI change
+landing in one panel and not the other, so that alignment is a review obligation with no automated
+backstop. No replacement is proposed here on purpose. One knock-on is recorded rather than papered
+over: `tests/abuse-link.test.ts` justified its own missing renderer coverage by citing this gate, so
+that justification is void and the comment now says the renderer is untested, tracked in local#287.
 
 - The workflow is **renamed to `manifest-drift`, not deleted.** It also ran
   `check-module-manifest-drift.sh`, which is a different check, unaffected by any of the above, and
