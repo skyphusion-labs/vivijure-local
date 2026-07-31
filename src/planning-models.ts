@@ -21,6 +21,8 @@ export function planningModelsFromModules(modules: RegisteredModule[]): ModelEnt
   for (const mod of servingForHook(modules, "plan.enhance")) {
     const modelField = mod.config_schema?.model;
     if (modelField?.type === "enum" && modelField.values.length > 0) {
+      const declaredDefault =
+        typeof modelField.default === "string" ? modelField.default : undefined;
       for (const value of modelField.values) {
         const id = String(value);
         out.push({
@@ -29,16 +31,21 @@ export function planningModelsFromModules(modules: RegisteredModule[]): ModelEnt
           group: `Planning · ${mod.name}`,
           type: "chat",
           capabilities: [],
+          module: mod.name,
+          ...(declaredDefault === id ? { default: true as const } : {}),
         });
       }
       continue;
     }
+    // No enum: the module is the sole choice, so it is the host default.
     out.push({
       id: mod.name,
       label: moduleLabel(mod),
       group: `Planning · ${mod.name}`,
       type: "chat",
       capabilities: [],
+      module: mod.name,
+      default: true,
     });
   }
   return out;
