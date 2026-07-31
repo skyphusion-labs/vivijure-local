@@ -1,5 +1,11 @@
 # API parity checklist
 
+> **Scope of parity.** The hosted/self-host parity invariant covers OUR SOFTWARE: same
+> features, same routes, same-time releases, no community edition, no pay gate. Where the
+> commercial picture differs on the local inference path, the difference is imposed by
+> third-party model-weight licensors, not by us; the per-model truth is in
+> [USE.md](../USE.md).
+
 Canonical spec: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)
 
 Mark each route when implemented **and** covered by a test. Status: `[ ]` pending, `[~]` partial, `[x]` done.
@@ -145,6 +151,6 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 - [x] MinIO root creds from `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` (not hardcoded `minioadmin`)
 - [x] `npm run rotate:minio-creds` helper + docs
-- [x] CPU module sidecar healthchecks on module ports (`9120`–`9131`, not studio `:8790`)
+- [x] CPU module sidecar healthchecks on module ports (`9120`--`9131`, not studio `:8790`)
 - [x] Background `render-sweep` cron in studio host (`server.ts`, every 60s; disable with `RENDER_SWEEP_ENABLED=false`)
 - [x] `cloud-keyframe` sidecar (AI Gateway image gen, not RunPod stub)
