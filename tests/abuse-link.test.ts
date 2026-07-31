@@ -62,7 +62,7 @@ describe("abuseReportUrl (the host side: what this studio advertises about itsel
 
   it("passes through an operator address, http or https", () => {
     expect(abuseReportUrl({ ABUSE_REPORT_URL: "https://example.org/report" })).toBe("https://example.org/report");
-    expect(abuseReportUrl({ ABUSE_REPORT_URL: "http://10.1.1.9:8080/report" })).toBe("http://10.1.1.9:8080/report");
+    expect(abuseReportUrl({ ABUSE_REPORT_URL: "http://192.0.2.9:8080/report" })).toBe("http://192.0.2.9:8080/report");
   });
 
   it("REFUSES a scheme that is not http(s), and says so out loud", () => {
