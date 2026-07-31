@@ -33,10 +33,34 @@ absent; it is not a running service that describes its own absence.
   sets/clears `MODULE_LOCAL_GPU_URL` in `.env`, which compose reads on its own, so a plain
   `docker compose up -d` sees the same lane. New `localgpu-door-gate` is fail-closed for the one case
   profiles cannot catch (lane on, door address blank), mirroring `edge-minio-creds-gate`.
+- **The lane-off invariant now survives an UPGRADE, not only a fresh install** (local#281). This
+  change is what stopped compose hardcoding `MODULE_LOCAL_GPU_URL`, which is exactly what made the
+  key's sync rule ("homelab compose default: upsert when set, never purge when unset") wrong for it:
+  every studio that ever booted an earlier version has that value sitting in `platform_secrets`, and
+  `RuntimeEnv` merges the DB OVER env with the DB winning, so `install:studio` writing an empty value
+  into `.env` could not clear it. The registry bound `MODULE_LOCAL_GPU` to a container the `localgpu`
+  profile guarantees is absent; core discovery then dropped it after three failed manifest reads, so
+  the panel stayed correct while every discovery pass absorbed a connection failure and logged a
+  warning for a module nobody installed. `MODULE_LOCAL_GPU_URL` is reclassified as a DERIVED key
+  (env/compose is its only authority): boot never seeds a copy, `sync:secrets` purges it
+  unconditionally, and new migration `0015` deletes the row existing studios already carry.
 - **`host.hooks_unavailable` stays** (`src/local-door-availability.ts`). It is self-description, not a
   shim: it starts no process and synthesizes no module entry, it reads the host's own registry and
   reports which hooks that composition leaves unserved. Without it, a doorless panel would still offer
   keyframe/motion controls whose every option 400s at submit.
+- **UPGRADE NOTE, one setting is discarded.** Migration `0015` deletes any stored
+  `MODULE_LOCAL_GPU_URL`, and before this release the Settings GUI accepted a write to it, so an
+  operator running the door module on a host OTHER than the compose default could have set it by hand.
+  That choice is dropped on upgrade, and `PATCH /api/settings/secrets` no longer stores the key: a
+  typed row goes stale when the lane is turned off exactly like a seeded one, and a derived key with a
+  single honest source is the whole point of the fix. **The setting moved rather than vanished** --
+  put `MODULE_LOCAL_GPU_URL` in `.env`, which compose passes through and which nothing now overrides.
+  The field stays visible in Settings (read-only) so the live value and its source are still legible.
+- **The door gate applies the same test as the code it guards.** `localgpu-door-gate` checked only
+  that `LOCAL_BACKEND_URL` was non-empty while `isDoorConfigured` requires an absolute `http(s)` URL,
+  so a malformed door address passed the check that advertises itself as the fail-closed one and was
+  caught a layer later by the sidecar. `setProfile` also leaves an already-correct `COMPOSE_PROFILES`
+  byte-identical instead of rewriting `localgpu,cloud` to `cloud,localgpu` on the first run.
 - **Test fixtures are hermetic now** (fixes local#275). `RuntimeEnv.forTests` no longer inherits
   `process.env`; a developer with `CF_AIG_TOKEN` exported was silently turning the "partial AI Gateway
   config" fixture into a complete one, so `hook-availability-parity`'s partial-gateway assertion passed
@@ -45,6 +69,7 @@ absent; it is not a running service that describes its own absence.
 - The configured path and the `cloud` profile are unchanged.
 
 Issues [local#280](https://github.com/skyphusion-labs/vivijure-local/issues/280),
+[local#281](https://github.com/skyphusion-labs/vivijure-local/issues/281),
 [local#275](https://github.com/skyphusion-labs/vivijure-local/issues/275).
 
 ### docs(legal): USE.md, the software vs the model weights (local#283)

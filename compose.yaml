@@ -265,6 +265,11 @@ services:
   # Fail-closed: the localgpu lane must not come up pointing at nothing.
   # Only reachable with COMPOSE_PROFILES=localgpu, so it fires exactly when the operator asked for the
   # door lane but left the door address blank -- the one inconsistency the profile gate cannot catch.
+  #
+  # It applies the SAME test as isDoorConfigured (src/localgpu-lane.ts): an absolute http(s) URL, not
+  # merely a non-empty string. A `-z` test passed a malformed address like `vivijure-local-16gb:8000`
+  # and left it to the sidecar's own exit 1 one layer later -- still fail-closed, but from the gate that
+  # advertises itself as THE fail-closed check, and after the rest of the stack had already started.
   localgpu-door-gate:
     <<: *profile-localgpu
     image: busybox:1.36
@@ -274,13 +279,14 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ -z "$$LOCAL_BACKEND_URL" ]; then
-          echo "REFUSING COMPOSE_PROFILES=localgpu with no LOCAL_BACKEND_URL." >&2
-          echo "Set LOCAL_BACKEND_URL to your GPU door (vivijure-local-16gb / -12gb) in .env," >&2
-          echo "or drop 'localgpu' from COMPOSE_PROFILES to run without a GPU door." >&2
-          exit 1
-        fi
-        exit 0
+        case "$$LOCAL_BACKEND_URL" in
+          http://?*|https://?*) exit 0 ;;
+        esac
+        echo "REFUSING COMPOSE_PROFILES=localgpu without a usable LOCAL_BACKEND_URL." >&2
+        echo "Set LOCAL_BACKEND_URL to your GPU door (vivijure-local-16gb / -12gb) in .env as an" >&2
+        echo "absolute http(s) URL, e.g. http://vivijure-local-16gb:8000 (got: '$$LOCAL_BACKEND_URL')," >&2
+        echo "or drop 'localgpu' from COMPOSE_PROFILES to run without a GPU door." >&2
+        exit 1
 
   # GPU door module -- opt-in lane (COMPOSE_PROFILES=localgpu + LOCAL_BACKEND_URL + MODULE_LOCAL_GPU_URL).
   # `npm run install:studio` derives all three from the door address, so the operator sets one thing.

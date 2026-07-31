@@ -118,7 +118,16 @@ describe("door configured: the lane comes back, unchanged", () => {
     const yaml = readFileSync(join(REPO, "compose.yaml"), "utf8");
     expect(yaml).toContain("localgpu-door-gate:");
     expect(yaml).toMatch(/localgpu-door-gate:\s*\n\s*condition: service_completed_successfully/);
-    expect(yaml).toContain("REFUSING COMPOSE_PROFILES=localgpu with no LOCAL_BACKEND_URL.");
+    expect(yaml).toContain("REFUSING COMPOSE_PROFILES=localgpu without a usable LOCAL_BACKEND_URL.");
+  });
+
+  it("the door gate applies the same absolute-URL test as isDoorConfigured (local#281)", () => {
+    // The gate used to be `[ -z "$LOCAL_BACKEND_URL" ]`, so a malformed door address
+    // (`vivijure-local-16gb:8000`, no scheme) passed the check that advertises itself as THE
+    // fail-closed one and was caught a layer later by the sidecar. Same test, one layer earlier.
+    const yaml = readFileSync(join(REPO, "compose.yaml"), "utf8");
+    expect(yaml).toMatch(/case "\$\$LOCAL_BACKEND_URL" in\s*\n\s*http:\/\/\?\*\|https:\/\/\?\*\) exit 0 ;;/);
+    expect(yaml).not.toMatch(/if \[ -z "\$\$LOCAL_BACKEND_URL" \]; then/);
   });
 });
 
@@ -147,6 +156,22 @@ describe("one operator knob derives the lane", () => {
     expect(setProfile("edge,cloud", LOCALGPU_PROFILE, true)).toBe("edge,cloud,localgpu");
     expect(setProfile("edge,localgpu,cloud", LOCALGPU_PROFILE, false)).toBe("edge,cloud");
     expect(parseProfiles(" edge , , cloud ")).toEqual(["edge", "cloud"]);
+  });
+
+  it("leaves an already-correct COMPOSE_PROFILES byte-identical (local#281)", () => {
+    // setProfile used to filter-then-append, so `localgpu,cloud` came back as `cloud,localgpu`: a
+    // rewrite and a reported update for a lane that was already exactly right. Convergent, but the
+    // idempotence claim only held from the SECOND run on.
+    expect(setProfile("localgpu,cloud", LOCALGPU_PROFILE, true)).toBe("localgpu,cloud");
+    expect(
+      localGpuLaneUpdates(
+        new Map([
+          ["LOCAL_BACKEND_URL", "http://vivijure-local-16gb:8000"],
+          ["COMPOSE_PROFILES", "localgpu,cloud"],
+          ["MODULE_LOCAL_GPU_URL", LOCALGPU_MODULE_URL],
+        ]),
+      ).size,
+    ).toBe(0);
   });
 
   it("is idempotent: a second run with the same door writes nothing", () => {

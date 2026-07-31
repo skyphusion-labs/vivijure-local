@@ -10,7 +10,9 @@
 // healthcheck curled /module.json and so the container had to stay up. Conrad's ruling: "We shouldn't
 // have to build a shim for a module that isn't even there." The stack answers this now -- the module
 // lives in the `localgpu` compose profile, so with no door there is no container, no manifest, and no
-// binding for the studio to discover. Absence needs no representative.
+// binding for the studio to discover. Absence needs no representative. (The "no binding" half of that
+// took local#281 to be true on an UPGRADED studio as well as a fresh one: a stored platform_secrets
+// copy of MODULE_LOCAL_GPU_URL used to outlive the lane and win over env.)
 //
 // So this app assumes a door: it is only ever constructed by a sidecar that has already refused to
 // start without LOCAL_BACKEND_URL (scripts/local-gpu-module-server.ts). /module.json describes the

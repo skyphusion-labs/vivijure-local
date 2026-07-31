@@ -31,6 +31,14 @@
 // `configured: false` filter (local#201) still covers the RunPod sidecars, which are a different case:
 // those are cloud modules whose credentials, not their existence, are optional.
 //
+// "There is no MODULE_LOCAL_GPU_URL" is a claim about the MERGED env (platform_secrets over
+// process.env, DB winning), not about .env, and local#281 is what made the two agree: the key is
+// derived, so nothing seeds a stored copy, sync purges an unset one, and migration 0015 removed the
+// row every pre-local#280 studio carried. Before that the lane-off invariant held on a fresh install
+// and failed on an upgraded one. This function stays honest either way -- it reads the DISCOVERED
+// modules, and an unreachable binding is dropped by core discovery -- but it would have been reporting
+// the gap correctly while the studio paid three failed manifest reads per discovery to find it.
+//
 // ABSENT KEY MEANS AVAILABLE, matching the video-finish twin: a host with any serving module reports
 // nothing at all, so the panel's positive control is a real observation rather than a missing field.
 //

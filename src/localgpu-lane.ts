@@ -41,11 +41,18 @@ export function parseProfiles(profiles: string | undefined): string[] {
     .filter(Boolean);
 }
 
-/** Add or remove one profile, preserving the others and their order (never clobbers edge/cloud). */
+/**
+ * Add or remove one profile, preserving the others and their order (never clobbers edge/cloud).
+ *
+ * A profile ALREADY present keeps its position. Appending unconditionally rewrote
+ * `localgpu,cloud` to `cloud,localgpu` on the first run, so the installer reported an update and a
+ * diff for a lane that was already exactly right -- true convergence, but only from the second run on,
+ * which is not what "idempotent" claims.
+ */
 export function setProfile(profiles: string | undefined, name: string, on: boolean): string {
-  const list = parseProfiles(profiles).filter((p) => p !== name);
-  if (on) list.push(name);
-  return list.join(",");
+  const list = parseProfiles(profiles).filter((p, i, all) => all.indexOf(p) === i);
+  if (!on) return list.filter((p) => p !== name).join(",");
+  return (list.includes(name) ? list : [...list, name]).join(",");
 }
 
 /**
