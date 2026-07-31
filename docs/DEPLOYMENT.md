@@ -507,8 +507,12 @@ hobbyist host with full contract parity, not the production deploy path:
 ## Production: propagandhi (fleet overlay)
 
 The live public studio at `https://vivijure-local.skyphusion.org` runs on **propagandhi**
-(`10.1.1.7`) behind a Hetzner L4 edge load balancer. This is **not** the homelab
+behind a Hetzner L4 edge load balancer. This is **not** the homelab
 `COMPOSE_PROFILES=edge` path from [EDGE.md](EDGE.md). Fleet IaC owns the overlay files.
+
+Addresses below are RFC 5737 documentation placeholders: `192.0.2.7` stands for this
+host's own VLAN address, `198.51.100.0/24` for the edge load balancer's subnet.
+Substitute your own; nothing here is a literal to copy.
 
 **Every release roll must:**
 
@@ -525,15 +529,16 @@ The live public studio at `https://vivijure-local.skyphusion.org` runs on **prop
    The override mounts the fleet Caddyfile (PROXY protocol wrapper for the edge LB). Without
    it, Caddy listens but the public URL breaks.
 
-3. Set **`EDGE_BIND_IP=10.1.1.7`** in `.env`. Compose publishes Caddy on this VLAN address
-   only. Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
+3. Set **`EDGE_BIND_IP`** in `.env` to this host's own VLAN address (with the placeholder
+   above, `EDGE_BIND_IP=192.0.2.7`). Compose publishes Caddy on that VLAN address only.
+   Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
 
 4. Roll the **full** stack with the reverse-proxy profile:
 
    ```bash
    COMPOSE_PROFILES=reverse-proxy docker compose pull
    COMPOSE_PROFILES=reverse-proxy docker compose up -d --pull always
-   ss -ltnp | grep ':443'   # must show 10.1.1.7, not 0.0.0.0
+   ss -ltnp | grep ':443'   # must show $EDGE_BIND_IP, not 0.0.0.0
    ```
 
 5. Reconcile host firewall after deploy:
@@ -542,8 +547,9 @@ The live public studio at `https://vivijure-local.skyphusion.org` runs on **prop
    sudo /opt/fleet-chezmoi/system/ufw/apply-ufw.sh propagandhi
    ```
 
-   Allows edge LB traffic (`10.1.0.0/16`) to `10.1.1.7:443`. VLAN bind remains the
-   load-bearing control; ufw is belt-and-suspenders.
+   Allows edge LB traffic (the load balancer subnet, `198.51.100.0/24` here) to port
+   443 on `$EDGE_BIND_IP`. VLAN bind remains the load-bearing control; ufw is
+   belt-and-suspenders.
 
 Canonical operator checklist:
 [fleet-chezmoi `vivijure-local-propagandhi-release.md`](https://github.com/skyphusion-labs/fleet-chezmoi/blob/main/docs/runbooks/vivijure-local-propagandhi-release.md).

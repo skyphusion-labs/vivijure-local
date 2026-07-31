@@ -99,7 +99,7 @@ When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **f
 
 ## Propagandhi live (2026-07-22 audit)
 
-Verified on propagandhi (`10.1.1.7`):
+Verified on propagandhi:
 
 | Container | Status | Action after #186 merge |
 |-----------|--------|-------------------------|
