@@ -45,16 +45,19 @@ compose stack:
 - **Motion and keyframes** render on your own GPU through the local door
   ([`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb) first;
   [`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb) alternate); set
-  `LOCAL_BACKEND_URL`.
+  `LOCAL_BACKEND_URL` and run `npm run install:studio`.
 - **Optional CF AI** overlays (dialogue / music / narration) when you add gateway creds; not required
   for the Ollama + door path.
 - **Finish** runs on the CPU `video-finish` container (assemble and mux), plus optional local
   lipsync / upscale sidecars.
 
-**A GPU engine is required to render.** Compose brings the whole stack up without one, but with
-`LOCAL_BACKEND_URL` unset the `local-gpu` module reports itself unconfigured, the panel hides it, and
-`GET /api/modules` says `keyframe` and `motion.backend` are unavailable with the knob named. Nothing
-is rendered with placeholder frames (see [local#229](https://github.com/skyphusion-labs/vivijure-local/issues/229)).
+**A GPU engine is required to render.** Compose brings the rest of the stack up without one: the door
+module lives in the `localgpu` profile, so with no door it is simply **not in the stack** -- nothing to
+hide, nothing to refuse. `GET /api/modules` then reports `keyframe` and `motion.backend` as
+unavailable with the knob named, so the panel greys those controls out before a render is spent.
+Nothing is rendered with placeholder frames (see
+[local#229](https://github.com/skyphusion-labs/vivijure-local/issues/229),
+[local#280](https://github.com/skyphusion-labs/vivijure-local/issues/280)).
 Set `PLANNER_AI_MOCK=true` if you skip the Ollama model pull.
 
 **Optional: wire RunPod** via `COMPOSE_PROFILES=cloud` (or satellites) for cloud i2v, RunPod

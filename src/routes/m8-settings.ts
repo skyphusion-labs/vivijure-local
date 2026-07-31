@@ -18,7 +18,7 @@ import {
   PLATFORM_SECRET_CATEGORIES,
   PLATFORM_SECRET_FIELDS,
   platformSecretField,
-  PLATFORM_SECRET_INSTALL_ONLY,
+  PLATFORM_SECRET_NOT_GUI_WRITABLE,
 } from "../platform-secrets-catalog.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 
@@ -115,7 +115,7 @@ export function registerSettingsRoutes(app: Hono, host: SettingsHost): void {
       let restartRecommended = false;
 
       for (const [key, value] of Object.entries(values)) {
-        if (PLATFORM_SECRET_INSTALL_ONLY.has(key)) continue;
+        if (PLATFORM_SECRET_NOT_GUI_WRITABLE.has(key)) continue;
         const def = platformSecretField(key);
         if (!def) continue;
         if (value === null || value === "") {

@@ -11,6 +11,7 @@ import {
   STUDIO_API_TOKEN_PLACEHOLDER,
 } from "../src/platform-secrets-bootstrap.js";
 import { migrateDatabase, openDatabase } from "../src/platform/sqlite.js";
+import { isDoorConfigured, localGpuLaneUpdates, LOCALGPU_PROFILE } from "../src/localgpu-lane.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(__dirname, "..");
@@ -79,6 +80,21 @@ if (isStudioApiTokenPlaceholder(token)) {
   writeEnvFile(envPath, envVars);
   minted = true;
   console.log(`minted STUDIO_API_TOKEN (replaced placeholder ${STUDIO_API_TOKEN_PLACEHOLDER})`);
+}
+
+// local#280: derive the whole localgpu lane from the one door address the operator set, so the
+// documented homelab path stays a single knob. No door: the lane is dropped rather than left half-on,
+// and the studio reports keyframe/motion unavailable instead of shipping a stand-in module.
+const laneUpdates = localGpuLaneUpdates(envVars);
+if (laneUpdates.size) {
+  for (const [key, value] of laneUpdates) envVars.set(key, value);
+  writeEnvFile(envPath, envVars);
+  const door = envVars.get("LOCAL_BACKEND_URL");
+  console.log(
+    isDoorConfigured(door)
+      ? `GPU door ${door}: enabled the '${LOCALGPU_PROFILE}' compose profile (${[...laneUpdates.keys()].join(", ")})`
+      : `no LOCAL_BACKEND_URL: '${LOCALGPU_PROFILE}' profile off, keyframe/motion will report unavailable`,
+  );
 }
 
 // #45: .env holds STUDIO_API_TOKEN (gates every /api call) plus S3_SECRET_ACCESS_KEY / CF_AIG_TOKEN /

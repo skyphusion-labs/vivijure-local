@@ -31,7 +31,6 @@ docker compose up -d
 | LLM (plan.enhance via Ollama) | `module-plan-enhance` | `MODULE_PLANENHANCE_URL` |
 | cast.image | `module-cast-image` | `MODULE_CAST_IMAGE_URL` |
 | image.generate | `module-image-generate` | `MODULE_IMAGE_GENERATE_URL` |
-| local-gpu (keyframe + motion) | `module-local-gpu` | `MODULE_LOCAL_GPU_URL` |
 | music-upscale (master) | `module-audio-master` | `MODULE_AUDIO_MASTER_URL` |
 | subtitle | `module-subtitle` | `MODULE_SUBTITLE_URL` |
 | notify-email | `module-notify-email` | `MODULE_NOTIFY_EMAIL_URL` |
@@ -56,7 +55,7 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 | Piece | Default |
 |-------|---------|
 | Planner | Ollama (`OLLAMA_BASE_URL` + `OLLAMA_PLAN_MODEL=qwen3:14b`); unload before keyframe |
-| Keyframe + motion | `module-local-gpu` (**16GB door** when `LOCAL_BACKEND_URL` set; **hidden + hooks reported unavailable** when unset -- no mock, local#229) |
+| Keyframe + motion | `module-local-gpu`, **`localgpu` profile only** (16GB door). No door: the service is **not in the stack**, and the host reports both hooks unavailable -- no mock, no doorless stand-in (local#229, local#280) |
 | Dialogue / music-gen | AI Gateway sidecars (honest degrade when gateway creds unset) |
 | RunPod keyframe | **not started** (`profiles: [cloud]`; `MODULE_KEYFRAME_URL` unset) |
 | speech-upscale | **not started** (`profiles: [cloud]`; `MODULE_SPEECH_UPSCALE_URL` unset) |
@@ -68,6 +67,31 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 
 First-win film path: **Ollama plan.enhance → unload → local-gpu keyframe on the 16GB door → CPU
 assemble**. Without finish GPU sidecars, clips assemble via CPU `video-finish` (see exit smoke).
+
+## Profile: `localgpu` (your own GPU door)
+
+The keyframe + motion engine. Opt-in, like every other lane -- and with the lane off, `module-local-gpu`
+is **not in the stack at all** (local#280): nothing to hide, nothing to refuse, no process reporting
+its own absence. The studio then reports `keyframe` / `motion.backend` unavailable on
+`GET /api/modules` with the knob named.
+
+You set **one** thing. `npm run install:studio` derives the rest into `.env`:
+
+```bash
+# .env -- the only line you write
+LOCAL_BACKEND_URL=http://vivijure-local-16gb:8000   # or -12gb, or http://host.docker.internal:8000
+# LOCAL_BACKEND_TOKEN=...                           # if your door requires a bearer
+
+npm run install:studio    # adds `localgpu` to COMPOSE_PROFILES, sets MODULE_LOCAL_GPU_URL
+docker compose up -d      # compose reads .env, so plain `up` sees the lane too
+```
+
+Clearing `LOCAL_BACKEND_URL` and re-running `install:studio` removes the lane again. The derivation
+runs both ways on purpose: a stale `localgpu` profile with no door address would otherwise block
+startup on a variable you already deleted.
+
+If you enable the profile by hand and leave the door address empty, `localgpu-door-gate` fails the lane
+at startup rather than bringing up a sidecar pointed at nothing.
 
 ## Profile: `cloud` (RunPod / cloud GPU modules)
 
@@ -136,17 +160,12 @@ COMPOSE_PROFILES=cloud,satellites docker compose up -d
 
 ## Profile: own GPU (host motion backend)
 
-Point motion at a real backend on the host (or another machine reachable from Docker):
+Point motion at a real backend on the host (or another machine reachable from Docker): set
+`LOCAL_BACKEND_URL=https://gpu.example.com` (plus `LOCAL_BACKEND_TOKEN` if required) and run
+`npm run install:studio` -- see the [`localgpu` profile](#profile-localgpu-your-own-gpu-door) above.
 
-```bash
-# .env or compose override
-LOCAL_BACKEND_URL=https://gpu.example.com
-LOCAL_BACKEND_TOKEN=...
-```
-
-Unset or stop `module-local-gpu` if you run the backend on the host only. An unconfigured sidecar is
-safe to leave running: it reports `configured: false` and refuses every invoke, so it can never
-substitute placeholder output for a render.
+To stop using a door, clear `LOCAL_BACKEND_URL` and re-run `install:studio`; the lane goes away rather
+than idling. There is no doorless `module-local-gpu` to leave running.
 
 For **RunPod `own-gpu`** or cloud i2v modules, enable `COMPOSE_PROFILES=cloud` and set the matching
 `MODULE_<NAME>_URL` to the module worker's HTTP base (same pattern as vivijure-cf `MODULE_*`

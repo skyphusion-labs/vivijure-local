@@ -27,9 +27,9 @@ You do **not** need:
 
 - A Cloudflare account or AI Gateway (planning defaults to local Ollama).
 - A RunPod account (RunPod modules are `COMPOSE_PROFILES=cloud` only).
-- A GPU to bring the stack **up** (Ollama can run on CPU). You do need one to **render**: with
-  `LOCAL_BACKEND_URL` unset the `local-gpu` module is hidden and the host reports `keyframe` /
-  `motion.backend` unavailable rather than producing placeholder frames (local#229).
+- A GPU to bring the stack **up** (Ollama can run on CPU). You do need one to **render**: without a
+  door the `local-gpu` module is not in the stack at all, and the host reports `keyframe` /
+  `motion.backend` unavailable rather than producing placeholder frames (local#229, local#280).
 
 ## The three steps
 
@@ -84,8 +84,9 @@ One `compose.yaml` brings up:
    fits a 16GB door with headroom). `npm run compose:up` waits for the pull on first boot.
    Unloaded after plan and before keyframe (never concurrent with the door on the same card).
 4. **CPU media** -- `video-finish`, `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`.
-5. **Module sidecars** -- `local-gpu` (keyframe + motion; hidden when no door), plan-enhance, beat-sync,
-   audio-master, film-titles, subtitle, and the other CPU/chain modules.
+5. **Module sidecars** -- plan-enhance, beat-sync, audio-master, film-titles, subtitle, and the other
+   CPU/chain modules. `local-gpu` (keyframe + motion) joins only with the `localgpu` profile, i.e. once
+   you have a GPU door.
 
 Compose defaults `PLANNER_AI_MOCK=false` and points plan.enhance at Ollama. For offline CI without
 pulling a model, set `PLANNER_AI_MOCK=true`. On NVIDIA hosts sharing the door GPU, add
@@ -116,8 +117,9 @@ npm run conformance:compose
   `video-finish` to assemble. Optional CF AI Gateway only for dialogue/music/narration overlays.
   See [DEPLOYMENT.md](DEPLOYMENT.md).
 - **Real GPU (16GB door first):** run [`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)
-  (or the 12GB alternate) on your host; set `LOCAL_BACKEND_URL` and recreate `module-local-gpu`.
-  See [DEPLOYMENT.md](DEPLOYMENT.md).
+  (or the 12GB alternate) on your host; set `LOCAL_BACKEND_URL`, run `npm run install:studio` (it
+  enables the `localgpu` profile for you), then `docker compose up -d`.
+  See [DEPLOYMENT.md](DEPLOYMENT.md) and [install-profiles.md](install-profiles.md).
 - **Local finish sidecars:** `FINISH_BACKEND` already defaults to `local`; add `LOCAL_FINISH_*_URL`
   ([FINISH_BACKEND.md](FINISH_BACKEND.md)).
 - **Public HTTPS** (studio + MinIO for remote GPU fetch): [EDGE.md](EDGE.md)
@@ -133,8 +135,10 @@ npm run conformance:compose
 ## If something goes wrong
 
 - `curl :8790/health` fails: `docker compose ps` and `docker compose logs studio`.
-- Render fails with "no keyframe module": ensure `module-keyframe` and `module-local-gpu` are
-  healthy (`docker compose ps`).
+- Render fails with "no keyframe module", or the panel says keyframe/motion are unavailable: you have
+  no GPU door installed. Set `LOCAL_BACKEND_URL`, run `npm run install:studio`, and check
+  `docker compose ps` shows `module-local-gpu` healthy. If it is missing entirely, the `localgpu`
+  profile is off -- that is the no-door state, not a crash.
 - Smoke times out: `docker compose logs -f studio` while polling; CPU containers must be healthy.
 - Re-running `npm run compose:up` after pulling git is safe (re-pulls GHCR :latest).
 

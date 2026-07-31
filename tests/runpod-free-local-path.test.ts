@@ -110,13 +110,18 @@ describe("a door-configured studio renders without any RunPod credential", () =>
     expect(doorHits).toContain("POST /run");
   });
 
-  it("the module advertises itself as configured on a RunPod-free studio", async () => {
+  it("the module serves its real manifest on a RunPod-free studio", async () => {
+    // It does NOT self-report `configured` (local#280). Being in the stack IS being installed; the
+    // removed flag was a stand-in speaking for a module that might not be there, which Conrad
+    // rejected. A RunPod-free door studio advertises the door engine plainly.
     const app = createLocalGpuModuleApp(manifest, async () => noRunpodDoorEnv());
     const body = (await (await app.fetch(new Request("https://module/module.json"))).json()) as Record<
       string,
       unknown
     >;
-    expect(body.configured).toBe(true);
+    expect(Object.keys(body)).not.toContain("configured");
+    expect(body.name).toBe("local-gpu");
+    expect(body.hooks).toContain("motion.backend");
   });
 });
 

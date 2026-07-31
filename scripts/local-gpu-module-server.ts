@@ -2,9 +2,14 @@
 /**
  * local-gpu module sidecar: proxies to LOCAL_BACKEND_URL (homelab GPU door).
  *
- * There is NO mock fallback (local#229). With LOCAL_BACKEND_URL unset the sidecar still boots and
- * still answers /module.json -- with `configured: false`, so the panel hides the module and the host
- * says why -- and every /invoke refuses with a named error instead of writing fabricated frames.
+ * A DOOR IS A PRECONDITION, not a runtime branch (local#280). With LOCAL_BACKEND_URL unset this
+ * process exits before it binds a port -- it does not come up and describe itself as unconfigured.
+ * Compose keeps the whole lane out of the stack (`profiles: [localgpu]` + localgpu-door-gate); this
+ * check makes the same invariant true when the script is run by hand, so there is no entry point that
+ * yields a doorless local-gpu service.
+ *
+ * There is also no mock fallback: local#229 deleted the fabricators that used to fill this gap with a
+ * 1x1 PNG per keyframe and a black clip per shot.
  *
  * Usage: tsx scripts/local-gpu-module-server.ts <port>
  */
@@ -13,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalGpuModuleApp } from "../src/modules/local-gpu/app.js";
-import { localGpuEnvFromProcess } from "../src/modules/local-gpu/handlers.js";
+import { localGpuConfigured, localGpuEnvFromProcess } from "../src/modules/local-gpu/handlers.js";
 import { loadModuleRuntimeEnv } from "../src/platform/module-runtime-env.js";
 
 const port = Number(process.argv[2]);
@@ -31,12 +36,21 @@ async function getEnv() {
   return localGpuEnvFromProcess(runtime.asProcessEnv());
 }
 
+const startupEnv = await getEnv();
+if (!localGpuConfigured(startupEnv)) {
+  console.error(
+    "local-gpu: refusing to start with no GPU door.\n" +
+      "Set LOCAL_BACKEND_URL to an absolute http(s) URL (your vivijure-local-16gb / -12gb door),\n" +
+      "or drop 'localgpu' from COMPOSE_PROFILES to run this studio without a GPU door.",
+  );
+  process.exit(1);
+}
+
 const app = createLocalGpuModuleApp(manifest, getEnv);
 
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, async () => {
-  const env = await getEnv();
-  const mode = env.LOCAL_BACKEND_URL?.trim()
-    ? "door=configured"
-    : "no door: hidden from the panel until LOCAL_BACKEND_URL is set";
-  console.log(`local-gpu module on http://127.0.0.1:${port} (${mode})`);
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
+  // Presence, never the value: LOCAL_BACKEND_URL arrives through the same runtime-env bag as
+  // LOCAL_BACKEND_TOKEN (platform_secrets), so echoing it puts secret-store content in container logs
+  // (CodeQL js/clear-text-logging).
+  console.log(`local-gpu module on http://127.0.0.1:${port} (door=configured)`);
 });
