@@ -34,7 +34,7 @@ export const ARTIFACT_PREFIXES = [
 const ARTIFACT_SAFE_CT_RE =
   /^(image\/(png|jpe?g|webp|gif)|video\/(mp4|webm|quicktime)|audio\/[\w.+-]+|application\/(octet-stream|json|x-tar|zip|safetensors))$/i;
 
-function safeArtifactContentType(contentType: string): string {
+export function safeArtifactContentType(contentType: string): string {
   const t = (contentType || "").split(";")[0].trim();
   if (ARTIFACT_SAFE_CT_RE.test(t)) return t === "image/jpg" ? "image/jpeg" : t;
   return "application/octet-stream";

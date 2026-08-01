@@ -12,6 +12,7 @@ import {
   handleServeArtifact,
   handleUpload,
 } from "./artifacts.js";
+import { handleRenderFrames } from "./render-frames.js";
 import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
@@ -192,6 +193,19 @@ export function createApp(host: SettingsHost): Hono {
   };
 
   app.get("/api/artifact-url/*", artifactUrl);
+
+  // local#311 (cf#322 / cf PR #324 twin): sample a rendered clip into a jpeg contact sheet stored as a
+  // normal artifact, so a transport that can carry an image but not a video can actually SEE motion
+  // output. Placed beside the artifact routes it was built to feed, same as local#309.
+  app.post("/api/render/frames", async (c) => {
+    try {
+      return await handleRenderFrames(c.req.raw, platform);
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  });
 
   registerM3Routes(app, platform);
   registerM4Routes(app, platform);

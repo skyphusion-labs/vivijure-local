@@ -85,6 +85,9 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 - [x] `POST /api/upload`
 - [x] `GET /api/artifact/*key` (incl. Range)
+- [x] `GET /api/artifact-url/*key` (local#309, cf#317 twin -- found missing from this checklist
+  while doing local#311, added here rather than left stale)
+- [x] `POST /api/render/frames` (local#311, cf#322 / cf PR #324 twin)
 
 ## Prefs
 
