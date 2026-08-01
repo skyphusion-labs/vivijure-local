@@ -546,6 +546,23 @@
     return false;
   }
 
+  // Append one note per hook that projects to nothing. Returns whether anything was painted, so the
+  // caller can tell "the host explained the gap" from "nobody did" and fall back only in the second
+  // case. One implementation, because both branches of renderPanel need it and a second copy is a
+  // second thing to forget.
+  function paintGaps(root, notes) {
+    for (const gap of notes) {
+      const note = document.createElement("p");
+      note.className = "planner-overrides-hint planner-hook-gap";
+      note.dataset.hookGap = (gap.hooks || [gap.hook]).join(" ");
+      note.dataset.hookGapSource = gap.source;
+      note.setAttribute("role", "note");
+      note.textContent = gap.text;
+      root.appendChild(note);
+    }
+    return notes.length > 0;
+  }
+
   async function renderPanel() {
     const root = document.getElementById("planner-module-config");
     const motionWrap = document.getElementById("planner-motion-backend-wrap");
@@ -576,8 +593,32 @@
       motionWrap.hidden = false;
     }
 
+    // Computed BEFORE the keyframe early return, because that return is exactly the state local#297
+    // is about: a studio with no GPU door has no keyframe module, so this function used to stop here
+    // and print one hardcoded sentence -- and the host's own two reasons (keyframe AND motion.backend,
+    // both authored in src/local-door-availability.ts) were never rendered by anything.
+    const gapNotes = global.renderHookGaps
+      ? global.renderHookGaps.gaps(
+          hooks,
+          data.catalog,
+          data.hooks,
+          global.hookAvailabilityChecks ? global.hookAvailabilityChecks.unavailableHooks(data) : {},
+        )
+      : [];
+
     if (!(cache.keyframe || []).length) {
-      root.textContent = "no keyframe module installed; bind MODULE_KEYFRAME to render.";
+      // HOST-SOURCED NOTES ONLY on this branch, and the filter is load-bearing. An empty-chain note
+      // claims "renders are delivered without it", which is true when the pipeline runs and false
+      // here: with no keyframe engine nothing renders at all, so printing it about `finish` or
+      // `speech` would be reassuring the user about a render they cannot get. The host's reasons are
+      // safe on any branch because they are the host's own description of its own composition.
+      const painted = paintGaps(root, gapNotes.filter((g) => g.source === "host"));
+      // Fallback ONLY when the host explained nothing. The host's string names the knob and says what
+      // is not happening (local#226); this sentence is the blunt version, kept for a deploy that
+      // reports no reason at all rather than deleted and leaving silence.
+      if (!painted) {
+        root.textContent = "no keyframe module installed; bind MODULE_KEYFRAME to render.";
+      }
       if (motionWrap) motionWrap.hidden = true;
       return;
     }
@@ -610,22 +651,7 @@
     // render passes straight through it and the note says so POSITIVELY; an empty PICK_ONE hook is a
     // real hole and stays the host's story (host.hooks_unavailable), not a reassuring line from the
     // panel. Nothing here, or there, names a module -- a hook added next year is honest for free.
-    const gapNotes = global.renderHookGaps
-      ? global.renderHookGaps.gaps(
-          hooks,
-          data.catalog,
-          data.hooks,
-          global.hookAvailabilityChecks ? global.hookAvailabilityChecks.unavailableHooks(data) : {},
-        )
-      : [];
-    for (const gap of gapNotes) {
-      const note = document.createElement("p");
-      note.className = "planner-overrides-hint planner-hook-gap";
-      note.dataset.hookGap = gap.hook;
-      note.setAttribute("role", "note");
-      note.textContent = gap.text;
-      root.appendChild(note);
-    }
+    paintGaps(root, gapNotes);
     if (motionWrap && !motionShown && !motionWrap.querySelector(".planner-backend-selector")) {
       motionWrap.hidden = true;
     }

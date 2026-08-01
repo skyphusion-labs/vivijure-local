@@ -17,7 +17,10 @@ export interface CatalogRow {
 }
 
 export interface HookGap {
+  /** The first hook this note covers. */
   hook: string;
+  /** Every hook this note covers. More than one when the host gave them the same reason. */
+  hooks: string[];
   /** The line to render. VERBATIM from the host when source is "host". */
   text: string;
   source: "host" | "empty-chain";
