@@ -25,15 +25,23 @@
 //                                            delivered without it. Say so, positively.
 //
 //   PICK_ONE hook, zero serving modules   -> a HOLE, not an empty chain: there is no module to pick
-//                                            and the step cannot run. That story belongs to the HOST
-//                                            (`host.hooks_unavailable`, src/local-door-availability.ts),
-//                                            which can say what to install and why. Say nothing here
-//                                            rather than paper a hole over with a reassuring line.
+//                                            and the step cannot run. We may not claim the render is
+//                                            delivered without it, so we say nothing OF OUR OWN --
+//                                            but see below, because the HOST usually has plenty to
+//                                            say about exactly this case.
 //
-// WHERE THE HOST HAS ALREADY SPOKEN, THE HOST WINS. If `host.hooks_unavailable` carries the hook, its
-// reason is returned VERBATIM (never rewritten, prettified or softened -- the same doctrine
-// hook-availability-checks.js and finish-degrade.js hold). Without this branch a host-declared reason
-// on an empty hook has no control to attach to and would be rendered by nobody at all.
+// WHERE THE HOST HAS ALREADY SPOKEN, THE HOST WINS, WHATEVER THE CARDINALITY (local#297). If
+// `host.hooks_unavailable` carries the hook, its reason is returned VERBATIM (never rewritten,
+// prettified or softened -- the same doctrine hook-availability-checks.js and finish-degrade.js
+// hold), and that check runs BEFORE the cardinality question rather than after it.
+//
+// The order matters more than it looks. local#291 shipped this file with the pickOne skip placed
+// first, which silently swallowed the host's reason for exactly the hooks the host cares most about.
+// The shared cf#98 gate delivers a reason by finding a control that DECLARES the hook; with zero
+// serving modules nothing declares it, renderModuleSection never runs, and there is no element to
+// attach to. So for a pick_one hook with no modules this file is not one of several places the
+// reason could appear -- it is the ONLY one. Skipping here means the operator-actionable string in
+// src/local-door-availability.ts, written under the local#226 "name the knob" rule, reaches nobody.
 (function (root, factory) {
   var api = factory();
   if (typeof module !== "undefined" && module.exports) {
@@ -92,14 +100,26 @@
     for (var i = 0; i < hooks.length; i++) {
       var h = hooks[i];
       if (!h || !isNonEmptyString(h.hook)) continue;
-      // A hole is the host's story, not ours. See the header.
-      if (h.pickOne) continue;
+      // ORDER IS THE WHOLE FIX (local#297). Something serving the hook silences us; then the HOST's
+      // own reason, which is cardinality-independent; and only then the cardinality question, which
+      // governs what WE are allowed to claim when the host said nothing.
+      //
+      // local#291 put the pickOne skip first, and that one line is what orphaned the host's reason.
+      // A pick_one hook with zero serving modules is precisely where the host has the most to say
+      // and the panel has the least: nothing declares the hook, so renderModuleSection never runs,
+      // so the shared cf#98 gate has no element to attach the reason to and NOBODY renders it. The
+      // careful operator-actionable string in src/local-door-availability.ts was written, tested,
+      // and shipped to no reader at all.
       var serving = index[h.hook];
       if (Array.isArray(serving) && serving.length > 0) continue;
       if (Object.prototype.hasOwnProperty.call(un, h.hook) && isNonEmptyString(un[h.hook])) {
         out.push({ hook: h.hook, text: un[h.hook].trim(), source: "host" });
         continue;
       }
+      // A HOLE THE HOST DID NOT EXPLAIN. We have nothing true to say: the empty-chain sentence below
+      // claims the render is delivered without this step, which is false for a pick_one hook that
+      // cannot run at all. Say nothing rather than reassure wrongly.
+      if (h.pickOne) continue;
       out.push({ hook: h.hook, text: emptyChainNote(h.hook, blurbFor(catalog, h.hook)), source: "empty-chain" });
     }
     return out;
