@@ -9,7 +9,7 @@
 // a self-host studio has no Workers binding at all. Shipping cf's text here would tell a homelabber
 // to set something that does not exist on their machine.
 
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import { testSettingsHost } from "./test-host.js";
 import { createApp } from "../src/app.js";
 import { _resetModuleDiscoveryCache, MODULE_API, type ModulesResponse } from "@skyphusion-labs/vivijure-core";
@@ -131,6 +131,14 @@ const FULLY_CONFIGURED = {
   ...GATEWAY_CONFIGURED,
   VIDEO_FINISH_URL: "http://video-finish:8080",
 };
+
+// Reset BEFORE each test too, not just after: if the PREVIOUS test times out, vitest does not
+// cancel its still-running body, so a straggler write can land after that test's own afterEach
+// already ran. A beforeEach reset closes that window regardless of what the prior test did
+// (local#282) -- the other two files hit by the same CI flake already reset here for that reason.
+beforeEach(() => {
+  _resetModuleDiscoveryCache();
+});
 
 afterEach(() => {
   _resetModuleDiscoveryCache();
