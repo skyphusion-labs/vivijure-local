@@ -508,6 +508,7 @@ export async function invokeSpeechUpscale(
     return {
       ok: true,
       pending: true,
+      jobId,
       poll: encodeSpeechPoll({
         jobId,
         shotId: input.shot_id,

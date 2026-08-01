@@ -14,6 +14,7 @@ import {
   type Platform,
 } from "./platform/index.js";
 import { RuntimeEnv } from "./platform/runtime-env.js";
+import { runpodJobRecorder } from "./runpod-job-log.js";
 import { applyRuntimeEnvToPlatform } from "./platform/reload.js";
 import type { SettingsHost } from "./routes/m8-settings.js";
 
@@ -56,7 +57,7 @@ export async function buildStudio(): Promise<StudioBoot> {
     chatBucket: storage.chatBucket,
     presigner: storage.presigner,
     secrets: new RuntimeSecretStore(runtime),
-    modules: createModuleTransport(runtime.asProcessEnv()),
+    modules: createModuleTransport(runtime.asProcessEnv(), runpodJobRecorder(db)),
     vars: {
       AUTH_MODE: env("AUTH_MODE", "token"),
       STUDIO_API_TOKEN: runtime.get("STUDIO_API_TOKEN"),
