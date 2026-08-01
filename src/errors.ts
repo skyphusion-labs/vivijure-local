@@ -9,6 +9,7 @@ export class HttpError extends Error {
 export const badRequest = (message: string) => new HttpError(400, message);
 export const forbidden = (message: string) => new HttpError(403, message);
 export const notFound = (message = "not found") => new HttpError(404, message);
+export const serviceUnavailable = (message: string) => new HttpError(503, message);
 
 export function httpErrorResponse(err: unknown): Response | null {
   if (err instanceof HttpError) {
