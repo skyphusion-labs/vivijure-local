@@ -188,6 +188,7 @@ export async function invokeFixedMotion(
         submittedAt: Date.now(),
         extra: { module: name },
       }),
+      jobId,
     };
   } catch (e) {
     return { ok: false, error: `${name} submit failed: ${(e as Error).message}` };

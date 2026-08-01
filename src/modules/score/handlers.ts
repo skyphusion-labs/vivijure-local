@@ -239,6 +239,7 @@ async function submitNarrationRunpod(
     return {
       ok: true,
       pending: true,
+      jobId: runpodJobId,
       poll: encodeNarrationPoll({ jobId: runpodJobId, job_id: jobId, film_key: filmKey, format, submittedAt: Date.now() }),
     };
   } catch (e) {

@@ -167,6 +167,7 @@ export async function invokeOwnGpu(
         shotId: input.shot_id,
         submittedAt: Date.now(),
       }),
+      jobId,
     };
   } catch (e) {
     return { ok: false, error: `own-gpu submit failed: ${(e as Error).message}` };
@@ -252,6 +253,7 @@ async function invokeFinish(
     return {
       ok: true,
       pending: true,
+      jobId,
       poll: encodeFinishPoll({
         jobId,
         shotId: input.shot_id,
