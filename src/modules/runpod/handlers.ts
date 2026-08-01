@@ -20,6 +20,7 @@ import {
   reconcileWorkersMaxOrError,
   runpodBase,
   runpodJobGone,
+  runpodFaultMarkers,
   runpodTerminalFailure,
   terminalErrorInOutput,
 } from "./shared.js";
@@ -114,7 +115,7 @@ export async function pollKeyframeRunpod(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure("keyframe", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
@@ -199,7 +200,7 @@ export async function pollOwnGpu(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure("own-gpu", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
@@ -294,7 +295,7 @@ async function pollFinish(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure(moduleName, s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };

@@ -23,10 +23,10 @@ import {
   parseFinishOutput,
   passthroughOutput,
 } from "../runpod/finish-core.js";
-import { classifyGoneState, runpodJobGone, runpodTerminalFailure, terminalErrorInOutput } from "../runpod/shared.js";
+import { classifyGoneState, runpodJobGone, runpodFaultMarkers, runpodTerminalFailure, terminalErrorInOutput } from "../runpod/shared.js";
 import { ensureOllamaUnloadedForGpu } from "../chain/ollama.js";
 
-/** Local HTTP finish modules only — finish-rife has no local image (Conrad 2026-07-28). */
+/** Local HTTP finish modules only; finish-rife has no local image (Conrad 2026-07-28). */
 export type LocalFinishModuleName = "finish-lipsync" | "finish-upscale";
 
 export function localFinishEnvFromProcess(env: NodeJS.ProcessEnv): FinishBackendEnv {
@@ -126,7 +126,7 @@ export async function pollLocalFinish(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure(moduleName, s);
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };

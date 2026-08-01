@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
 import type { Database } from "../src/platform/types.js";
-import { recordRunpodJob, DETAIL_MAX, RUNPOD_JOB_LOG_TIMEOUT_MS } from "../src/runpod-job-log.js";
+import { recordRunpodJob, DETAIL_MAX, ERROR_TYPE_MAX, RUNPOD_JOB_LOG_TIMEOUT_MS, RUNPOD_JOB_LOG_UPSERT } from "../src/runpod-job-log.js";
 import { HttpModuleTransport, moduleLabelFromBinding, type ModuleJobEvent } from "../src/platform/modules.js";
 
 function realDb(): Database {
@@ -253,5 +253,120 @@ describe("the transport seam: what the studio can observe, and what it must not 
     // Documented divergence: this binding serves the compose service module-plan-enhance, so the
     // label is NOT the manifest name. The column is a machine label for grouping, not a join key.
     expect(moduleLabelFromBinding("MODULE_PLANENHANCE")).toBe("planenhance");
+  });
+});
+
+// ------------------------------------------------------------------------------------------------
+// migrations/0017 + the cf#286/#288/#298 parity (twin of vivijure-cf PR #304). Same realDb harness,
+// so every assertion below is against the SHIPPED migration and the SHIPPED statement.
+// ------------------------------------------------------------------------------------------------
+
+describe("error_type, against the real migration", () => {
+  it("migration 0017 actually applied (control: the assertions below are otherwise vacuous)", async () => {
+    const db = realDb();
+    const col = await db
+      .prepare("SELECT COUNT(*) AS n FROM pragma_table_info('runpod_job_log') WHERE name = ?")
+      .bind("error_type")
+      .first<{ n: number }>();
+    expect(col?.n).toBe(1);
+    // CONTROL: the same probe returns 0 for a column that does not exist, so the 1 above is a
+    // measurement and not a query that returns 1 for anything.
+    const absent = await db
+      .prepare("SELECT COUNT(*) AS n FROM pragma_table_info('runpod_job_log') WHERE name = ?")
+      .bind("no_such_column")
+      .first<{ n: number }>();
+    expect(absent?.n).toBe(0);
+  });
+
+  it("writes the class on a fault, and NULL when there was none (CONTROL pair)", async () => {
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "jA", module: "own-gpu", outcome: "failed", submittedAtMs: 1_700_000_000_000, detail: "boom", errorType: "HarnessError" }, 1_700_000_060_000);
+    await recordRunpodJob(db, { jobId: "jB", module: "own-gpu", outcome: "failed", submittedAtMs: 1_700_000_000_000, detail: "boom" }, 1_700_000_060_000);
+    const [a, b] = await rows(db);
+    expect(a.error_type).toBe("HarnessError");
+    expect(b.error_type).toBeNull();
+  });
+
+  it("an empty class is stored as NULL, not as a blank label", async () => {
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "failed", errorType: "" });
+    const [row] = await rows(db);
+    expect(row.error_type).toBeNull();
+  });
+
+  it("bounds the class at the statement so a vendor sentence cannot widen the row", async () => {
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "failed", errorType: "y".repeat(500) });
+    const [row] = await rows(db);
+    expect(String(row.error_type)).toHaveLength(ERROR_TYPE_MAX);
+  });
+
+  it("a later CLASSLESS write cannot erase a class an earlier write established", async () => {
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "submitted", submittedAtMs: 1_700_000_000_000 });
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "failed", detail: "first", errorType: "HarnessError" }, 1_700_000_060_000);
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "completed" }, 1_700_000_120_000);
+    const [row] = await rows(db);
+    // first-terminal-write-wins still holds, AND the class survived the classless third write.
+    expect(row.outcome).toBe("failed");
+    expect(row.error_type).toBe("HarnessError");
+    expect(row.terminal_at).toBe(1_700_000_060);
+  });
+
+  it("COALESCEs error_type but NOT outcome (control: a matcher for any COALESCE proves nothing)", () => {
+    expect(RUNPOD_JOB_LOG_UPSERT).toContain("error_type = COALESCE(excluded.error_type, runpod_job_log.error_type)");
+    expect(RUNPOD_JOB_LOG_UPSERT).toContain("outcome = excluded.outcome");
+    expect(RUNPOD_JOB_LOG_UPSERT).not.toContain("outcome = COALESCE");
+  });
+});
+
+describe("cancelled, against the real migration (cf#298)", () => {
+  it("stores the value the closed set could not previously express", async () => {
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "j", module: "own-gpu", outcome: "submitted", submittedAtMs: 1_700_000_000_000 });
+    await recordRunpodJob(db, { jobId: "j", module: "own-gpu", outcome: "cancelled" }, 1_700_000_060_000);
+    const [row] = await rows(db);
+    expect(row.outcome).toBe("cancelled");
+    expect(row.terminal_at).toBe(1_700_000_060);
+  });
+
+  it("DISCRIMINATES: cancelled is TERMINAL, so it closes the row rather than leaving it open", async () => {
+    // Without this, a value added to the union but missed by the submitted-only terminal_at rule
+    // would store the label and leave terminal_at NULL, which reads as an in-flight job -- exactly
+    // the stuck-row state cf#298 is about, reintroduced by the fix for it.
+    const db = realDb();
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "cancelled" }, 1_700_000_060_000);
+    const [row] = await rows(db);
+    expect(row.terminal_at).not.toBeNull();
+  });
+});
+
+describe("the cf#298 retry", () => {
+  it("retries ONCE when the write fails, and the second attempt lands", async () => {
+    let attempts = 0;
+    const db = {
+      prepare: () => ({
+        bind: () => ({
+          run: async () => {
+            attempts += 1;
+            if (attempts === 1) throw new Error("transient");
+            return { success: true };
+          },
+        }),
+      }),
+    } as unknown as Database;
+    await expect(recordRunpodJob(db, { jobId: "j", module: "m", outcome: "failed" })).resolves.toBeUndefined();
+    expect(attempts).toBe(2);
+  });
+
+  it("DISCRIMINATES: a write that succeeds first time is attempted exactly once", async () => {
+    // Without this, an unconditional double-write would pass the assertion above while doubling the
+    // database traffic of every job in the studio.
+    let attempts = 0;
+    const db = {
+      prepare: () => ({ bind: () => ({ run: async () => { attempts += 1; return { success: true }; } }) }),
+    } as unknown as Database;
+    await recordRunpodJob(db, { jobId: "j", module: "m", outcome: "failed" });
+    expect(attempts).toBe(1);
   });
 });

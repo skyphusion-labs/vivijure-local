@@ -29,6 +29,9 @@ export interface ModuleJobEvent {
   outcome: RunpodJobOutcome;
   submittedAtMs?: number;
   detail?: string;
+  /** cf#288: the fault CLASS, carried across the envelope by the module poll because the studio
+   *  never sees the RunPod /status payload. Absent means the endpoint did not report one. */
+  errorType?: string;
 }
 
 /** Sink for job events. MUST NOT throw: the transport calls it inside a try, but a sink that throws
@@ -138,10 +141,20 @@ export class HttpModuleTransport implements ModuleTransport {
         return;
       }
       const detail = typeof body.error === "string" ? body.error.slice(0, DETAIL_MAX) : undefined;
-      // ONLY failed is reachable here. The module poll collapses backend-error and gone into the same
-      // {ok:false, error: prose} shape, so the studio cannot tell them apart without matching English
-      // error sentences. See migrations/0016_runpod_job_log.sql.
-      this.recorder({ ...job, outcome: "failed", detail });
+      // cf#288: the fault CLASS, read from the STRUCTURED marker the module poll now carries. Never
+      // derived from `error`, which is prose. Absent stays absent: the recorder writes NULL, and NULL
+      // means "the endpoint did not tell us", never "this was not a refusal".
+      const errorType = typeof body.errorType === "string" && body.errorType ? body.errorType : undefined;
+      // cf#298: a CANCELLED job gets its own outcome instead of being flattened into `failed`. The
+      // module poll already distinguishes the three terminal-failure statuses (runpodTerminalFailure,
+      // local#47); until now that distinction died at the envelope. Anything else stays `failed`.
+      //
+      // backend-error and gone are still NOT reachable here, and that is unchanged by this: those two
+      // are collapsed by the module poll into the same {ok:false, error: prose} shape and separating
+      // them studio-side would mean matching English error sentences. See
+      // migrations/0016_runpod_job_log.sql. This narrows the gap, it does not close it.
+      const outcome: RunpodJobOutcome = body.runpodStatus === "CANCELLED" ? "cancelled" : "failed";
+      this.recorder({ ...job, outcome, detail, errorType });
     } catch {
       // Telemetry must never affect a render.
     }
