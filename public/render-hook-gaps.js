@@ -122,6 +122,35 @@
       if (h.pickOne) continue;
       out.push({ hook: h.hook, text: emptyChainNote(h.hook, blurbFor(catalog, h.hook)), source: "empty-chain" });
     }
+    return collapse(out);
+  }
+
+  /**
+   * Merge notes whose TEXT is identical, keeping the first position and naming every hook covered.
+   *
+   * The host maps several hooks to ONE reason deliberately: src/local-door-availability.ts gives
+   * `keyframe` and `motion.backend` the same string, because one absent GPU engine is one fact about
+   * the studio rather than two. Painting it per hook printed the identical paragraph twice in a row,
+   * which reads as a rendering bug and buries the instruction by repeating it.
+   *
+   * Found in a browser, and only there: every DOM assertion passed on the duplicated version, because
+   * two correct notes ARE two correct notes. Nothing is lost by collapsing -- the text is identical
+   * by definition, and `hooks` keeps the full list for anything reading the DOM.
+   */
+  function collapse(notes) {
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < notes.length; i++) {
+      var n = notes[i];
+      var key = n.source + "\u0000" + n.text;
+      if (Object.prototype.hasOwnProperty.call(seen, key)) {
+        seen[key].hooks.push(n.hook);
+        continue;
+      }
+      var merged = { hook: n.hook, hooks: [n.hook], text: n.text, source: n.source };
+      seen[key] = merged;
+      out.push(merged);
+    }
     return out;
   }
 

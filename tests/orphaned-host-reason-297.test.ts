@@ -228,10 +228,36 @@ const DOORLESS_REASONS = {
 // --------------------------------------------------------------------------- the defect
 
 describe("a doorless studio renders the host's reason, not silence", () => {
-  it("paints the host reason for BOTH pick_one hooks it reported", async () => {
+  it("covers BOTH pick_one hooks the host reported", async () => {
     const out = await render(doorlessPayload(DOORLESS_REASONS));
-    expect(out.notes.map((n) => n.hook).sort()).toEqual(["keyframe", "motion.backend"]);
-    for (const n of out.notes) expect(n.source).toBe("host");
+    // ONE note naming BOTH hooks, not two notes: the host gives them the same reason on purpose (one
+    // absent GPU engine is one fact about the studio), so the collapse below is what keeps that from
+    // printing as a doubled paragraph. Both hooks still have to be named in the DOM.
+    expect(out.notes).toHaveLength(1);
+    expect(out.notes[0].hook.split(" ").sort()).toEqual(["keyframe", "motion.backend"]);
+    expect(out.notes[0].source).toBe("host");
+  });
+
+  it("prints one identical reason ONCE, not once per hook", async () => {
+    // Found in a browser and nowhere else: the reason rendered twice, verbatim, back to back. Every
+    // DOM assertion passed on that version, because two correct notes ARE two correct notes. Counting
+    // occurrences in the rendered text is what distinguishes it.
+    const out = await render(doorlessPayload(DOORLESS_REASONS));
+    const occurrences = out.text.split(LOCAL_DOOR_UNAVAILABLE_REASON).length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it("...but two DIFFERENT reasons stay two notes (positive control for the collapse)", async () => {
+    // Without this, the collapse could be satisfied by merging everything into one note and losing a
+    // reason the operator needs. Only identical text may merge.
+    const out = await render(
+      doorlessPayload({
+        keyframe: LOCAL_DOOR_UNAVAILABLE_REASON,
+        "motion.backend": "A different reason entirely, which must not be swallowed by the collapse.",
+      }),
+    );
+    expect(out.notes).toHaveLength(2);
+    expect(out.text).toContain("must not be swallowed by the collapse");
   });
 
   it("renders that reason VERBATIM, read from the module rather than hand-copied", async () => {

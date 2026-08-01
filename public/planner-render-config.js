@@ -554,7 +554,7 @@
     for (const gap of notes) {
       const note = document.createElement("p");
       note.className = "planner-overrides-hint planner-hook-gap";
-      note.dataset.hookGap = gap.hook;
+      note.dataset.hookGap = (gap.hooks || [gap.hook]).join(" ");
       note.dataset.hookGapSource = gap.source;
       note.setAttribute("role", "note");
       note.textContent = gap.text;
