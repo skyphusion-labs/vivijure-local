@@ -7,6 +7,22 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(artifacts): honest /api/artifact-url on the self-host door (local#309)
+
+Parity with vivijure-cf#317 (v1.16.0): `GET /api/artifact-url/*key` turns an artifact key into a
+fetchable URL plus the object's real content type and size, so `list_renders`' `output_key` and
+`keyframes[].key` stop being dead ends on this door too. Same guards as the serve route (key-safety
++ known-prefix check, existence checked before ever minting a URL) and the same TTL contract as cf:
+`expires_in` clamps into [60, 3600]s, default 300, and a caller can never widen it.
+
+The trap this port had to avoid: the filesystem presigner (`LocalObjectPresigner.presignGet`)
+silently dropped the requested TTL and returned a URL embedding the full studio bearer token as a
+query param -- the exact inverse of the scope-and-expiry guarantees a presigned URL rests on. It had
+zero callers, so nothing ever shipped that URL to anyone; the hazard was in the path of this port,
+not in the running product. It now refuses honestly instead of pretending: `presignGet` throws with
+an actionable message (configure MinIO / S3_ENDPOINT), and the route turns that refusal into a 503.
+The MinIO/S3 backend is unaffected and mints a real, key-scoped, TTL-clamped presigned GET.
+
 ### feat(telemetry): durable RunPod job log on the self-host door (local#294)
 
 Parity with vivijure-cf#279. Every RunPod job this studio submits gets a durable row

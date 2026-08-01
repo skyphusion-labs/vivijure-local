@@ -62,5 +62,6 @@
     "order": 10
   },
   "cancelable": true,
-  "keyframe_label": "SDXL"
+  "keyframe_label": "SDXL",
+  "needs_tenant_r2": true
 }

@@ -1,4 +1,5 @@
 {
+  "needs_tenant_r2": true,
   "name": "own-gpu",
   "version": "0.2.0",
   "api": "vivijure-module/2",

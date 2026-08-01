@@ -5,7 +5,13 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gateApi } from "./auth-gate.js";
-import { artifactKeyFromPath, handleServeArtifact, handleUpload } from "./artifacts.js";
+import {
+  artifactKeyFromPath,
+  artifactUrlKeyFromPath,
+  handleArtifactUrl,
+  handleServeArtifact,
+  handleUpload,
+} from "./artifacts.js";
 import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
@@ -171,6 +177,21 @@ export function createApp(host: SettingsHost): Hono {
   };
 
   app.on(["GET", "HEAD"], "/api/artifact/*", serveArtifact);
+
+  // local#309 (cf#317 twin): turn an artifact KEY into a fetchable URL, so list_renders output_key /
+  // keyframes[].key stop being dead ends on the self-host door too.
+  const artifactUrl = async (c: { req: { raw: Request; path: string } }) => {
+    try {
+      const key = artifactUrlKeyFromPath(c.req.path);
+      return await handleArtifactUrl(c.req.raw, store(), platform.presigner, key);
+    } catch (e) {
+      const res = httpErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+  };
+
+  app.get("/api/artifact-url/*", artifactUrl);
 
   registerM3Routes(app, platform);
   registerM4Routes(app, platform);
