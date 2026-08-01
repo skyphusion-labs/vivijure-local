@@ -18,6 +18,7 @@ import {
   encodePoll,
   runpodBase,
   runpodJobGone,
+  runpodFaultMarkers,
   runpodTerminalFailure,
   terminalErrorInOutput,
 } from "./shared.js";
@@ -223,7 +224,7 @@ export async function pollFixedMotion(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure(name, s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };

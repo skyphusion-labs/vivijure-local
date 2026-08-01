@@ -1,0 +1,46 @@
+-- runpod_job_log: a machine-readable discriminator beneath `outcome` (cf#288, cf PR #304).
+--
+-- PARITY: this is the vivijure-cf twin of migrations/0015_runpod_job_log_error_type.sql. Same column,
+-- same type, same bound, same meaning for NULL. cf#286 and cf#288 both state the change lands on both
+-- doors in the SAME sprint, because migrations/0016 shipped cf's outcome vocabulary VERBATIM so a
+-- cross-door query cannot need two shapes. A column added to one door and not the other reintroduces
+-- exactly the divergence that decision existed to prevent.
+--
+-- WHY. `outcome = failed` absorbs three different things a reader cannot separate: a DELIBERATE
+-- REFUSAL (the backend raised on validation), a genuine HANDLER FAULT, and genuine INFRA (OOM,
+-- eviction, worker crash). All three arrive from RunPod as FAILED. The only thing that tells them
+-- apart is the exception class, and on cf it survived only inside the 160-char `detail` and only
+-- because `error_type` happens to be the FIRST key RunPod emits (measured: 1071-char payload, class
+-- ends at char 73). Nothing establishes that ordering. When it changes the numbers do not break, they
+-- quietly stop meaning what they say.
+--
+-- WHAT GOES IN IT. The exception CLASS as a short machine label, extracted at WRITE time from the
+-- structured `error_type` key and normalised from
+-- "<class 'vivijure_backend.harness.handler.HarnessError'>" to "HarnessError". Machine-generated
+-- content only, the same convention as every other column here.
+--
+-- WHY NOT PARSE THE MESSAGE. Classifying by matching English error sentences is a parser only as
+-- fresh as the sample it was built from. Those strings are ordinary prose, they are not marked
+-- load-bearing anywhere, and someone will reword one without knowing a classification depends on it.
+-- This column reads a STRUCTURED key or it reads nothing.
+--
+-- NULL MEANS THE ENDPOINT DID NOT TELL US, WHICH IS NOT "THIS WAS NOT A REFUSAL". Carried across from
+-- cf deliberately, because it is the part most easily lost in translation. An unknown class must stay
+-- distinguishable from a known one, exactly as `submitted_at` already treats an unknown submit time.
+--
+-- THIS DOOR CAN ACTUALLY POPULATE IT, and that is worth stating because migrations/0016 says the
+-- opposite about its siblings. 0016 records that `backend-error` and `gone` are in the closed set for
+-- parity but CANNOT be produced here, because the module poll collapses every failure into
+-- {ok:false, error: <prose>} before the studio sees it. That is true of `backend-error` and `gone` and
+-- it is NOT true of the fault class: the RunPod /status payload is in hand at the module poll seam
+-- (src/modules/runpod/handlers.ts reads `s.error` directly), so the class is DISCARDED at the
+-- envelope rather than destroyed at the source. The same additive envelope move local#301 used for
+-- `jobId` one commit ago recovers it, so this column has a real producer here and is not decorative.
+--
+-- HISTORICAL ROWS ARE NOT BACKFILLED AND NOT REINTERPRETED. Every row written before this migration
+-- gets NULL. Mining a class out of a bounded `detail` blob to populate a column that is supposed to be
+-- structured would manufacture exactly the confidence that data does not support. Anything
+-- summarising by error_type must treat NULL as unknown, never as a fourth category.
+--
+-- Additive (ADD COLUMN only, no default, no rewrite) -> rides the normal auto-apply.
+ALTER TABLE runpod_job_log ADD COLUMN error_type TEXT;
