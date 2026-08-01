@@ -7,6 +7,30 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(telemetry): durable RunPod job log on the self-host door (local#294)
+
+Parity with vivijure-cf#279. Every RunPod job this studio submits gets a durable row
+(migration 0016, table runpod_job_log), one write at submit and one at the terminal outcome, so a
+self-hosting operator whose satellite jobs are failing can answer what failed after the fact.
+RunPod cannot enumerate jobs and its /status is by id only, so a job id we do not keep is
+unreachable permanently.
+
+Schema is the cf table VERBATIM, including the closed outcome set, so a fix on one door is a fix on
+both. The WRITER differs by design: cf modules hold their own D1 binding and write their own row,
+while on this door no module has database access at all, so the studio writes at the one seam every
+module call passes through. A missing module-side write here is intentional.
+
+Two limits are stated in the migration header rather than left to be discovered:
+
+- outcome can hold submitted, completed and failed on this door; it CANNOT hold backend-error or
+  gone, because the module poll collapses every failure into a prose error before the studio sees
+  it. The absence of those rows means CANNOT EXPRESS, never DID NOT HAPPEN.
+- a terminal outcome whose submit happened in a previous studio process is not attributed; that row
+  keeps its open state rather than being assigned a fabricated one.
+
+Telemetry is best-effort by contract: the write never throws, never rejects, and never delays a
+render by more than 2s. Each failure mode is made to fail on purpose in the tests.
+
 ### feat(planning): stamp `module` and `default` on projected catalog rows (local#101)
 
 Additive wire fields on GET `/api/storyboard/models` (and the planning half of `/api/models`):
