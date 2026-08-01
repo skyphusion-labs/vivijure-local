@@ -96,19 +96,22 @@ describe("absence: nothing a local install stands up advertises RIFE", () => {
     expect(mods.length).toBeGreaterThan(10);
   });
 
-  it("every module the fleet stands up has a compose service behind it", () => {
-    // THE RULE THE FLEET LIST HAS TO OBEY, stated as an invariant rather than as one banned name: a
-    // manifest-only sidecar stands in for the DISCOVERY of a module, so it is honest only while the
-    // module is one a local install can actually bring up. finish-rife was the only entry that
-    // failed this, which is exactly why it was the one advertising a capability with nothing behind
-    // it. Naming-convention note: the fleet uses the module name, compose prefixes it `module-`,
-    // except the two finish sidecars compose names after the module and the local-gpu door.
-    const services = new Set(composeServices());
-    const missing = devFleetModules().filter(
-      (m) => !services.has(`module-${m}`) && !services.has(m),
-    );
-    expect(missing).toEqual([]);
-  });
+  // THE GENERAL RULE THIS INSTANCE PROVED (a fleet entry needs a compose service behind it) now
+  // lives in tests/module-registration-guard-293.test.ts, applied to every entry and to the compose
+  // env surface as well. It was asserted here first; keeping a second copy would mean two places to
+  // update and one of them going stale.
+  //
+  // Two corrections to what this file originally claimed, both found by deriving the mapping from
+  // the files instead of from memory while building that guard:
+  //
+  //   1. The naming is UNIFORM. This test used to note that the finish sidecars and the local-gpu
+  //      door were named differently and that a general check would need an alias table. They are
+  //      not: every one of the fourteen entries maps by the plain `module-` prefix.
+  //   2. The old assertion also accepted a BARE service name as a fallback. That is a loose matcher:
+  //      compose declares a bare `audio-master` service (the CPU ffmpeg container) next to
+  //      `module-audio-master` (the sidecar), so the fallback would have accepted the fleet's
+  //      `audio-master` entry on the strength of a container that serves no manifest at all. The
+  //      guard requires `module-<name>` exactly.
 });
 
 describe("the fixture is a fixture, not an installed module", () => {
