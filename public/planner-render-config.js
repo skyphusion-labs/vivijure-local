@@ -597,6 +597,35 @@
     // would apply the determination to them without this. Same call the history list makes for
     // its dynamically built rows; apply() is idempotent and inert when nothing is unavailable.
     if (global.hookAvailability) global.hookAvailability.apply(root);
+
+    // local#291: a hook that projects to nothing used to render NOTHING at all, so a step this
+    // studio does not run was simply invisible. That silence became load-bearing when finish-rife
+    // left the local fleet: it has no local implementation, so removing it is right (an absent
+    // capability is absent, local#280), but it turned a dishonest section into a blank space, and a
+    // blank space is how "this studio finishes on CPU, without frame interpolation" reads as
+    // "something is missing here".
+    //
+    // The lines come from the pure helper (public/render-hook-gaps.js), which decides off the
+    // CATALOG rather than off feature knowledge: an empty CHAIN hook is a fold over nothing, so the
+    // render passes straight through it and the note says so POSITIVELY; an empty PICK_ONE hook is a
+    // real hole and stays the host's story (host.hooks_unavailable), not a reassuring line from the
+    // panel. Nothing here, or there, names a module -- a hook added next year is honest for free.
+    const gapNotes = global.renderHookGaps
+      ? global.renderHookGaps.gaps(
+          hooks,
+          data.catalog,
+          data.hooks,
+          global.hookAvailabilityChecks ? global.hookAvailabilityChecks.unavailableHooks(data) : {},
+        )
+      : [];
+    for (const gap of gapNotes) {
+      const note = document.createElement("p");
+      note.className = "planner-overrides-hint planner-hook-gap";
+      note.dataset.hookGap = gap.hook;
+      note.setAttribute("role", "note");
+      note.textContent = gap.text;
+      root.appendChild(note);
+    }
     if (motionWrap && !motionShown && !motionWrap.querySelector(".planner-backend-selector")) {
       motionWrap.hidden = true;
     }

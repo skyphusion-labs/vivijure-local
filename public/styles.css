@@ -1416,3 +1416,21 @@ body.demo-steer-active #planner-history { display: none !important; }
   opacity: 0.75;
 }
 .studio-foot a { color: inherit; }
+
+/* local#291: the empty-hook note in the render panel. A step this studio does not run is a FACT,
+ * not a fault, so this is deliberately the quietest note on the page: no warn colour, no border, no
+ * dimming of anything around it. It inherits .planner-overrides-hint and only adds the width cap
+ * the other notes carry, so a two-sentence line wraps like prose instead of running the panel wide.
+ * Dressing it as a warning would re-create the defect from the other side: the honest local finish
+ * path (a CPU assemble with no interpolation) is a complete render, and a yellow line saying so
+ * would read as breakage. */
+.planner-hook-gap {
+  /* #planner-module-config is a GRID, so a bare <p> becomes a grid ITEM and the note lands in a
+   * column beside the module sections, reading as one more loose cell rather than as a statement
+   * about the panel. Span the full row instead. Same class of defect the cf#234 rule above fixes
+   * for .hook-unavailable-note inside .pipeline-stages, and it is only visible in a browser: the
+   * DOM assertions pass identically either way. */
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  max-width: 72ch;
+}
