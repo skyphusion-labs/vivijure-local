@@ -39,9 +39,17 @@ jobs:
         with:
           repository: skyphusion-labs/vivijure-cf
           path: vivijure
+          # EVERY PATH THESE TWO MODULES IMPORT HAS TO BE IN THIS LIST, not just the module dirs.
+          # A sparse checkout that misses one does not fail at checkout; it fails later as
+          # ERR_MODULE_NOT_FOUND inside a test, reading like our bug rather than a missing file.
+          # modules/_shared is imported by BOTH (`../../_shared/runpod-job-log`, keyframe
+          # src/index.ts:27 and own-gpu src/index.ts:28) and its absence reds every PR in this repo.
+          # Before trimming this list, grep the checked-out modules for relative imports that
+          # escape their own directory.
           sparse-checkout: |
             modules/keyframe
             modules/own-gpu
+            modules/_shared
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v7
         with:
