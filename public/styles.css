@@ -1425,6 +1425,12 @@ body.demo-steer-active #planner-history { display: none !important; }
  * path (a CPU assemble with no interpolation) is a complete render, and a yellow line saying so
  * would read as breakage. */
 .planner-hook-gap {
-  margin-top: 8px;
-  max-width: 60ch;
+  /* #planner-module-config is a GRID, so a bare <p> becomes a grid ITEM and the note lands in a
+   * column beside the module sections, reading as one more loose cell rather than as a statement
+   * about the panel. Span the full row instead. Same class of defect the cf#234 rule above fixes
+   * for .hook-unavailable-note inside .pipeline-stages, and it is only visible in a browser: the
+   * DOM assertions pass identically either way. */
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  max-width: 72ch;
 }

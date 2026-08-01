@@ -29,5 +29,5 @@ export function gaps(
   panelHooks: PanelHook[] | null | undefined,
   catalog: CatalogRow[] | null | undefined,
   hooksIndex: Record<string, string[]> | null | undefined,
-  unavailable: Record<string, string> | null | undefined,
+  unavailable?: Record<string, string> | null,
 ): HookGap[];
