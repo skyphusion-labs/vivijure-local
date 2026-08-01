@@ -2,6 +2,7 @@
 
 import type { Platform } from "./types.js";
 import { createModuleTransport } from "./modules.js";
+import { runpodJobRecorder } from "../runpod-job-log.js";
 import { createStorage } from "./create-storage.js";
 import { RuntimeSecretStore } from "./runtime-secrets.js";
 import type { RuntimeEnv } from "./runtime-env.js";
@@ -31,7 +32,7 @@ export function applyRuntimeEnvToPlatform(
   platform.renders = meteredObjectStore(storage.renders, platform.db);
   platform.chatBucket = storage.chatBucket;
   platform.presigner = storage.presigner;
-  platform.modules = createModuleTransport(env);
+  platform.modules = createModuleTransport(env, runpodJobRecorder(platform.db));
   platform.secrets = new RuntimeSecretStore(runtime);
   platform.vars = {
     ...platform.vars,
