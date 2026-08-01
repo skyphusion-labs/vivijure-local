@@ -7,6 +7,50 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(api): contact-sheet frame extraction, so an agent can SEE motion output (local#311)
+
+Parity with vivijure-cf cf#322 / PR #324, same release wave per the dual-panel gate. The MCP
+tool-result content union carries exactly two variants, text and image, and has no video variant, so
+a finished film could only ever be handed to an agent as a link -- cf#322 measured 128 of the 129
+most recent COMPLETED hosted renders carrying `keyframes: null`, so the mp4 was the only artifact
+that existed for them. `POST /api/render/frames` closes the same gap on this door: sample a rendered
+clip into ONE jpeg contact sheet (3x3 default; `count=1` plus `at=` for a single frame), store it via
+`platform.renders` as a normal artifact, and return the KEY, never bytes -- so `/api/artifact`,
+`/api/artifact-url` (local#309) and, once installed, MCP `view_artifact`/`artifact_url` all pick it
+up for free.
+
+Extraction runs in the `video-finish` CPU container over `VIDEO_FINISH_VPC`
+(`vpc-transport.ts`'s compose fetcher), the same way every other local finish call reaches it.
+`containers/video-finish/app.py` here is a straight `rsync --delete` mirror of vivijure-cf's copy
+(`scripts/sync-containers.sh`), so the container side of cf#322 arrives on this door automatically
+the next time that script runs against cf's `main` -- after cf PR #324 merges upstream, not before.
+Until the image is synced and rebuilt, the route answers `route-not-served`, honestly and by name,
+the same rollout state cf#324 defines.
+
+Two properties the design rests on, checked against THIS door's real code rather than assumed from
+cf: the derived key must stay inside `ARTIFACT_PREFIXES` (it inherits the source clip's own
+directory by construction) or the sheet 404s through both artifact routes while every unit test
+passes; and the stored content type must survive `safeArtifactContentType` (now exported) and match
+MCP image-inlining's `/^image\//`. Both asserted against the real exported guards, each with a
+control watched failing.
+
+Four distinct failure states plus a fifth this door alone needs: `tier-unavailable`,
+`route-not-served` (EXPECTED during rollout, said so), `container-unreachable`, `container-error`,
+and `store-unpresignable` -- the filesystem storage backend (`LocalObjectPresigner`, local#309)
+refuses to presign either end honestly rather than pretending, which is a storage-configuration
+state, not a container fault, so it does not get folded into `container-error`. Not reused from
+`callVideoFinish` (`vivijure-core/film-orchestrator.ts`), which collapses all of these into a bare
+`Response | null`.
+
+If a clip's duration cannot be probed, the container drops to a single frame and reports it, never
+sampling one instant N times and presenting it as a spread.
+
+All five failure-state guards, the prefix-preservation guard, and the content-type guard were
+watched FAILING on reconstructed defects before being trusted (fixed-literal key, content type
+outside the allowlist, 404 collapsed into container-error, idempotence check removed, presign
+failure collapsed into container-error), then the source was verified byte-identical to its
+pre-injection backup.
+
 ### feat(artifacts): honest /api/artifact-url on the self-host door (local#309)
 
 Parity with vivijure-cf#317 (v1.16.0): `GET /api/artifact-url/*key` turns an artifact key into a
