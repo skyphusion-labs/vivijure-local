@@ -185,8 +185,15 @@ describe("A: every module the dev fleet stands up has a compose service behind i
     // by the plain `module-` prefix, there are no exceptions, and an alias table would have been
     // machinery guarding a problem that does not exist. If this ever fails, the mapping has genuinely
     // become non-uniform and an alias table is then the right answer.
+    //
+    // Honours the hatch, and that is not cosmetic: exercising an exemption showed this test going red
+    // on an entry rule A had correctly waved through. A hatch that leaves another test permanently
+    // failing is not a hatch -- the next person's only way out is to delete the test, which is worse
+    // than the exemption they wanted. An exempted module is by definition one nothing needs to serve,
+    // so it has no service to be named uniformly.
     const services = new Set(composeServices());
     for (const { name } of devFleetEntries()) {
+      if (name in REGISTERED_WITHOUT_A_SERVICE) continue;
       expect(services.has(`module-${name}`), `${name} does not map to module-${name}`).toBe(true);
     }
   });
