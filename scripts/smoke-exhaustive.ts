@@ -293,7 +293,10 @@ function fullFilmRenderBody(bundleKey: string, musicKey: string, motionBackend: 
       B: "04e1dbe6-2564-4c4e-8bfc-61e9908d12ba",
     },
     finish_config: {
-      "finish-rife": { interpolate: true, interpolation_factor: 2, face_restore: "none" },
+      // local#291: no finish-rife entry. The homelab smoke runs the CPU video-finish assemble with
+      // no RIFE step (docs/FINISH_BACKEND.md already said so); sending config for a module this
+      // install cannot have encoded the opposite assumption in the one script that is supposed to
+      // prove the local path.
       "finish-lipsync": { version: "v15", bbox_shift: 0 },
       "finish-upscale": { scale: 2, model: "realesr-animevideov3" },
     },

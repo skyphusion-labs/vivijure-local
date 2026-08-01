@@ -67,7 +67,12 @@ async function verifyMain(): Promise<void> {
   } else {
     const body = (await mods.json()) as { modules?: { name: string }[] };
     const names = new Set((body.modules ?? []).map((m) => m.name));
-    for (const mod of ["finish-rife", "finish-lipsync", "finish-upscale", "subtitle", "film-titles"]) {
+    // local#291: finish-rife is NOT in this list. vivijure-local ships no RIFE image and no local
+    // RIFE path (Conrad 2026-07-28), and there is no module-finish-rife service in compose.yaml under
+    // any profile, so a correctly-built local finish stack does not bind it. Asking for it here made
+    // this audit report "fail" on a healthy studio, which is worse than not checking: an audit that
+    // fails by design teaches the reader to ignore its failures.
+    for (const mod of ["finish-lipsync", "finish-upscale", "subtitle", "film-titles"]) {
       verifyRecord(`module bound: ${mod}`, names.has(mod) ? "pass" : "fail");
     }
   }

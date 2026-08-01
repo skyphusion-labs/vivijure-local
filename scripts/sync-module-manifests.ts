@@ -21,6 +21,14 @@ const MODULES = [
   "local-gpu",
   "own-gpu",
   "cloud-keyframe",
+  // NOT A LOCAL-INSTALL MODULE (local#291). Kept in this list for TWO reasons, neither of which is
+  // "vivijure-local ships RIFE": (1) check-module-manifest-drift.sh diffs every committed fixture
+  // against vivijure-cf, and dropping it here would orphan the fixture and fail that check; (2) an
+  // operator who wires RIFE to RunPod explicitly (scripts/finish-module-server.ts, see
+  // docs/FINISH_BACKEND.md) reads the module config schema from this fixture. There is no local RIFE
+  // image and no local RIFE path (Conrad 2026-07-28), so it is NOT in scripts/dev-module-fleet.sh and
+  // has no compose service in any profile. A fixture is a manifest on disk; a module is a thing the
+  // registry can discover. See dev/manifests/README.md.
   "finish-rife",
   "finish-lipsync",
   "finish-upscale",

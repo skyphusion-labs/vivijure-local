@@ -23,11 +23,27 @@ fi
 # (chain-module-server.ts, cloud-keyframe-module-server.ts, local-gpu-module-server.ts, ...) and is
 # started separately with real env. Do not read a populated picker here as proof that generation
 # works -- that distinction cost the cf#129 gate a leg.
+#
+# THE MEMBERSHIP RULE, and it is not the same rule as "does a manifest exist" (local#291).
+#
+# A manifest-only sidecar stands in for the DISCOVERY of a module, so the fleet is honest only while
+# every module it stands up is one a local install can actually have. The test is a compose SERVICE,
+# in any profile: default, `cloud`, `satellites`, `localgpu`, `edge`. If no profile in compose.yaml
+# can bring the module up, standing it up here fabricates a module for the registry to discover, and
+# the panel (a projection of the registry) renders it as a working, configurable feature. That is the
+# local#229 / local#223 / local#278 shape, and this list is where the third instance of it lived.
+#
+# finish-rife is NOT here, deliberately, and it is the one module that must not come back:
+# vivijure-local ships no RIFE image and no local RIFE path (Conrad 2026-07-28; see
+# docs/FINISH_BACKEND.md, src/modules/finish-backend.ts, .github/workflows/build-image.yml). It has
+# no compose service in any profile, so the only thing behind its knobs was a RunPod call, on a panel
+# whose premise is that RunPod is opt-in. RIFE stays available to an operator who wires it to RunPod
+# explicitly (scripts/finish-module-server.ts, docs/FINISH_BACKEND.md); it is not part of the fleet a
+# local install stands up by default. Fence: tests/finish-rife-not-local-291.test.ts.
 read -r -d '' MODULE_PORTS <<'EOF' || true
 keyframe 9101
 local-gpu 9102
 own-gpu 9103
-finish-rife 9110
 finish-lipsync 9111
 finish-upscale 9112
 beat-sync 9120
