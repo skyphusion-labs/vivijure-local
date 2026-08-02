@@ -7,6 +7,30 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.6.0 -- 2026-08-02
+
+MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can
+turn an artifact key into a fetchable link, and can look at a frame of motion output.
+
+**READ THIS BEFORE ASSUMING THE FEATURE IS LIVE ON YOUR BOX.** Publishing a release is not deploying
+one. `POST /api/render/frames` calls `POST /frames` on the `video-finish` container, and that route
+only exists in the image THIS TAG BUILDS. **Until you pull the new image and point your deployment at
+it, the route answers `route-not-served` by name** -- deliberately, so the failure says what is wrong
+instead of looking like a bug in your caller. On the reference deployment that means bumping
+`VJ_IMAGE_TAG`; it is pinned on purpose (`pin, do not run :latest in prod`) and pinning stays correct.
+
+**What is proven and what is not.** The container half of this feature was smoked END TO END on the
+hosted door before this release was cut, against the byte-identical handler this repo now carries
+(the `containers/` tree is an rsync mirror of vivijure-cf's, and `async def frames(req)` lands at the
+same line in both): a real clip returned a 9-frame contact sheet, the derived key resolved through
+the artifact routes to real jpeg bytes, and a second call returned `reused: true` without invoking the
+container. **What has NOT been exercised is that path on a self-host deployment**, because no
+deployment is running this image yet. The failure states exist precisely so that gap reports itself.
+
+**Honest note on the reference box:** it currently runs `vivijure-local-video-finish:1.2.2`, four
+releases behind, and nothing detects that drift. Filed as local#317. The pin is correct policy; the
+absence of a drift detector is the defect.
+
 ### feat(api): contact-sheet frame extraction, so an agent can SEE motion output (local#311)
 
 Parity with vivijure-cf cf#322 / PR #324, same release wave per the dual-panel gate. The MCP
