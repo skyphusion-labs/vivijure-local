@@ -20,12 +20,23 @@ instead of looking like a bug in your caller. On the reference deployment that m
 `VJ_IMAGE_TAG`; it is pinned on purpose (`pin, do not run :latest in prod`) and pinning stays correct.
 
 **What is proven and what is not.** The container half of this feature was smoked END TO END on the
-hosted door before this release was cut, against the byte-identical handler this repo now carries
-(the `containers/` tree is an rsync mirror of vivijure-cf's, and `async def frames(req)` lands at the
-same line in both): a real clip returned a 9-frame contact sheet, the derived key resolved through
-the artifact routes to real jpeg bytes, and a second call returned `reused: true` without invoking the
-container. **What has NOT been exercised is that path on a self-host deployment**, because no
-deployment is running this image yet. The failure states exist precisely so that gap reports itself.
+hosted door before this release was cut, against **the same file, not a same-shaped copy**:
+
+```
+vivijure-cf     containers/video-finish/app.py   1284 lines   sha256 dadeacbf1da144e3368248927020a1ad...
+vivijure-local  containers/video-finish/app.py   1284 lines   sha256 dadeacbf1da144e3368248927020a1ad...
+```
+
+Byte-identical across the WHOLE FILE at both `origin/main`s, verified with `cmp` and a control proving
+`cmp` reports a difference when one exists. That is what makes the ordering argument airtight rather
+than merely reasonable: the smoke exercised the same 1284 lines a self-hoster gets. On that code a
+real clip returned a 9-frame contact sheet, the derived key resolved through the artifact routes to
+real jpeg bytes, and a second call returned `reused: true` without invoking the container.
+
+**What has NOT been exercised is that path on a self-host deployment**, because no deployment is
+running this image yet. **Parity-in-code is not parity-in-effect**, and this release is exactly where
+the difference becomes visible: identical bytes shipped to both doors, one of them running them. The
+failure states exist precisely so that gap reports itself.
 
 **Honest note on the reference box:** it currently runs `vivijure-local-video-finish:1.2.2`, four
 releases behind, and nothing detects that drift. Filed as local#317. The pin is correct policy; the
