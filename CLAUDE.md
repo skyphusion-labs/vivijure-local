@@ -48,6 +48,50 @@ docker compose up -d    # CPU media stack + optional MinIO
 | audio-master | 8784 |
 | Module sidecars | 9100+ (local-gpu 9102; RunPod keyframe cloud-only) |
 
+## Release / tagging
+
+Full ledger: **`RELEASES.md`**.
+
+**TAG-GATED GHCR publish.** `.github/workflows/build-image.yml`:
+
+- Push/PR to `main`: build-only smoke (`:ci` tags, **no** registry push).
+- Pushed **`v*`** tag: publishes GHCR images `:X.Y.Z` + `:latest` (v prefix stripped on image tags).
+
+Tag must match `package.json` version and `CHANGELOG.md` must contain `## vX.Y.Z` (workflow refuses
+mismatches). Tag must be an ancestor of `origin/main`.
+
+### Dependency order
+
+1. If this release needs a new **`@skyphusion-labs/vivijure-core`**, release and publish **core
+   first** (`vivijure-core-v*`).
+2. Bump the core pin here on `main` (release PR).
+3. Tag this repo only after the pin is on `main`.
+4. **Dual-panel:** ship product-facing changes with **vivijure-cf** in the same wave (same-time
+   releases; no community edition).
+
+### Cut a release
+
+1. **Release PR on `main`:** bump `package.json`, add `CHANGELOG.md` `## vX.Y.Z`, land the PR.
+2. **Tag:**
+
+```bash
+git fetch origin main && git checkout main && git pull --ff-only
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+3. **GitHub Release** (recommended; CI does not always create it for you):
+
+```bash
+gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes
+```
+
+4. Confirm `build-image.yml` green; pin fleet/compose to the published `X.Y.Z` image tags when
+   rolling hosts.
+
+Merge alone never moves `:latest` / versioned GHCR tags.
+
 ## Crew identity
 
-Cursor/rancid work: commits as `Conrad Rockenhaus <conrad@skyphusion.org>`. Branch + PR workflow; never push to `main` unless Conrad says so.
+Conrad laptop: commits as `Conrad Rockenhaus <conrad@skyphusion.org>`. Branch + PR; never push to
+`main` unless Conrad says so.
