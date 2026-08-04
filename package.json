@@ -67,7 +67,7 @@
     "@skyphusion-labs/vivijure-core": "^1.4.0",
     "@skyphusion-labs/vivijure-mcp": "^1.0.1",
     "dotenv": "^17.4.2",
-    "hono": "^4.12.32"
+    "hono": "^4.13.0"
   },
   "overrides": {
     "sharp": ">=0.35.0"
