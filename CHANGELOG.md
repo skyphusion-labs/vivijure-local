@@ -5,6 +5,10 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## v1.6.1
+
+PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
+
 ## Unreleased
 
 ## v1.6.0 -- 2026-08-02
