@@ -249,9 +249,13 @@ export async function buildFramesSheet(
     let frame_times: number[] = [];
     let duration: number | null = null;
     try {
-      const metaObj = await platform.renders.get(deriveFramesMetaKey(key));
-      if (metaObj) {
-        const meta = (await metaObj.json()) as { frame_times?: unknown; duration?: unknown };
+      // Local ObjectStore.get returns ArrayBuffer (not R2ObjectBody with .json()).
+      const metaBuf = await platform.renders.get(deriveFramesMetaKey(key));
+      if (metaBuf) {
+        const meta = JSON.parse(new TextDecoder().decode(metaBuf)) as {
+          frame_times?: unknown;
+          duration?: unknown;
+        };
         if (Array.isArray(meta.frame_times)) {
           frame_times = meta.frame_times.filter((n): n is number => typeof n === "number");
         }
