@@ -124,7 +124,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: studio
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -178,7 +178,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: caddy
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -235,7 +235,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: cpu-${{ matrix.image }}
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
