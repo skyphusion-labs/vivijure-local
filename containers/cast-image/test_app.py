@@ -99,3 +99,49 @@ async def test_unload_ok(client):
         resp = await client.post("/unload")
         assert resp.status == 200
         unload.assert_called_once()
+
+
+# --- local#277: Apache-only allowlist -------------------------------------------
+
+def test_allowlist_accepts_klein_4b():
+    from model_allowlist import refuse_model, resolve_model, DEFAULT_HF_MODEL
+
+    assert refuse_model(DEFAULT_HF_MODEL) is None
+    assert resolve_model(None) == DEFAULT_HF_MODEL
+    assert resolve_model(DEFAULT_HF_MODEL) == DEFAULT_HF_MODEL
+
+
+def test_allowlist_refuses_noncommercial_flux():
+    from model_allowlist import refuse_model, resolve_model
+
+    for bad in (
+        "black-forest-labs/FLUX.2-klein-9B",
+        "black-forest-labs/FLUX.2-dev",
+        "black-forest-labs/flux-2-klein-9b",
+    ):
+        msg = refuse_model(bad)
+        assert msg is not None, bad
+        assert "Non-Commercial" in msg or "allowlist" in msg, msg
+        try:
+            resolve_model(bad)
+            raise AssertionError(f"expected ValueError for {bad}")
+        except ValueError as e:
+            assert "cast.image self-host" in str(e)
+
+
+@pytest.mark.asyncio
+async def test_generate_400_on_noncommercial_model(client):
+    with mock.patch.object(cast_app, "_cuda_available", return_value=True):
+        resp = await client.post(
+            "/generate",
+            data=json.dumps(
+                {
+                    "prompt": "a portrait",
+                    "model": "black-forest-labs/FLUX.2-klein-9B",
+                }
+            ),
+            headers={"content-type": "application/json"},
+        )
+        assert resp.status == 400
+        body = await resp.json()
+        assert "self-host" in body["error"] or "Non-Commercial" in body["error"]

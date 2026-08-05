@@ -10,6 +10,10 @@ Endpoints:
 
 When CUDA is absent the server still binds and reports configured:false so compose
 healthchecks pass; /generate returns a clear 503.
+
+LICENSING (local#277): only Apache-2.0 Klein 4B is allowlisted for self-host.
+CAST_IMAGE_MODEL and payload model are both subject to model_allowlist.py --
+non-commercial FLUX (9B / dev) must go through Cloudflare's BFL channel, never here.
 """
 from __future__ import annotations
 
@@ -23,10 +27,11 @@ from typing import Any
 
 from aiohttp import web
 
+from model_allowlist import env_default_model, resolve_model
+
 PORT = int(os.environ.get("PORT", "8785"))
-DEFAULT_MODEL = os.environ.get(
-    "CAST_IMAGE_MODEL", "black-forest-labs/FLUX.2-klein-4B"
-)
+# Allowlist-enforced (local#277). A non-Apache CAST_IMAGE_MODEL fails at import.
+DEFAULT_MODEL = env_default_model()
 # Optional bearer (defense in depth on LAN-exposed GPU hosts).
 SERVICE_TOKEN = (os.environ.get("CAST_IMAGE_TOKEN") or "").strip()
 MAX_REFS = 4
@@ -143,7 +148,8 @@ def _generate(payload: dict[str, Any]) -> bytes:
         raise ValueError("prompt is required")
     width = int(payload.get("width") or 1024)
     height = int(payload.get("height") or 1024)
-    model_id = str(payload.get("model") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    # Payload model is allowlisted the same as env (local#277).
+    model_id = resolve_model(str(payload.get("model") or DEFAULT_MODEL))
     refs = _decode_refs(list(payload.get("ref_images") or []))
 
     pipe = _load_pipe(model_id)
@@ -208,9 +214,17 @@ async def generate(request: web.Request) -> web.Response:
             },
             status=503,
         )
+    # Refuse non-allowlisted model before touching CUDA / the event-loop offload.
+    try:
+        resolve_model(str((payload or {}).get("model") or DEFAULT_MODEL))
+    except ValueError as e:
+        return web.json_response({"error": str(e)[:500]}, status=400)
     try:
         # Heavy work off the event loop.
         png = await asyncio.to_thread(_generate, payload)
+    except ValueError as e:
+        # Allowlist refusal from _generate (defensive; pre-check above should catch it).
+        return web.json_response({"error": str(e)[:500]}, status=400)
     except Exception as e:
         log.exception("generate failed")
         return web.json_response({"error": str(e)[:500]}, status=500)

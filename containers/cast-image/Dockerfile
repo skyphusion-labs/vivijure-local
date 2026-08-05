@@ -25,7 +25,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app.py .
+COPY model_allowlist.py app.py .
 
 EXPOSE 8785
 HEALTHCHECK --interval=15s --timeout=5s --retries=6 --start-period=30s \
