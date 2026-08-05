@@ -8,6 +8,12 @@ import {
 import { discoverConfiguredModules } from "./module-registry.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import {
+  dialogueLinesFromBundleScenes,
+  resolveExplicitLineVoices,
+} from "@skyphusion-labs/vivijure-core/dialogue-lines";
+import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
+import { resolveCastLoras } from "@skyphusion-labs/vivijure-core/cast-loras";
+import {
   startFilmFromKeyframes,
   type FilmScene,
   type FilmKeyframeRef,
@@ -37,6 +43,8 @@ export interface AnimateFromPreviewArgs {
   defaultBackend?: "gpu" | "cloud";
   defaultCloudModel?: string;
   audioKey?: string;
+  /** Cast slot map for voicing derived dialogue_lines (local#326 / cf#334). */
+  castLoras?: Record<string, unknown>;
 }
 
 function resolveCloudModel(requested: string | undefined, allowed: string[]): string | undefined {
@@ -175,7 +183,9 @@ export async function animateFromPreview(
     motionBackend = defaultCloud;
     perShotMotion = perShotMotionFromCloud(scenes, defaultCloud, normalized.perShot);
   } else {
-    motionBackend = mapped.motion_backend ?? gpuDoor;
+    // local#347 / cf#347: honour a caller-supplied motion backend (panel sends motion_backend).
+    // Parent-row mapped override remains the fallback when the body omits one.
+    motionBackend = args.motionBackend ?? mapped.motion_backend ?? gpuDoor;
     if (!motionBackend) {
       return { ok: false, error: 'no gpu-door motion.backend module (ui.locality "byo"/"local") is installed', status: 400 };
     }
@@ -190,7 +200,24 @@ export async function animateFromPreview(
     }
   }
 
+  // local#326 / cf#334: from-keyframes doors dropped dialogue. Derive lines from the bundle
+  // so a voiced package does not finalize silent.
+  let dialogue_lines: DialogueLine[] | undefined;
+  try {
+    const bundleScenes = await readBundleScenes(env, args.parent.bundle_key);
+    const { voices } = await resolveCastLoras(env, args.castLoras ?? {});
+    let lines = dialogueLinesFromBundleScenes(bundleScenes, voices);
+    if (lines.length) {
+      lines = resolveExplicitLineVoices(lines, bundleScenes, voices);
+      dialogue_lines = lines;
+    }
+  } catch {
+    // best-effort: missing bundle dialogue must not block finalize
+  }
+
   await unloadOllamaBeforeRender(env);
+  // dialogue_lines is runtime-supported on startFilmFromKeyframes (core >=1.6.0); published
+  // .d.ts lag may omit it, so widen the arg type rather than ship silent films (local#326).
   const job = await startFilmFromKeyframes(
     env,
     {
@@ -208,7 +235,8 @@ export async function animateFromPreview(
       derive_mode: args.deriveMode,
       parent_render_id: args.parent.id,
       audio_key: args.audioKey,
-    },
+      dialogue_lines,
+    } as Parameters<typeof startFilmFromKeyframes>[1] & { dialogue_lines?: DialogueLine[] },
     modules,
   );
 
