@@ -148,7 +148,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^1.2.1` (Wan LoRA poll/harvest writeback; cf#29 parity with vivijure-cf v1.7.1)
+- [x] `@skyphusion-labs/vivijure-core` `^1.5.0` (lock resolves `1.5.0`; see `package.json` -- may lag `vivijure-cf`'s core pin)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 
