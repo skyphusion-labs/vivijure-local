@@ -449,6 +449,12 @@
     }
   }
 
+  // local#328 / cf#336: stage the bytes, then REGISTER by copy.
+  //
+  // POST /api/upload returns an `uploads/<uuid>.<ext>` key. The cast routes' JSON `{ key, mime }`
+  // form does NOT accept that once requireCastStagedKey binds to `cast/<id>/`. The copy form
+  // fetches the object, sniffs magic bytes, and writes under `cast/<id>/` itself.
+  // Returns the key ALONE so no caller can rebuild the refused { key, mime } body.
   async function uploadBytes(file) {
     const up = await api("/api/upload", {
       method: "POST",
@@ -456,18 +462,18 @@
       body: file,
     });
     if (!up || !up.key) throw new Error("upload: no key returned");
-    return { key: up.key, mime: up.mime || file.type };
+    return up.key;
   }
 
   async function uploadPortraitFile(file) {
     const id = state.selectedId;
     if (!id || !file) return;
     try {
-      const { key, mime } = await uploadBytes(file);
+      const key = await uploadBytes(file);
       const data = await api("/api/cast/" + id + "/portrait", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key, mime }),
+        body: JSON.stringify({ from_chat_artifact: key }),
       });
       const idx = state.cast.findIndex((c) => c.id === id);
       if (idx >= 0) state.cast[idx] = data.cast;
@@ -538,11 +544,11 @@
     const id = state.selectedId;
     if (!id || !file) return;
     try {
-      const { key, mime } = await uploadBytes(file);
+      const key = await uploadBytes(file);
       const data = await api("/api/cast/" + id + "/source", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key, mime }),
+        body: JSON.stringify({ from_chat_artifact: key }),
       });
       const idx = state.cast.findIndex((c) => c.id === id);
       if (idx >= 0) state.cast[idx] = data.cast;
@@ -574,11 +580,11 @@
     const id = state.selectedId;
     if (!id || !file) return;
     try {
-      const { key, mime } = await uploadBytes(file);
+      const key = await uploadBytes(file);
       const data = await api("/api/cast/" + id + "/ref", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key, mime }),
+        body: JSON.stringify({ from_chat_artifact: key }),
       });
       const idx = state.cast.findIndex((c) => c.id === id);
       if (idx >= 0) state.cast[idx] = data.cast;
