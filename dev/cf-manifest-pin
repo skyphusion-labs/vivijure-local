@@ -1,0 +1,15 @@
+# vivijure-cf commit pin for manifest-drift (local#313).
+#
+# WHY A PIN. The required `manifest-drift` job regenerates module MANIFESTs from a
+# vivijure-cf checkout and diffs them against committed dev/manifests/*.json.
+# Floating cf@main means an unrelated cf merge can red every open local PR with
+# no change in this repo -- the exact failure local#313 recorded (cf PR #323
+# reddened local#309 after the branch was cut and already green).
+#
+# Bump this SHA deliberately when:
+#   - you intend to absorb a cf-side MANIFEST change into dev/manifests/, then
+#   - regenerate: VIVIJURE_SRC=/path/to/vivijure-cf npm run module-manifests
+#   - commit pin + regenerated JSON together (except local-divergence files).
+#
+# Format: one SHA= line with a full 40-char lowercase hex commit.
+SHA=545121578c97fb98a7d6bc6f8aee718f4b276447

@@ -1,17 +1,14 @@
 name: manifest-drift
 
-# Fail when committed dev/manifests/*.json drift from the real module MANIFESTs (#117). The
-# regenerator reads them out of a vivijure-cf checkout, which is why this job checks that repo out.
+# Fail when committed dev/manifests/*.json drift from the real module MANIFESTs (#117).
+# Comparison is pinned to vivijure-cf via dev/cf-manifest-pin (local#313), not floating
+# main: a cf-side merge must not red an already-green local PR.
 #
-# HISTORY, because the name changed: this workflow used to be `upstream-parity` and ran TWO checks --
-# a byte-identity diff of shared `public/` against vivijure-cf main, and this manifest-drift check
-# riding along on the same checkout. The parity half was retired (local#263): it asserted that two
-# independently released hosts ship byte-identical shared frontends, which stopped being true once
-# their projectors legitimately diverged, so it reported the honest change as the defect. The
-# manifest-drift half was never part of that argument and is unchanged here.
-#
-# The workflow was RENAMED rather than left as `upstream-parity` because a check named for something
-# it no longer does is how the next reader builds on a false belief.
+# HISTORY, because the name changed: this workflow used to be `upstream-parity` and ran TWO
+# checks -- a byte-identity diff of shared `public/` against vivijure-cf main, and this
+# manifest-drift check riding along on the same checkout. The parity half was retired
+# (local#263). The workflow was RENAMED rather than left as `upstream-parity` because a
+# check named for something it no longer does is how the next reader builds on a false belief.
 on:
   push:
     branches: [main]
@@ -34,10 +31,32 @@ jobs:
         with:
           path: vivijure-local
 
+      - name: Read vivijure-cf pin (manifest-drift)
+        id: cf_pin
+        working-directory: vivijure-local
+        run: |
+          set -euo pipefail
+          pin_file=dev/cf-manifest-pin
+          if [[ ! -f "$pin_file" ]]; then
+            echo "local#313: missing $pin_file -- manifest-drift needs a deliberate cf pin" >&2
+            exit 1
+          fi
+          sha=$(grep -E '^SHA=' "$pin_file" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "local#313: $pin_file must set SHA=<40-char lowercase hex>; got: ${sha:-<empty>}" >&2
+            echo "local#313: refresh pin: set SHA to a vivijure-cf commit, then regenerate manifests" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "local#313: manifest-drift will use vivijure-cf@$sha (not floating main)"
+
       - uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/vivijure-cf
-          ref: main
+          # PINNED (local#313). Do not change to main/branch without updating
+          # dev/cf-manifest-pin in the same commit. Floating main is how an
+          # unrelated cf merge reds every local PR with no signal on the cf side.
+          ref: ${{ steps.cf_pin.outputs.sha }}
           path: vivijure-local/.upstream/vivijure
 
       - uses: actions/setup-node@v7
