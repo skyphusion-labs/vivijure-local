@@ -65,7 +65,8 @@ import {
 } from "./plan-enhance-core.js";
 import { augmentSystemForOllama } from "./ollama-prompts.js";
 import { ollamaConfigured } from "./ollama.js";
-import { direct as directPlanEnhance } from "./plan-enhance-provider.js";
+import { planFailOpenOutput } from "./plan-enhance-degrade.js";
+import { direct as directPlanEnhance, pickProvider } from "./plan-enhance-provider.js";
 import { coerceConfig as coerceSpeechConfig, processSpeechLocal } from "./speech-upscale-core.js";
 import {
   buildRunPodBody,
@@ -136,6 +137,8 @@ export async function invokePlanEnhance(
   const systemMessage =
     typeof req.config?.system_message === "string" ? req.config.system_message.trim() : "";
   const userMessage = typeof req.config?.message === "string" ? req.config.message.trim() : "";
+  // local#324: whether the selected provider for this invoke is Ollama (for ollama_reachable).
+  const ollamaSelected = !plannerAiMockEnabled(env) && pickProvider(env, modelId) === "ollama";
 
   if (mode === "plan" || mode === "refine") {
     if (!userMessage) {
@@ -156,9 +159,15 @@ export async function invokePlanEnhance(
       try {
         const { reply, model } = await directPlanEnhance(env, messages, modelId);
         if (reply == null) {
+          // Fail-open for planning degrade; monitors read degrade_reason, not the note.
           return {
             ok: true,
-            output: { storyboard, notes: [`${mode} skipped: no model reply`] },
+            output: planFailOpenOutput(
+              storyboard,
+              `${mode} skipped: no model reply`,
+              "no_reply",
+              { ollamaSelected },
+            ),
           };
         }
         raw = Array.isArray(reply) ? JSON.stringify(reply) : reply;
@@ -166,7 +175,12 @@ export async function invokePlanEnhance(
       } catch (e) {
         return {
           ok: true,
-          output: { storyboard, notes: [`${mode} skipped: model error (${(e as Error).message})`] },
+          output: planFailOpenOutput(
+            storyboard,
+            `${mode} skipped: model error (${(e as Error).message})`,
+            "provider_unreachable",
+            { ollamaSelected },
+          ),
         };
       }
     }
@@ -174,7 +188,12 @@ export async function invokePlanEnhance(
     if (!planned) {
       return {
         ok: true,
-        output: { storyboard, notes: [`${mode} skipped: ${modelLabel} reply was not valid storyboard JSON`] },
+        output: planFailOpenOutput(
+          storyboard,
+          `${mode} skipped: ${modelLabel} reply was not valid storyboard JSON`,
+          "invalid_reply",
+          { ollamaSelected },
+        ),
       };
     }
     return {
@@ -207,6 +226,7 @@ export async function invokePlanEnhance(
       }
       return { ok: true, output: { storyboard: { scenes: [] }, notes: [text] } };
     } catch (e) {
+      // Chat has no storyboard to pass through, so a model failure is a real failure, not a degrade.
       return { ok: false, error: "plan.enhance chat failed: " + (e as Error).message };
     }
   }
@@ -241,10 +261,12 @@ export async function invokePlanEnhance(
   } catch (e) {
     return {
       ok: true,
-      output: {
+      output: planFailOpenOutput(
         storyboard,
-        notes: [`enhancement skipped: model error (${(e as Error).message})`],
-      },
+        `enhancement skipped: model error (${(e as Error).message})`,
+        "provider_unreachable",
+        { ollamaSelected },
+      ),
     };
   }
 
@@ -252,10 +274,12 @@ export async function invokePlanEnhance(
   if (!enhanced) {
     return {
       ok: true,
-      output: {
+      output: planFailOpenOutput(
         storyboard,
-        notes: [`enhancement skipped: ${model} reply was not a clean prompt array`],
-      },
+        `enhancement skipped: ${model} reply was not a clean prompt array`,
+        "invalid_reply",
+        { ollamaSelected },
+      ),
     };
   }
 
