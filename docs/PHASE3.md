@@ -1,15 +1,16 @@
-# Phase 3 -- vivijure v2.0 / shared core
+# Phase 3 -- shared core (DONE / historical)
 
-**Goal:** One orchestration codebase (`vivijure-core`), two thin hosts (`vivijure`, `vivijure-local`).
+**Status: complete.** One orchestration package (`@skyphusion-labs/vivijure-core` on npm), two thin
+hosts (`vivijure-cf`, `vivijure-local`). Kept as the migration record; do not read as in-progress work.
 
 ```
-vivijure-core@2.x     registry, film/render orchestrators, types, conformance
-vivijure@2.x          CloudflarePlatform host
-vivijure-local@2.x    NodePlatform host
+@skyphusion-labs/vivijure-core   registry, film/render orchestrators, types, conformance
+vivijure-cf                      CloudflarePlatform host
+vivijure-local                   NodePlatform host
 ```
 
-Phase 2 proved Option B on a homelab stack. Phase 3 extracts the forked orchestration into a
-published package and deletes duplicate logic from both hosts.
+Phase 2 proved Option B on a homelab stack. Phase 3 extracted forked orchestration into the
+published package and deleted duplicate logic from both hosts.
 
 ## Milestones
 
@@ -44,7 +45,7 @@ See [core-extraction-inventory.md](core-extraction-inventory.md) for the file li
 - **vivijure-local 2.0.0** -- Node host on same core; `docs/PARITY.md` fully green
 - **CONTRACT.md** remains in `vivijure` until doc packaging merges
 
-## Coordination with CF-native v1
+## Coordination with CF host (historical)
 
-Upstream `vivijure` continues shipping CF-native v1 until `vivijure-core` is ready. `vivijure-local`
-carries the Platform ICD first; the CF host adopts the same ICD when orchestrators move to the package.
+Both hosts now depend on published `@skyphusion-labs/vivijure-core`. See core
+`docs/HOST-ADOPTION.md` (COMPLETE) and `docs/EXTRACTION-STATUS.md`.

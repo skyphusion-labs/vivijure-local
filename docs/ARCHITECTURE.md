@@ -1,15 +1,18 @@
-# Architecture -- vivijure-local (Option B)
+# Architecture -- vivijure-local
 
 Provider-neutral host for Vivijure Studio. Cloudflare-hosted reference: `vivijure-cf` on Cloudflare Workers.
 
 Operator docs: [quickstart.md](quickstart.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [SECURITY.md](SECURITY.md) · [constellation.md](constellation.md).
 
-> **Still evolving.** Adapters and compose layout may still change as we extract `vivijure-core`
-> (see [ROADMAP.md](ROADMAP.md)).
+> Shared orchestration already lives in **`@skyphusion-labs/vivijure-core`** (published npm dep).
+> This host is a thin Node adapter: HTTP router, `src/platform/*`, compose, and operator surface.
+> See [ROADMAP.md](ROADMAP.md) Phase 3 (historical) and core's `docs/HOST-ADOPTION.md`.
 
 ## Design principle
 
-The film pipeline and module registry are **host-agnostic logic** trapped behind Cloudflare bindings today. This repo ports that logic onto explicit platform adapters so a future `vivijure-core` package (vivijure v2.0) can import the same code both hosts use.
+The film pipeline and module registry are **host-agnostic** and already published as
+`@skyphusion-labs/vivijure-core`. This repo implements `NodePlatform` (SQLite, S3/MinIO, HTTP
+module sidecars) and routes; `vivijure-cf` implements the CF platform. Both import the same package.
 
 ```
                     +------------------+
@@ -30,9 +33,11 @@ The film pipeline and module registry are **host-agnostic logic** trapped behind
   migrations/           renders/<key>        MODULE_*_URL sidecars
 ```
 
-## Platform interface (`src/platform/types.ts`)
+## Platform interface
 
-Designed for v2.0 extraction into `vivijure-core`. Cloudflare `Env` becomes `CloudflarePlatform implements Platform`; this repo implements `NodePlatform`.
+Canonical ICD: `@skyphusion-labs/vivijure-core/platform` (this host re-exports / implements under
+`src/platform/`). Cloudflare `Env` becomes `CloudflarePlatform implements Platform`; this repo
+implements `NodePlatform`.
 
 | Adapter | Replaces (CF) | Implementation |
 |---------|---------------|----------------|

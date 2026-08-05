@@ -42,15 +42,17 @@
 - MinIO vs filesystem storage toggle documented and tested
 - Observability: structured render events to stdout (`emitStructuredEvent`; History text logs stay in `render-log.ts`)
 
-## Phase 3 -- vivijure v2.0 / Option A (shared core)
+## Phase 3 -- shared core extraction (DONE / historical)
 
-**Goal:** One orchestration codebase, two hosts. Detail: [PHASE3.md](PHASE3.md).
+**Status: complete.** Orchestration lives in published `@skyphusion-labs/vivijure-core`; both
+hosts consume it. Detail: [PHASE3.md](PHASE3.md) (milestones marked done) and core
+`docs/HOST-ADOPTION.md` / `docs/EXTRACTION-STATUS.md`.
 
 | Milestone | Deliverable | Status |
 |-----------|-------------|--------|
-| M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | in progress |
+| M13 | Freeze Platform ICD (`docs/PLATFORM.md`, contract tests) | done |
 | M14 | `vivijure-core` standalone repo | done |
-| M15 | Extraction inventory (`docs/core-extraction-inventory.md`) | in progress |
+| M15 | Extraction inventory (`docs/core-extraction-inventory.md`) | done |
 | M16 | Wave 0 into package (`types`, conformance, structured-events, beat-sync-types) | done |
 | M17 | Registry + film-model in core; hosts depend on package | done |
 | M18 | Orchestrators in core; env bridge removed | done |
@@ -59,25 +61,12 @@
 | M21 | Planner pure helpers (`preflight`, `planner-prompt`, `output-extract`) in core | done |
 
 ```
-vivijure-core@2.x          # registry, film-orchestrator, types, conformance
-vivijure@2.x               # CloudflarePlatform host (thin)
-vivijure-local@2.x         # NodePlatform host (thin)
+@skyphusion-labs/vivijure-core   # registry, film-orchestrator, types, conformance (npm)
+vivijure-cf                      # Cloudflare host (thin)
+vivijure-local                   # Node host (thin)
 ```
 
-### Extraction steps
-
-1. Freeze `Platform` interface (proven by local v1) -- **M13**
-2. Move `src/modules/*`, `film-orchestrator.ts`, `render-orchestrator.ts`, DB helpers into `vivijure-core`
-3. Replace `env.DB` / `env.R2_*` call sites with `platform.*` in core (mechanical)
-4. vivijure Worker becomes binding shim (~`src/host/cloudflare.ts`)
-5. vivijure-local deletes forked copies, depends on `vivijure-core`
-6. Single conformance + vitest suite published from core; both hosts run it in CI
-
-### v2.0 release semantics
-
-- **vivijure 2.0.0** -- CF host on shared core; no user-facing API breaks (`vivijure-module/2` unchanged)
-- **vivijure-local 2.0.0** -- Node host on same core; parity checklist fully green
-- CONTRACT.md remains in `vivijure` repo as canonical ICD; vivijure-local links to it until doc packaging merges
+Remaining work is ordinary dual-panel product shipping and pin currency, not extraction.
 
 ## Non-goals (v1)
 
