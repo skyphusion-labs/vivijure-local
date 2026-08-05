@@ -48,6 +48,23 @@ export function moduleLabelFromBinding(binding: string): string {
   return binding.replace(/^MODULE_/, "").toLowerCase().replace(/_/g, "-");
 }
 
+/** Closed-set fault outcomes a module poll may declare on the envelope (local#307 soft-degrade;
+ *  local#304 hard fail). Anything else is ignored so a hostile value cannot widen the vocabulary. */
+const POLL_FAULT_OUTCOMES = new Set<RunpodJobOutcome>(["backend-error", "failed", "gone", "cancelled"]);
+
+/**
+ * Explicit closed-set fault outcome on a poll envelope, or undefined when absent/hostile.
+ * Never invents from `error` prose. Used on BOTH ok:true soft-degrades (local#307) and ok:false
+ * hard fails: the chain may still complete while the RunPod job failed.
+ */
+export function declaredPollOutcome(body: Record<string, unknown>): RunpodJobOutcome | undefined {
+  const declared = body.outcome;
+  if (typeof declared === "string" && POLL_FAULT_OUTCOMES.has(declared as RunpodJobOutcome)) {
+    return declared as RunpodJobOutcome;
+  }
+  return undefined;
+}
+
 /** How many in-flight poll tokens to remember. A submit is correlated to its terminal outcome through
  *  the opaque poll token, because the module poll RESPONSE carries no job id and decoding the token
  *  studio-side would couple the studio to module-internal token formats.
@@ -136,24 +153,36 @@ export class HttpModuleTransport implements ModuleTransport {
       const job = this.tracked.get(sentToken);
       if (!job) return; // submit happened in a previous process (see MAX_TRACKED_JOBS)
       this.tracked.delete(sentToken);
-      if (ok) {
-        this.recorder({ ...job, outcome: "completed" });
-        return;
-      }
-      const detail = typeof body.error === "string" ? body.error.slice(0, DETAIL_MAX) : undefined;
       // cf#288: the fault CLASS, read from the STRUCTURED marker the module poll now carries. Never
       // derived from `error`, which is prose. Absent stays absent: the recorder writes NULL, and NULL
       // means "the endpoint did not tell us", never "this was not a refusal".
       const errorType = typeof body.errorType === "string" && body.errorType ? body.errorType : undefined;
-      // cf#298: a CANCELLED job gets its own outcome instead of being flattened into `failed`. The
-      // module poll already distinguishes the three terminal-failure statuses (runpodTerminalFailure,
-      // local#47); until now that distinction died at the envelope. Anything else stays `failed`.
-      //
-      // backend-error and gone are still NOT reachable here, and that is unchanged by this: those two
-      // are collapsed by the module poll into the same {ok:false, error: prose} shape and separating
-      // them studio-side would mean matching English error sentences. See
-      // migrations/0016_runpod_job_log.sql. This narrows the gap, it does not close it.
-      const outcome: RunpodJobOutcome = body.runpodStatus === "CANCELLED" ? "cancelled" : "failed";
+      // detail: prefer the additive `detail` marker (soft-degrade, local#307); fall back to `error`
+      // prose on hard fails. Never invent from output.degraded (that is studio-facing copy).
+      const detail =
+        typeof body.detail === "string"
+          ? body.detail.slice(0, DETAIL_MAX)
+          : typeof body.error === "string"
+            ? body.error.slice(0, DETAIL_MAX)
+            : undefined;
+
+      if (ok) {
+        // local#307: an honest soft-degrade returns ok:true so the chain keeps the original audio,
+        // but the RunPod job itself failed/gone/backend-errored. Record THAT fact, not completed.
+        // no-output-key and other non-RunPod shortfalls omit `outcome` and stay completed.
+        const softFault = declaredPollOutcome(body);
+        if (softFault) {
+          this.recorder({ ...job, outcome: softFault, detail, errorType });
+          return;
+        }
+        this.recorder({ ...job, outcome: "completed" });
+        return;
+      }
+      // cf#298: a CANCELLED job gets its own outcome instead of being flattened into `failed`. Prefer
+      // an explicit `outcome` marker when the module carries one (local#304); else runpodStatus.
+      const declared = declaredPollOutcome(body);
+      const outcome: RunpodJobOutcome =
+        declared ?? (body.runpodStatus === "CANCELLED" ? "cancelled" : "failed");
       this.recorder({ ...job, outcome, detail, errorType });
     } catch {
       // Telemetry must never affect a render.
