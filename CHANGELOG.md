@@ -11,6 +11,9 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+- **docs: named API tokens are operator-equivalent (local#238).** No scope column; ARCHITECTURE + mint script state the honest blast radius.
+
+
 ## v1.6.0 -- 2026-08-02
 
 MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can

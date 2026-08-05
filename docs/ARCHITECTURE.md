@@ -96,6 +96,13 @@ Module workers that called VPC fetchers (`beat-sync`, finish modules) use `*_VPC
 
 v1 supports `AUTH_MODE=token` only (`STUDIO_API_TOKEN` + D1-shaped `api_tokens` table). CF Access is a cloud-host concern; not ported.
 
+**Named tokens are attribution, not scope (local#238).** `api_tokens` is `(name, token_hash,
+created_at, revoked_at)` with **no capability column**. `verifyTokenRequest` admits a named token
+with the same authority as `STUDIO_API_TOKEN` (renders, settings, every `/api` route). Blast radius
+is bounded by **revocation** and visible via **attribution** (`sub: api-token:<name>`), not by
+permission. Honest description until a scope column lands: an operator token with a name on it.
+Mint with `scripts/mint-api-token.sh`; revoke by setting `revoked_at`.
+
 ## Port order (implementation sequence)
 
 1. **Platform adapters** -- sqlite, storage, secrets, module HTTP transport
