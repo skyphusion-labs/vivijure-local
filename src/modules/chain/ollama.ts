@@ -142,8 +142,8 @@ export async function callOllama(
 }
 
 /**
- * Unload a model from Ollama VRAM (keep_alive: 0). Best-effort: logs via throw
- * only when the caller wants to surface failure; local-gpu swallows errors.
+ * Unload a model from Ollama VRAM (keep_alive: 0). Throws on HTTP/network failure
+ * when Ollama is configured; no-ops when OLLAMA_BASE_URL is unset.
  */
 export async function unloadOllamaModel(env: OllamaEnv, modelOverride?: string): Promise<void> {
   const base = ollamaBaseUrl(env);
@@ -168,18 +168,45 @@ export async function unloadOllamaModel(env: OllamaEnv, modelOverride?: string):
   await resp.text().catch(() => undefined);
 }
 
-/** Best-effort unload for handoff into local-gpu; never throws. */
+/**
+ * Structured VRAM handoff result (local#325).
+ *
+ * Pre-#325 both "Ollama not configured" and "unload threw" returned `false`, so a
+ * monitor could not tell them apart and the render path discarded the boolean.
+ * Three statuses, content-free machine fields:
+ *   skipped  -- OLLAMA_BASE_URL unset; nothing to free
+ *   unloaded -- keep_alive:0 accepted
+ *   failed   -- configured, attempted, could not free VRAM
+ */
+export type OllamaUnloadResult =
+  | { status: "skipped"; reason: "not-configured" }
+  | { status: "unloaded"; model: string }
+  | { status: "failed"; model: string; error: string };
+
+/** Best-effort unload for handoff into local-gpu; never throws. Distinguishes skip from fail. */
 export async function unloadOllamaModelBestEffort(
   env: OllamaEnv,
   modelOverride?: string,
-): Promise<boolean> {
-  if (!ollamaConfigured(env)) return false;
+): Promise<OllamaUnloadResult> {
+  if (!ollamaConfigured(env)) {
+    return { status: "skipped", reason: "not-configured" };
+  }
+  const model = ollamaPlanModel(env, modelOverride);
   try {
     await unloadOllamaModel(env, modelOverride);
-    return true;
+    return { status: "unloaded", model };
   } catch (e) {
-    console.warn(`ollama unload failed (continuing): ${(e as Error).message}`);
-    return false;
+    const error = e instanceof Error && e.message ? e.message : String(e);
+    // Layer 1 signal: failed unload is a WARN with a stable prefix a monitor can grep.
+    console.warn(
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "failed",
+        model,
+        error: error.slice(0, 200),
+      }),
+    );
+    return { status: "failed", model, error };
   }
 }
 
@@ -198,22 +225,44 @@ export function ollamaEnvFromRecord(
 }
 
 /**
- * Canonical sequential-VRAM handoff (local#265): free Ollama before any local door
- * GPU job (keyframe, motion, local finish). Fail-open with a warn when Ollama is
- * configured but unload fails; no-op when OLLAMA_BASE_URL is unset.
+ * Canonical sequential-VRAM handoff (local#265 / local#325): free Ollama before any
+ * local door GPU job (keyframe, motion, local finish).
+ *
+ * Fail-open for the render (a stuck LLM is worse than a blocked film), but the result
+ * is ALWAYS structured so a caller/monitor can see unload failed vs not configured.
  * Never skip the unload attempt when OLLAMA_BASE_URL is configured.
  */
 export async function ensureOllamaUnloadedForGpu(
   env: OllamaEnv | NodeJS.ProcessEnv | Record<string, unknown>,
   modelOverride?: string,
-): Promise<boolean> {
+): Promise<OllamaUnloadResult> {
   const ollama = ollamaEnvFromRecord(env);
-  if (!ollamaConfigured(ollama)) return false;
-  const ok = await unloadOllamaModelBestEffort(ollama, modelOverride);
-  if (ok) {
+  if (!ollamaConfigured(ollama)) {
+    return { status: "skipped", reason: "not-configured" };
+  }
+  const result = await unloadOllamaModelBestEffort(ollama, modelOverride);
+  if (result.status === "unloaded") {
     console.info(
-      `ollama unload ok (model=${ollamaPlanModel(ollama, modelOverride)}) before local GPU claim`,
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "unloaded",
+        model: result.model,
+        note: "before local GPU claim",
+      }),
+    );
+  } else if (result.status === "failed") {
+    // Layer 2 signal: success used to be the only log line at this layer; failure was silent
+    // here and only a lower-level warn. Emit the same shape so a monitor watching ollama_unload
+    // sees both.
+    console.warn(
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "failed",
+        model: result.model,
+        error: result.error.slice(0, 200),
+        note: "before local GPU claim; render continues (fail-open)",
+      }),
     );
   }
-  return ok;
+  return result;
 }

@@ -112,17 +112,18 @@ describe("ollama plan.enhance helpers", () => {
   });
 });
 
-describe("sequential VRAM handoff (local#265)", () => {
+describe("sequential VRAM handoff (local#265 / local#325)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
-  it("ensureOllamaUnloadedForGpu POSTs keep_alive:0 and fail-opens when Ollama is down", async () => {
+  it("ensureOllamaUnloadedForGpu POSTs keep_alive:0 and returns status:unloaded", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(
       ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434", OLLAMA_PLAN_MODEL: "qwen3:14b" }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ status: "unloaded", model: "qwen3:14b" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls[0] as unknown as [string | URL, RequestInit?];
     expect(String(call[0])).toBe("http://ollama:11434/api/generate");
@@ -130,24 +131,80 @@ describe("sequential VRAM handoff (local#265)", () => {
       model: "qwen3:14b",
       keep_alive: 0,
     });
+  });
 
+  it("DISCRIMINATES: not-configured is skipped, not failed (local#325)", async () => {
+    // Pre-#325 both paths returned false; a monitor could not tell them apart.
+    await expect(ensureOllamaUnloadedForGpu({})).resolves.toEqual({
+      status: "skipped",
+      reason: "not-configured",
+    });
+  });
+
+  it("DISCRIMINATES: unload throw is status:failed with error (local#325)", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
         throw new Error("ECONNREFUSED");
       }),
     );
-    await expect(ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434" })).resolves.toBe(
-      false,
-    );
-    await expect(ensureOllamaUnloadedForGpu({})).resolves.toBe(false);
+    const r = await ensureOllamaUnloadedForGpu({
+      OLLAMA_BASE_URL: "http://ollama:11434",
+      OLLAMA_PLAN_MODEL: "qwen3:14b",
+    });
+    expect(r.status).toBe("failed");
+    if (r.status === "failed") {
+      expect(r.model).toBe("qwen3:14b");
+      expect(r.error).toMatch(/ECONNREFUSED/);
+    }
   });
 
-  it("unloadOllamaBeforeRender is the studio alias for the same helper", async () => {
+  it("fail-open: failed unload does not throw (render continues)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("down", { status: 503 })),
+    );
+    await expect(
+      ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434" }),
+    ).resolves.toMatchObject({ status: "failed" });
+  });
+
+  it("failed unload emits a monitorable ollama_unload warn (local#325)", async () => {
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+      warns.push(args.map(String).join(" "));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      }),
+    );
+    await ensureOllamaUnloadedForGpu({ OLLAMA_BASE_URL: "http://ollama:11434" });
+    const parsed = warns
+      .map((w) => {
+        try {
+          return JSON.parse(w) as { event?: string; status?: string };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    expect(parsed.some((p) => p?.event === "ollama_unload" && p?.status === "failed")).toBe(true);
+  });
+
+  it("unloadOllamaBeforeRender returns the structured result (not void)", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await unloadOllamaBeforeRender({ OLLAMA_BASE_URL: "http://ollama:11434" });
+    await expect(
+      unloadOllamaBeforeRender({ OLLAMA_BASE_URL: "http://ollama:11434", OLLAMA_PLAN_MODEL: "qwen3:14b" }),
+    ).resolves.toEqual({ status: "unloaded", model: "qwen3:14b" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(unloadOllamaBeforeRender({})).resolves.toEqual({
+      status: "skipped",
+      reason: "not-configured",
+    });
   });
 
   it("local-gpu keyframe and motion unload Ollama before door /run", async () => {
