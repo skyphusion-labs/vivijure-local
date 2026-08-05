@@ -11,6 +11,9 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+- **fix(local-gpu): honest cost for CogVideoX commercial licence (local#278).** Drop "Free after hardware"; document model-licence may apply.
+
+
 ## v1.6.0 -- 2026-08-02
 
 MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can
