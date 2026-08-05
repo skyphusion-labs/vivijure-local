@@ -1106,6 +1106,14 @@ async function finalizeRender(row, btnEl) {
     // the Worker side.
     const finalizeBody = {};
     if (planState.audioKey) finalizeBody.audioKey = planState.audioKey;
+    // local parity of cf#344/#347: name the GPU door finalize will use
+    const registry = window.plannerRegistry;
+    if (registry && typeof registry.defaultGpuDoorModule === "function") {
+      try {
+        const door = registry.defaultGpuDoorModule();
+        if (door && door.name) finalizeBody.motion_backend = door.name;
+      } catch (_) {}
+    }
     // v0.135.6: server gates readiness against fresh D1 state (see submitRender).
     const finalizeCastLoras = buildCastLoraSubmit();
     if (Object.keys(finalizeCastLoras).length > 0) {
