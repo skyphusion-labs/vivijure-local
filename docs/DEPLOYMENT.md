@@ -222,6 +222,12 @@ is the alternate. Co-located panels often run both with door-pin scripts (see
 [fleet#962](https://github.com/skyphusion-labs/fleet-chezmoi/issues/962) for IaC reconciliation).
 Only one door may hold the GPU at a time (and Ollama must be unloaded before the door job starts).
 
+**Model licence (local#278):** the local-gpu panel cost is not "free once the card is paid." There is
+no cloud API bill on your hardware, but the **default 16GB CogVideoX** door is free for academic
+research and may require commercial registration (and a monthly usage cap) for commercial use --
+check that door's licence before production. The 12GB LTX door is a different engine and licence.
+The manifest cost string is `Hardware; model licence may apply`.
+
 After pinning the target door up, **all three steps are mandatory** (skipping recreate leaves a
 stale `LOCAL_BACKEND_URL` in `platform_secrets` and in the studio process env; smokes will still
 point at the previous door):
