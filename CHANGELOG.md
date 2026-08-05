@@ -11,7 +11,7 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
-- **fix(local-gpu): honest cost for CogVideoX commercial licence (local#278).** Drop "Free after hardware"; document model-licence may apply.
+- **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
 
 
 ## v1.6.0 -- 2026-08-02
