@@ -82,10 +82,13 @@ import {
   classifyGoneState,
   reconcileWorkersMaxOrError,
   runpodBase,
+  runpodFaultMarkers,
   runpodJobGone,
   terminalErrorInOutput,
+  type RunpodPollOutcome,
 } from "../runpod/shared.js";
 import { resolveWorkersMax, type RunpodModuleEnv } from "../runpod/env.js";
+import { DETAIL_MAX } from "../../runpod-job-log.js";
 
 export type ChainModuleName =
   | "plan-enhance"
@@ -542,24 +545,44 @@ export async function pollSpeechUpscale(
   } catch {
     return { ok: true, pending: true };
   }
-  const passthrough = (reason: string, detail?: string) => ({
-    ok: true as const,
-    output: speechPassthrough({ shot_id: st.shotId, audio_key: st.audioKey }, reason, detail),
-  });
+  // Soft-degrade envelope: ok:true so the chain keeps the original audio (polish step, #249/#77),
+  // PLUS an additive closed-set `outcome` so the studio runpod_job_log records the RunPod job's
+  // real fate rather than completed (local#307). no-output-key omits outcome: RunPod finished and
+  // the shortfall is ours, which is a different fact and stays completed.
+  const passthrough = (
+    reason: string,
+    detail?: string,
+    fault?: { outcome: RunpodPollOutcome } & ReturnType<typeof runpodFaultMarkers>,
+  ) => {
+    const bounded = detail !== undefined ? detail.slice(0, DETAIL_MAX) : undefined;
+    return {
+      ok: true as const,
+      output: speechPassthrough({ shot_id: st.shotId, audio_key: st.audioKey }, reason, bounded),
+      ...(fault ?? {}),
+      ...(fault && bounded !== undefined ? { detail: bounded } : {}),
+    };
+  };
   if (runpodJobGone(httpStatus, s)) {
     if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
-      return passthrough("endpoint-gone");
+      return passthrough("endpoint-gone", undefined, { outcome: "gone", ...runpodFaultMarkers(s) });
     }
     return { ok: true, pending: true };
   }
   if (s.status === "FAILED") {
-    return passthrough("endpoint-failed", JSON.stringify(s.error ?? s).slice(0, 160));
+    return passthrough(
+      "endpoint-failed",
+      JSON.stringify(s.error ?? s).slice(0, DETAIL_MAX),
+      { outcome: "failed", ...runpodFaultMarkers(s) },
+    );
   }
   if (s.status !== "COMPLETED") {
     const backendErr = terminalErrorInOutput(s.output);
     if (backendErr) {
       await cancelRunpodJobBestEffort(apiKey, base, st.jobId);
-      return passthrough("endpoint-error", backendErr.slice(0, 160));
+      return passthrough("endpoint-error", backendErr.slice(0, DETAIL_MAX), {
+        outcome: "backend-error",
+        ...runpodFaultMarkers(s),
+      });
     }
     return { ok: true, pending: true };
   }

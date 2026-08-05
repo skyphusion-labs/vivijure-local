@@ -49,9 +49,16 @@ export function terminalErrorInOutput(output: unknown): string | null {
   return null;
 }
 
+/**
+ * Closed-set RunPod job fate a module poll may declare on the envelope (local#307 soft-degrade;
+ * local#304 hard fail). Content-free by construction. Absent on non-RunPod shortfalls so those
+ * keep the studio default (completed for soft-degrade without a marker; failed for ok:false).
+ */
+export type RunpodPollOutcome = "backend-error" | "failed" | "gone" | "cancelled";
+
 /** cf#288 / cf#298 parity: the machine-readable fault markers a module poll must carry ACROSS the
  *  envelope. The studio writes the runpod_job_log row on this door and never sees the RunPod /status
- *  payload, so anything the envelope does not carry is unrecoverable downstream. Both fields are
+ *  payload, so anything the envelope does not carry is unrecoverable downstream. Fields are
  *  OPTIONAL and machine-generated; absent means "the endpoint did not report one", which must stay
  *  distinguishable from "reported, and it was not a fault of that kind". */
 export interface RunpodFaultMarkers {
@@ -61,6 +68,8 @@ export interface RunpodFaultMarkers {
   /** The exception CLASS from the structured `error_type` key, e.g. HarnessError. This is what
    *  separates a deliberate refusal from an OOM; both arrive as RunPod FAILED. */
   errorType?: string;
+  /** Which closed outcome the module classified this poll as (local#307 / local#304). */
+  outcome?: RunpodPollOutcome;
 }
 
 /** Build the markers from a RunPod /status body. Reads STRUCTURED keys only; never the message. */
