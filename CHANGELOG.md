@@ -11,6 +11,9 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+- **Docs audit 2026-08-05:** SECURITY demo + named tokens; AUTH_MODE; compose profile honesty; dash strip.
+
+
 ## v1.6.0 -- 2026-08-02
 
 MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can

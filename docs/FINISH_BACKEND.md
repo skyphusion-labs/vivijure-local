@@ -3,14 +3,14 @@
 Tracking: [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180) (post-musetalk cutover).
 Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/153) (local keyframe coupling; separate lane).
 
-## Ruling (Conrad — current)
+## Ruling (Conrad -- current)
 
 **No local RIFE image in vivijure-local.** RIFE stays on the RunPod `vivijure-backend` finish path
 (vivijure-cf / opt-in RunPod). Homelab default is CPU `video-finish` assemble. There is no
 `containers/finish-rife-serve`, no `vivijure-local-finish-rife` GHCR image, and no
 `LOCAL_FINISH_RIFE_URL` path.
 
-History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28** —
+History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28**  -- 
 Conrad: do not ship finish-rife in vivijure-local. Closed paths (do not revive): fleet-chezmoi
 #1009, PR #185, local#204 overlay, local#260 CI bake.
 
@@ -24,7 +24,7 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** — RunPod opt-in only |
+| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
@@ -55,7 +55,7 @@ historically RIFE):
 | `finish-lipsync` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-musetalk` |
 | `finish-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-upscale` |
 | `speech-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-audio-upscale` |
-| `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` — **CF/production only; not local panel** |
+| `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` -- **CF/production only; not local panel** |
 
 CPU assemble (`video-finish`, `audio-*`, `image-prep`) runs locally in compose. Motion i2v defaults
 to **`LOCAL_BACKEND_URL`** (16gb door on propagandhi).
@@ -103,16 +103,16 @@ Verified on propagandhi:
 
 | Container | Status | Action after #186 merge |
 |-----------|--------|-------------------------|
-| `vivijure-finish-gpu-finish-rife-1` | Running (healthy) | **Tear down** — no local RIFE path |
-| `vivijure-local-module-finish-rife-1` | Running (legacy sidecar) | **Stop/remove** — not in default compose |
+| `vivijure-finish-gpu-finish-rife-1` | Running (healthy) | **Tear down** -- no local RIFE path |
+| `vivijure-local-module-finish-rife-1` | Running (legacy sidecar) | **Stop/remove** -- not in default compose |
 | `vivijure-finish-gpu-finish-{lipsync,upscale}-*` | Running | Keep if pursuing local lipsync/upscale; else tear down with finish-gpu stack |
-| `vivijure-local-video-finish-1` | Running | **Keep** — CPU assemble path |
+| `vivijure-local-video-finish-1` | Running | **Keep** -- CPU assemble path |
 
 Minimal homelab bar after cutover: clips from local-gpu door → `video-finish` CPU assemble. No
 finish GPU sidecars required.
 
 ```bash
-# On propagandhi — remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
+# On propagandhi -- remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
 cd /opt/fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu
 sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 ```
@@ -143,7 +143,7 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 
 | Finish step | GPU work lives in | Homelab HTTP serve overlay |
 |-------------|-------------------|----------------------------|
-| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **None** — not shipped in vivijure-local |
+| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **None** -- not shipped in vivijure-local |
 | Lip-sync | `vivijure-musetalk` | `vivijure-musetalk` `Dockerfile.serve` |
 | Video upscale | `vivijure-upscale` | `vivijure-upscale` `Dockerfile.serve` |
 
@@ -173,7 +173,7 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 | Video upscale | 2 | Full endpoint idle for local panel |
 | Audio upscale | 2 | Optional: move to local or keep for speech-upscale only |
 
-Conservative estimate: **4–7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
+Conservative estimate: **4-7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
 Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
 `RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on the render endpoint.
