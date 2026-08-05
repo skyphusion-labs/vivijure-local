@@ -77,14 +77,50 @@ describe("cast.image model policy (local#277)", () => {
     expect(doc).toMatch(/local#277/);
   });
 
-  it("if containers/cast-image exists, the sidecar must call the Apache allowlist", () => {
-    // PR #272 lands the sidecar; this fence turns red if that path ships without the guard.
-    const app = resolve(root, "containers/cast-image/app.py");
-    if (!existsSync(app)) return;
-    const src = readFileSync(app, "utf8");
-    expect(src).toMatch(/FLUX\.2-klein-4B|SELF_HOST|allowlist|ALLOWED/);
-    expect(src).not.toMatch(/from_pretrained\(\s*model_id\s*\)/);
-    // Non-commercial siblings must not be loadable via env/payload alone.
-    expect(src.toLowerCase()).not.toMatch(/klein-9b.*from_pretrained|from_pretrained.*klein-9b/);
-  });
+  // Fence for the local cast.image sidecar when present (PR #272 / #361).
+  // When the path is ABSENT this suite must SKIP, not pass: a vacuous green fence
+  // retires the worry without retiring the risk (joan-prreview-local on #359).
+  // When PRESENT it must refuse free-variable model load and name a closed allowlist
+  // that agrees with SELF_HOST_ALLOWED_HF_MODELS in this package.
+  const sidecarApp = resolve(root, "containers/cast-image/app.py");
+  const sidecarAllowlist = resolve(root, "containers/cast-image/model_allowlist.py");
+  const hasSidecar = existsSync(sidecarApp);
+
+  it.skipIf(!hasSidecar)(
+    "sidecar enforces a closed Apache allowlist before from_pretrained",
+    () => {
+      const src = readFileSync(sidecarApp, "utf8");
+      // #272 defect shape: env default + from_pretrained(model_id, ...) with NO allowlist module.
+      // Requiring ALLOWED_HF_MODELS / model_allowlist import is what actually fails that tree.
+      expect(src).toMatch(/ALLOWED_HF_MODELS|model_allowlist|refuse_model|resolve_model/);
+      // Non-commercial sibling must not be a default or hard-coded load target here.
+      expect(src).not.toMatch(/FLUX\.2-klein-9B|flux-2-klein-9b/i);
+      // Free-variable load is fine ONLY after resolve_model/refuse; ban the #272 raw-env pattern:
+      // CAST_IMAGE_MODEL default wired straight into from_pretrained without a guard symbol nearby.
+      if (!/resolve_model|refuse_model|ALLOWED_HF_MODELS/.test(src)) {
+        expect(src).not.toMatch(/from_pretrained\(\s*model_id\b/);
+      }
+    },
+  );
+
+  it.skipIf(!hasSidecar)(
+    "sidecar ALLOWED_HF_MODELS agrees with TS SELF_HOST_ALLOWED_HF_MODELS",
+    () => {
+      // Prefer the dedicated allowlist module (#361); fall back to scanning app.py.
+      // Doc comments may mention non-commercial siblings -- only the set membership matters.
+      const py = existsSync(sidecarAllowlist)
+        ? readFileSync(sidecarAllowlist, "utf8")
+        : readFileSync(sidecarApp, "utf8");
+      for (const id of SELF_HOST_ALLOWED_HF_MODELS) {
+        expect(py, `python side missing ${id}`).toContain(id);
+      }
+      // Quoted members of ALLOWED_HF_MODELS / equivalent must not include non-commercial FLUX.
+      const setBody = py.match(/ALLOWED_HF_MODELS[\s\S]{0,400}?\{([\s\S]*?)\}/)?.[1] ?? "";
+      expect(setBody.length, "could not find ALLOWED_HF_MODELS set body").toBeGreaterThan(0);
+      expect(setBody).not.toMatch(/klein-9B|flux-2-dev|FLUX\.2-dev/i);
+      for (const id of SELF_HOST_ALLOWED_HF_MODELS) {
+        expect(setBody).toContain(id);
+      }
+    },
+  );
 });
