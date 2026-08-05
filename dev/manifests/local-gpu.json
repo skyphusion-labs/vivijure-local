@@ -96,12 +96,12 @@
     "order": 4,
     "locality": "local",
     "cost": "Hardware; model licence may apply",
-    "blurb": "Renders keyframes + motion on your own GPU (no cloud API bill). The default 16GB door runs CogVideoX, which is free for academic research but needs commercial registration (and a usage cap) for commercial use -- see the door licence and docs/DEPLOYMENT.md. The 12GB LTX door is a different engine and licence. Quality scales with your card and backend.",
+    "blurb": "Renders keyframes + motion on your own GPU (no cloud API bill). Self-host CogVideoX is free for academic research; commercial self-host may need registration and a usage cap (door licence + docs/DEPLOYMENT.md). Commercial use of Vivijure is supported via vivijure-cf / Cloudflare partner channels. The 12GB LTX door is a different engine and licence. Quality scales with your card and backend.",
     "limits": [
       "Runs whichever local backend you point it at: LTX (12GB floor) or CogVideoX (16GB floor); bigger cards add headroom",
       "Keyframes (SDXL preview) and short i2v clips share the same card serially",
       "One GPU job at a time (a consumer card runs a single preview or i2v job)",
-      "Default 16GB CogVideoX: commercial use may require registration at open.bigmodel.cn (local#278)"
+      "Default 16GB CogVideoX: commercial self-host may require registration at open.bigmodel.cn (local#278); commercial product use goes through vivijure-cf"
     ]
   },
   "cancelable": true,
