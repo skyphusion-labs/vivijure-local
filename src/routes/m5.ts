@@ -12,6 +12,7 @@ import {
   servingForHook,
   emitStructuredEvent,
   defaultGpuDoorModule,
+  gpuDoorMotionModules,
 } from "@skyphusion-labs/vivijure-core";
 import { discoverConfiguredModules } from "../module-registry.js";
 import {
@@ -418,6 +419,18 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       if (!motionBackend) {
         return c.json(
           { error: 'no gpu-door motion.backend module (ui.locality "byo"/"local") is installed' },
+          400,
+        );
+      }
+      // RFK is a GPU-door path (local#327). Installed-but-cloud backends must use animate-cloud.
+      const gpuNames = new Set(gpuDoorMotionModules(modules).map((m) => m.name));
+      if (!gpuNames.has(motionBackend)) {
+        return c.json(
+          {
+            error:
+              `motion backend "${motionBackend}" is not a gpu door (ui.locality byo/local). ` +
+              `Gpu doors: ${[...gpuNames].join(", ") || "(none)"}.`,
+          },
           400,
         );
       }

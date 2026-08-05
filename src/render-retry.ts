@@ -20,6 +20,7 @@ import {
   filmJobToPollView,
   mapRenderOverridesToModuleConfigs,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
+import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
 import { coerceQualityTier } from "@skyphusion-labs/vivijure-core/runpod-types";
 import type { RenderRow } from "@skyphusion-labs/vivijure-core/renders-db";
 import type { OrchestratorEnv } from "@skyphusion-labs/vivijure-core/platform";
@@ -60,6 +61,13 @@ export async function retryFailedRender(
   }
 
   const tier = coerceQualityTier(row.quality_tier) ?? "final";
+  if (!row.bundle_key || !isSafeBundleKey(row.bundle_key)) {
+    return {
+      ok: false,
+      error: "retry row has no usable bundles/ key",
+      status: 400,
+    };
+  }
   const modules = await discoverConfiguredModules(env as unknown as Record<string, unknown>);
   const overrides = row.render_overrides ?? undefined;
   const mapped = mapRenderOverridesToModuleConfigs(overrides, tier, modules);

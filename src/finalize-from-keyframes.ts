@@ -3,6 +3,7 @@
 import {
   cloudMotionModules,
   defaultGpuDoorModule,
+  gpuDoorMotionModules,
   servingForHook,
 } from "@skyphusion-labs/vivijure-core";
 import { discoverConfiguredModules } from "./module-registry.js";
@@ -188,6 +189,17 @@ export async function animateFromPreview(
     motionBackend = args.motionBackend ?? mapped.motion_backend ?? gpuDoor;
     if (!motionBackend) {
       return { ok: false, error: 'no gpu-door motion.backend module (ui.locality "byo"/"local") is installed', status: 400 };
+    }
+    // GPU finalize door: only byo/local. Cloud spend goes through animate-cloud / hybrid.
+    const gpuNames = new Set(gpuDoorMotionModules(modules).map((m) => m.name));
+    if (!gpuNames.has(motionBackend)) {
+      return {
+        ok: false,
+        error:
+          `motion backend "${motionBackend}" is not a gpu door (ui.locality byo/local). ` +
+          `Use animate-cloud for cloud models. Gpu doors: ${[...gpuNames].join(", ") || "(none)"}.`,
+        status: 400,
+      };
     }
   }
 
