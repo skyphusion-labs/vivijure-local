@@ -70,7 +70,7 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
   const secret = (env.STUDIO_API_TOKEN || "").trim();
   if (isStudioApiTokenPlaceholder(secret)) {
     // Generic client-facing reason: do not echo the placeholder value (or distinguish unset vs
-    // placeholder) — that string is public compose bait and belongs only in server logs / docs.
+    // placeholder) -- that string is public compose bait and belongs only in server logs / docs.
     return {
       ok: false,
       status: 403,
@@ -105,7 +105,7 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
  *
  *  The CSRF surface is the ambient cookie. No `vivijure_token` cookie → not cross-site (pure Bearer /
  *  curl / Slate clients). A decoy `Authorization: Bearer …` MUST NOT exempt a request that still
- *  carries the cookie — browsers attach cookies independently of Authorization.
+ *  carries the cookie -- browsers attach cookies independently of Authorization.
  *
  *  When the cookie is present: require an explicit safe `Sec-Fetch-Site` (`same-origin`,
  *  `same-site`, or `none`). If that header is absent, fall back to a full same-origin `Origin`
@@ -188,11 +188,11 @@ export function isDemoDeniedRead(pathname: string): boolean {
   if (/^\/api\/modules\/[^/]+\/config$/.test(pathname)) return true;
   // State-advancing GETs: CSRF only fires when vivijure_token cookie is present. Demo visitors
   // have no cookie, so cross-site <img>/poll would otherwise drive GPU spend anonymously.
-  // Demo UI uses /api/demo/* — these operator poll routes stay denied.
+  // Demo UI uses /api/demo/* -- these operator poll routes stay denied.
   if (/^\/api\/storyboard\/render\/[^/]+$/.test(pathname)) return true;
   if (/^\/api\/render\/film\/[^/]+$/.test(pathname)) return true;
   if (/^\/api\/cast\/[^/]+\/refs-job\/[^/]+$/.test(pathname)) return true;
-  // Cast .vvcast export includes portraits, refs, and trained LoRA weights — operator-only.
+  // Cast .vvcast export includes portraits, refs, and trained LoRA weights -- operator-only.
   if (/^\/api\/cast\/export\/[^/]+$/.test(pathname)) return true;
   // Byte serve: deny operator storage; allow only the isolated demo prefix.
   if (pathname.startsWith("/api/artifact/")) {
