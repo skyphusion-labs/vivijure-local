@@ -48,19 +48,14 @@ updates:
           - "@skyphusion-labs/vivijure-core"
           - "@skyphusion-labs/vivijure-mcp"
         update-types: ["minor", "patch"]
-  # Docker, split into TWO entries on purpose (vivijure-local#243 fallout).
+  # Docker, split on purpose (vivijure-local#243 fallout + local#316).
   #
   # image-prep and audio-beat-sync cannot move off python 3.11: both reach numba (via rembg ->
   # pymatting and via librosa) which supports only >=3.10,<3.14, both hardcode the python3.11
   # site-packages path in their numba-cache warm step, and audio-beat-sync additionally pins
   # numpy==1.26.4 which publishes no cp314 wheel. Each Dockerfile SAID so in a comment, and it was
   # bumped to 3.14 anyway inside a grouped update, because dependabot does not read prose. The tag
-  # bake then failed on both images.
-  #
-  # An `ignore` scoped to those two directories is the enforceable form of that constraint. It is
-  # NOT a blanket freeze: patch/digest refreshes still flow, and every OTHER container keeps taking
-  # python updates through the entry below (audio-master and audio-mix have run 3.14 since
-  # 2026-07-15, and video-finish builds clean on it, so there is nothing to hold them back for).
+  # bake then failed on both images. An `ignore` is the enforceable form of that constraint.
   - package-ecosystem: docker
     directories:
       - "/containers/audio-beat-sync"
@@ -78,12 +73,32 @@ updates:
           - "version-update:semver-major"
           - "version-update:semver-minor"
 
+  # video-finish is PINNED TO 3.11 for dual-panel interpreter parity with vivijure-cf (local#316).
+  # 3.14 builds clean here (no numba), but nothing requires it; cf stays on 3.11. Patch/digest
+  # refreshes still flow; major/minor python bumps are ignored until the pin is deliberately
+  # lifted on BOTH doors together.
+  - package-ecosystem: docker
+    directories:
+      - "/containers/video-finish"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      docker-images-video-finish-cf-parity:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+
+  # Unconstrained containers keep taking python (and other base) updates.
   - package-ecosystem: docker
     directories:
       - "/"
       - "/containers/audio-master"
       - "/containers/audio-mix"
-      - "/containers/video-finish"
       - "/reverse-proxy"
     schedule:
       interval: weekly

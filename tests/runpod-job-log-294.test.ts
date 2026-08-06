@@ -6,7 +6,7 @@
 // same as one that cannot. Every negative block carries a positive control: a working database that
 // really records, so a suite of passes cannot be produced by a helper that writes nothing at all.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDatabase, migrateDatabase } from "../src/platform/sqlite.js";
@@ -14,11 +14,31 @@ import type { Database } from "../src/platform/types.js";
 import { recordRunpodJob, DETAIL_MAX, ERROR_TYPE_MAX, RUNPOD_JOB_LOG_TIMEOUT_MS, RUNPOD_JOB_LOG_UPSERT } from "../src/runpod-job-log.js";
 import { HttpModuleTransport, moduleLabelFromBinding, type ModuleJobEvent } from "../src/platform/modules.js";
 
+/** Temp SQLite dirs created by realDb() this test; reaped in afterEach (local#308). */
+const liveTempDirs: string[] = [];
+
+/**
+ * Open a migrated studio.db under /tmp. Pid is in the prefix so a concurrent run's
+ * leftovers (if any) are attributable; they still must not be swept by glob.
+ * Cleanup is the default; VJ_KEEP_TEST_DB=1 leaves dirs for debugging.
+ */
 function realDb(): Database {
-  const dir = mkdtempSync(join(tmpdir(), "vj-joblog-"));
+  const dir = mkdtempSync(join(tmpdir(), `vj-joblog-${process.pid}-`));
+  liveTempDirs.push(dir);
   const dbPath = join(dir, "studio.db");
   migrateDatabase(dbPath, join(import.meta.dirname, "..", "migrations"));
   return openDatabase(dbPath);
+}
+
+/** Same reaper afterEach uses; exported only for the local#308 control test below. */
+function reapTempDirs(): void {
+  if (process.env.VJ_KEEP_TEST_DB) {
+    liveTempDirs.length = 0;
+    return;
+  }
+  while (liveTempDirs.length > 0) {
+    rmSync(liveTempDirs.pop()!, { recursive: true, force: true });
+  }
 }
 
 async function rows(db: Database): Promise<Record<string, unknown>[]> {
@@ -29,6 +49,21 @@ async function rows(db: Database): Promise<Record<string, unknown>[]> {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  // local#308: every realDb() temp dir is removed when its test ends.
+  reapTempDirs();
+});
+
+describe("realDb temp dir cleanup (local#308)", () => {
+  it("reapTempDirs removes the directory realDb created (same reaper afterEach uses)", async () => {
+    realDb();
+    expect(liveTempDirs.length).toBe(1);
+    const dir = liveTempDirs[0]!;
+    expect(dir).toContain(`vj-joblog-${process.pid}-`);
+    expect(existsSync(dir)).toBe(true);
+    reapTempDirs();
+    expect(existsSync(dir)).toBe(false);
+    expect(liveTempDirs.length).toBe(0);
+  });
 });
 
 describe("what it writes, against the real migration", () => {
