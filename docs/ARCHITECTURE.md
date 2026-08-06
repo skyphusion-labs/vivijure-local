@@ -63,7 +63,7 @@ Production vivijure binds each module as a CF Worker (`MODULE_KEYFRAME`, etc.). 
 | Module | Sidecar port | Notes |
 |--------|--------------|-------|
 | `keyframe` or `local-gpu` door | 9101+ | Pick motion path |
-| `local-gpu` | 9102 | `vivijure-local-12gb` / `-16gb` |
+| `local-gpu` | 9102 | `vivijure-local-12gb` (LTX) / `-16gb` (CogVideoX) -- different engines + duration_grid; see local#235 |
 | `finish-lipsync`, `finish-upscale` | 911x | Optional polish chain (RIFE is RunPod/CF-only, not local) |
 | `beat-sync`, `audio-master` | 912x | CPU via compose or module VPC shim |
 | `film-titles`, `subtitle` | 913x | Optional |
