@@ -163,4 +163,5 @@ AGPL-3.0-only (same as the rest of the Vivijure constellation).
 
 That grant covers the SOFTWARE. The model weights the local GPU door runs carry their own
 third-party licenses, several of which restrict commercial use; the per-model truth, and the
-two supported commercial paths, are in [USE.md](USE.md).
+two supported commercial paths, are in [USE.md](USE.md). Full inventory + FLUX commercial rule
+(local#277): [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md).

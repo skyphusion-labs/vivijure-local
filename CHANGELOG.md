@@ -11,6 +11,23 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.0
+
+Dual-panel of vivijure-cf#461. Brings finish_elapsed_ms, FilmSummary duration fields,
+cast family readiness, install-patch dropped keys, untrained-LoRA voice copy.
+
+**Schema (required before any process loads 1.8.0):**
+- `migrations/0018_render_output_ms.sql` -- `renders.output_ms` (core 1.7.1+ read path)
+- `migrations/0019_finish_elapsed_ms.sql` -- `renders.finish_elapsed_ms` (core 1.8.0)
+
+Local migration numbers already used 0016/0017 for runpod_job_log; these are the dual of
+cf 0016/0017. Studio applies on boot via `migrateDatabase`.
+
+
+- **docs: named API tokens are operator-equivalent (local#238).** No scope column; ARCHITECTURE + mint script state the honest blast radius.
+
+- **docs: 12GB LTX vs 16GB CogVideoX engine asymmetry (local#235).** Documented in `docs/DEPLOYMENT.md` so a door swap is not read as a pin-only change.
+
 - **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
 
 

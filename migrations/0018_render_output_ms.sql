@@ -1,0 +1,11 @@
+-- renders.output_ms: DELIVERED film length in integer milliseconds (cf#268 / core 1.7.0+).
+--
+-- Metering basis: last-writer content length of the film artifact, not GPU job time
+-- (execution_time_ms) and not CPU finish wall-clock (finish_elapsed_ms). NULL = not measured;
+-- never coalesce NULL to 0 (a zero-length film would be a real measurement).
+--
+-- Core 1.7.1+ SELECT requires this column on every render read. Without it, list/get render
+-- returns SQLite "no such column" and the library is 500.
+--
+-- Additive ADD COLUMN only.
+ALTER TABLE renders ADD COLUMN output_ms INTEGER;
