@@ -235,6 +235,11 @@ bound. `module-local-gpu` snaps shot length to the door-declared grid when prese
 to flexible seconds when absent. The 49-frame grid closes the CogVideoX tile-noise class (fc#597);
 that class does not apply to LTX. Do not assume "swap doors, same film." Confirm `/health`
 `engine` + `duration_grid` after every pin.
+**Model licence (local#278):** the local-gpu panel cost is not "free once the card is paid." There is
+no cloud API bill on your hardware, but the **default 16GB CogVideoX** door is free for academic
+research and may require commercial registration (and a monthly usage cap) for commercial use --
+check that door's licence before production. The 12GB LTX door is a different engine and licence.
+The manifest cost string is `Hardware; model licence may apply`.
 
 After pinning the target door up, **all three steps are mandatory** (skipping recreate leaves a
 stale `LOCAL_BACKEND_URL` in `platform_secrets` and in the studio process env; smokes will still

@@ -28,6 +28,9 @@ cf 0016/0017. Studio applies on boot via `migrateDatabase`.
 
 - **docs: 12GB LTX vs 16GB CogVideoX engine asymmetry (local#235).** Documented in `docs/DEPLOYMENT.md` so a door swap is not read as a pin-only change.
 
+- **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
+
+
 ## v1.6.0 -- 2026-08-02
 
 MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can
