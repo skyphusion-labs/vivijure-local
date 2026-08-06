@@ -222,6 +222,25 @@ is the alternate. Co-located panels often run both with door-pin scripts (see
 [fleet#962](https://github.com/skyphusion-labs/fleet-chezmoi/issues/962) for IaC reconciliation).
 Only one door may hold the GPU at a time (and Ollama must be unloaded before the door job starts).
 
+**Engine asymmetry (local#235) -- not just a pin difference.** The two doors run different motion
+engines and different duration contracts:
+
+| Door | Typical host (fleet) | Image | Engine | `duration_grid` |
+| --- | --- | --- | --- | --- |
+| Flagship CF door | fatmike | `vivijure-local-12gb` | **ltx-video** | **absent** (flexible `seconds * fps`) |
+| Local panel door | propagandhi | `vivijure-local-16gb` | **cogvideox** | fps 8, 49 max_frames on all tiers |
+
+Same panel request, different clip lengths and motion characteristics depending on which door is
+bound. `module-local-gpu` snaps shot length to the door-declared grid when present, and falls back
+to flexible seconds when absent. The 49-frame grid closes the CogVideoX tile-noise class (fc#597);
+that class does not apply to LTX. Do not assume "swap doors, same film." Confirm `/health`
+`engine` + `duration_grid` after every pin.
+**Model licence (local#278):** the local-gpu panel cost is not "free once the card is paid." There is
+no cloud API bill on your hardware, but the **default 16GB CogVideoX** door is free for academic
+research and may require commercial registration (and a monthly usage cap) for commercial use --
+check that door's licence before production. The 12GB LTX door is a different engine and licence.
+The manifest cost string is `Hardware; model licence may apply`.
+
 After pinning the target door up, **all three steps are mandatory** (skipping recreate leaves a
 stale `LOCAL_BACKEND_URL` in `platform_secrets` and in the studio process env; smokes will still
 point at the previous door):
