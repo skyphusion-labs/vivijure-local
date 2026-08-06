@@ -11,18 +11,31 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
-### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.0
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.1
 
-Dual-panel of vivijure-cf#461. Brings finish_elapsed_ms, FilmSummary duration fields,
-cast family readiness, install-patch dropped keys, untrained-LoRA voice copy.
+Dual-panel of vivijure-cf core pin. Brings PollResponse failure fields (`outcome`,
+`runpodStatus`, `errorType`), keyframe provenance `bundle_key`, render
+`motion_backend` / `keyframe_backend`, scatter D1-empty dialogue fallback, plus
+everything already in 1.8.0 (finish_elapsed_ms, FilmSummary duration fields, cast
+family readiness, install-patch dropped keys, untrained-LoRA voice copy).
 
-**Schema (required before any process loads 1.8.0):**
+**Schema (required before any process loads 1.8.1):**
 - `migrations/0018_render_output_ms.sql` -- `renders.output_ms` (core 1.7.1+ read path)
 - `migrations/0019_finish_elapsed_ms.sql` -- `renders.finish_elapsed_ms` (core 1.8.0)
+- `migrations/0020_render_motion_backend.sql` -- `renders.motion_backend` + `keyframe_backend` (core 1.8.1 / cf#393)
 
-Local migration numbers already used 0016/0017 for runpod_job_log; these are the dual of
-cf 0016/0017. Studio applies on boot via `migrateDatabase`.
+Local migration numbers already used 0016-0019 for runpod_job_log + output/finish;
+0020 is the dual of cf 0018. Studio applies on boot via `migrateDatabase`. Pin
+without 0020 = `no such column` on every render read/insert.
 
+### Fixed: module poll carries structured `outcome` (local#304)
+
+Module poll already classified gone / backend-error / failed / cancelled, then
+flattened them into `{ok:false, error: prose}` so `runpod_job_log.outcome` could
+only reach three of five values on this door. Additive `outcome` on the poll
+envelope (closed set); studio transport records that field and never parses the
+English `error` string. Render-path verdict stays `ok: false`. Needs core 1.8.1
+for the `PollResponse` failure-arm types.
 
 - **docs: named API tokens are operator-equivalent (local#238).** No scope column; ARCHITECTURE + mint script state the honest blast radius.
 

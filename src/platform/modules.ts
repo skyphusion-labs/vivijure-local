@@ -48,6 +48,20 @@ export function moduleLabelFromBinding(binding: string): string {
   return binding.replace(/^MODULE_/, "").toLowerCase().replace(/_/g, "-");
 }
 
+/** Closed terminal outcomes the module poll may declare (local#304). Anything else falls back. */
+const POLL_OUTCOMES = new Set<RunpodJobOutcome>(["backend-error", "failed", "gone", "cancelled"]);
+
+/** Read structured outcome off a poll envelope. Never parse `error` prose. */
+export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJobOutcome {
+  const declared = body.outcome;
+  if (typeof declared === "string" && POLL_OUTCOMES.has(declared as RunpodJobOutcome)) {
+    return declared as RunpodJobOutcome;
+  }
+  // cf#298 legacy path: markers without outcome still distinguish CANCELLED.
+  if (body.runpodStatus === "CANCELLED") return "cancelled";
+  return "failed";
+}
+
 /** How many in-flight poll tokens to remember. A submit is correlated to its terminal outcome through
  *  the opaque poll token, because the module poll RESPONSE carries no job id and decoding the token
  *  studio-side would couple the studio to module-internal token formats.
@@ -145,15 +159,10 @@ export class HttpModuleTransport implements ModuleTransport {
       // derived from `error`, which is prose. Absent stays absent: the recorder writes NULL, and NULL
       // means "the endpoint did not tell us", never "this was not a refusal".
       const errorType = typeof body.errorType === "string" && body.errorType ? body.errorType : undefined;
-      // cf#298: a CANCELLED job gets its own outcome instead of being flattened into `failed`. The
-      // module poll already distinguishes the three terminal-failure statuses (runpodTerminalFailure,
-      // local#47); until now that distinction died at the envelope. Anything else stays `failed`.
-      //
-      // backend-error and gone are still NOT reachable here, and that is unchanged by this: those two
-      // are collapsed by the module poll into the same {ok:false, error: prose} shape and separating
-      // them studio-side would mean matching English error sentences. See
-      // migrations/0016_runpod_job_log.sql. This narrows the gap, it does not close it.
-      const outcome: RunpodJobOutcome = body.runpodStatus === "CANCELLED" ? "cancelled" : "failed";
+      // local#304: prefer the closed-set `outcome` the module poll already computed (gone /
+      // backend-error / failed / cancelled). Fall back to runpodStatus for CANCELLED (cf#298) and
+      // otherwise `failed`. Never derive outcome from the English `error` string.
+      const outcome = pollOutcomeFromEnvelope(body);
       this.recorder({ ...job, outcome, detail, errorType });
     } catch {
       // Telemetry must never affect a render.
