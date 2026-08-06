@@ -11,6 +11,8 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+- **docs: 12GB LTX vs 16GB CogVideoX engine asymmetry (local#235).** Documented in `docs/DEPLOYMENT.md` so a door swap is not read as a pin-only change.
+
 ## v1.6.0 -- 2026-08-02
 
 MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can
