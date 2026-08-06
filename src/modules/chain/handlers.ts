@@ -276,6 +276,9 @@ export async function invokeCastImage(
   if (!input || typeof input.cast_id !== "number" || !input.portrait_url) {
     return { ok: false, error: "cast.image: input needs cast_id and portrait_url" };
   }
+  // Cloud catalog only here (MODELS / DEFAULT_CAST_MODEL). Self-host HF ids are refused by
+  // cast-image-model-policy when a local sidecar path is wired; they must never sneak in as
+  // the cloud default (local#277 / FLUX Non-Commercial).
   const model =
     typeof req.config?.model === "string" && MODELS.includes(req.config.model as (typeof MODELS)[number])
       ? req.config.model
