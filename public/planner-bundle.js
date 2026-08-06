@@ -610,6 +610,27 @@ function showBundleResult(data) {
 async function renderFromKeyframes(bundleKey, btn, status) {
   const project = planState.storyboard && planState.storyboard.projectName;
   if (!project) { status.textContent = "no project"; return; }
+
+  // local#327 / cf#344: AWAIT the projection before deciding anything, and refuse before spend
+  // if it cannot name the door. An unreachable registry is ours; an absent GPU door is the
+  // operator's. Both refuse BEFORE the confirm.
+  const registry = window.plannerRegistry;
+  if (!registry) { status.textContent = "planner registry unavailable; reload the page"; return; }
+  await registry.load();
+  if (registry.registryUnavailable()) {
+    status.textContent =
+      "cannot reach the studio module registry, so this render cannot name its GPU door. "
+      + "reload the page and try again.";
+    return;
+  }
+  const gpuDoor = registry.defaultGpuDoorModule();
+  if (!gpuDoor || !gpuDoor.name) {
+    status.textContent =
+      "no GPU door is installed on this studio (a motion.backend module with locality byo or "
+      + "local), so there is nothing to animate these keyframes with.";
+    return;
+  }
+
   if (!window.confirm(
     "render this bundle's " + Object.keys(bundleState.sceneStartImages || {}).length
     + " injected keyframe(s) with " + gpuMotionLabel() + " (no " + keyframeLabel() + " keyframe pass)?\n\ncontinue?"
@@ -630,6 +651,8 @@ async function renderFromKeyframes(bundleKey, btn, status) {
   if (qualityTier) body.qualityTier = qualityTier;
   if (renderOverrides) body.renderOverrides = renderOverrides;
   if (planState.audioKey) body.audioKey = planState.audioKey;
+  // local#327 / cf#344: name the motion backend EXPLICITLY (snake_case; route reads that field).
+  body.motion_backend = gpuDoor.name;
   btn.disabled = true;
   status.textContent = "submitting i2v render...";
   let resp = null;

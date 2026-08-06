@@ -12,6 +12,7 @@ import {
   servingForHook,
   emitStructuredEvent,
   defaultGpuDoorModule,
+  gpuDoorMotionModules,
 } from "@skyphusion-labs/vivijure-core";
 import { discoverConfiguredModules } from "../module-registry.js";
 import {
@@ -42,6 +43,11 @@ import {
   startScatterRender,
 } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
+import {
+  dialogueLinesFromBundleScenes,
+  resolveExplicitLineVoices,
+} from "@skyphusion-labs/vivijure-core/dialogue-lines";
+import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
 import { stageBundleInjectedKeyframes } from "../bundle-keyframes.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
@@ -163,6 +169,20 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       }
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
+      // local#326 / cf#334 door 1: derive dialogue from the bundle when the panel did not send
+      // dialogue_lines, so a voiced storyboard does not ship silent from the main Render button.
+      let panelDialogue: DialogueLine[] | undefined;
+      if (!body.keyframesOnly) {
+        try {
+          const bundleScenes = await readBundleScenes(oenv, body.bundleKey);
+          let lines = dialogueLinesFromBundleScenes(bundleScenes, {});
+          if (lines.length) {
+            lines = resolveExplicitLineVoices(lines, bundleScenes, {});
+            panelDialogue = lines;
+          }
+        } catch { /* best-effort */ }
+      }
+
       await unloadOllamaBeforeRender(oenv);
       const job = await startFilmJob(
         oenv,
@@ -183,6 +203,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           film_titles: body.keyframesOnly ? undefined : body.film_titles,
           pretrained_loras: Object.keys(pretrained).length ? pretrained : undefined,
           cast_loras: Object.keys(castIds).length ? castIds : undefined,
+          dialogue_lines: panelDialogue,
         },
         modules,
       );
@@ -369,6 +390,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         audioKey?: string;
         projectId?: unknown;
         motion_backend?: string;
+        castLoras?: Record<string, unknown>;
       }>(c.req.raw);
       if (!b.bundleKey) throw badRequest("bundleKey required");
       if (!isSafeBundleKey(b.bundleKey)) {
@@ -400,6 +422,28 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           400,
         );
       }
+      // RFK is a GPU-door path (local#327). Installed-but-cloud backends must use animate-cloud.
+      const gpuNames = new Set(gpuDoorMotionModules(modules).map((m) => m.name));
+      if (!gpuNames.has(motionBackend)) {
+        return c.json(
+          {
+            error:
+              `motion backend "${motionBackend}" is not a gpu door (ui.locality byo/local). ` +
+              `Gpu doors: ${[...gpuNames].join(", ") || "(none)"}.`,
+          },
+          400,
+        );
+      }
+      // local#326 / cf#334: derive dialogue from the bundle so RFK is not silent-by-default.
+      let fromKfDialogue: DialogueLine[] | undefined;
+      try {
+        const { voices } = await resolveCastLoras(oenv, b.castLoras as Record<string, unknown> | undefined);
+        let lines = dialogueLinesFromBundleScenes(parsedScenes, voices);
+        if (lines.length) {
+          lines = resolveExplicitLineVoices(lines, parsedScenes, voices);
+          fromKfDialogue = lines;
+        }
+      } catch { /* best-effort */ }
       await unloadOllamaBeforeRender(oenv);
       const job = await startFilmFromKeyframes(
         oenv,
@@ -416,7 +460,8 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           master_config: mapped.master_config,
           derive_mode: "finalized",
           audio_key: b.audioKey,
-        },
+          dialogue_lines: fromKfDialogue,
+        } as Parameters<typeof startFilmFromKeyframes>[1] & { dialogue_lines?: DialogueLine[] },
         modules,
       );
       if (job.phase === "failed") {

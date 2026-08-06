@@ -443,20 +443,17 @@ function buildHistoryRow(r, childrenByParent) {
   rerun.addEventListener("click", () => rerunBundle(r));
   actions.appendChild(rerun);
 
-  // v0.60.0: one-click retry on terminal-failure rows. Re-POSTs the
-  // same args server-side (project, bundle_key, quality_tier,
-  // render_overrides, mode); the GPU side resumes incrementally off
-  // the network volume so this is much cheaper than the original
-  // submit. Finalize rows have their own retry path (click finalize
-  // on the parent preview) and are excluded.
+  // local#331 / cf#353: real retry -- POSTs the row's STORED args via /renders/:id/retry.
+  // Failed row stays; a new history row is the retry. Finalize rows keep their own path
+  // (click finalize on the parent preview) and are excluded from this control.
   const isFailed =
     r.status === "FAILED" || r.status === "CANCELLED" || r.status === "TIMED_OUT";
-  if (isFailed && r.mode !== "finalized") {
+  if (isFailed && r.mode !== "finalized" && r.mode !== "cloud-finalized") {
     const retry = document.createElement("button");
     retry.type = "button";
     retry.className = "planner-history-action";
     retry.textContent = "retry";
-    retry.title = "resubmit this render as-is (the GPU resumes off the volume so it picks up where it died)";
+    retry.title = "re-submit this render with the same stored args (new history row; GPU may resume off volume)";
     retry.addEventListener("click", () => retryFailedRender(r, retry));
     actions.appendChild(retry);
   }
@@ -1106,6 +1103,14 @@ async function finalizeRender(row, btnEl) {
     // the Worker side.
     const finalizeBody = {};
     if (planState.audioKey) finalizeBody.audioKey = planState.audioKey;
+    // local#347 / cf#347: name the GPU door finalize will use (server now honours it).
+    const registry = window.plannerRegistry;
+    if (registry && typeof registry.defaultGpuDoorModule === "function") {
+      try {
+        const door = registry.defaultGpuDoorModule();
+        if (door && door.name) finalizeBody.motion_backend = door.name;
+      } catch (_) {}
+    }
     // v0.135.6: server gates readiness against fresh D1 state (see submitRender).
     const finalizeCastLoras = buildCastLoraSubmit();
     if (Object.keys(finalizeCastLoras).length > 0) {
@@ -1449,12 +1454,9 @@ function rerunBundle(row) {
   renderSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// v0.60.0: one-click retry for a FAILED / CANCELLED / TIMED_OUT row.
-// POSTs /api/storyboard/renders/<id>/retry; the Worker re-submits with
-// the row's stored args and the GPU resumes incrementally off the
-// volume (lora_already_trained + _indices_skip_locked). On success, a
-// fresh row appears at the top of the history list; the failed row
-// stays for the audit trail.
+// local#331 / cf#353: one-click retry for a FAILED / CANCELLED / TIMED_OUT row.
+// POSTs /api/storyboard/renders/<id>/retry; the studio re-submits with the row's
+// stored args. On success a fresh row appears; the failed row stays for audit.
 async function retryFailedRender(row, btnEl) {
   const confirmMsg =
     "retry this render?\n\n"

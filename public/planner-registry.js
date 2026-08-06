@@ -4,6 +4,11 @@
 (function (global) {
   let cache = null;
   let loadPromise = null;
+  // local#327 / cf#344: did the projection actually ARRIVE?
+  // load() resolves on failure with an EMPTY registry rather than rejecting, which keeps every
+  // read-only control degrading quietly. Tracked separately so a caller that must NAME a module
+  // can tell "this studio has no GPU door" from "I could not ask".
+  let loadFailed = false;
 
   function load() {
     if (cache) return Promise.resolve(cache);
@@ -11,15 +16,22 @@
       loadPromise = fetch("/api/modules")
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
+          if (!d) loadFailed = true;
           cache = d || { modules: [], hooks: {}, catalog: [] };
           return cache;
         })
         .catch(() => {
+          loadFailed = true;
           cache = { modules: [], hooks: {}, catalog: [] };
           return cache;
         });
     }
     return loadPromise;
+  }
+
+  // True only when a load COMPLETED and could not deliver the projection.
+  function registryUnavailable() {
+    return loadFailed;
   }
 
   function byName(data) {
@@ -93,6 +105,24 @@
     return motionBackendModules().filter((m) => motionLocality(m) === "cloud");
   }
 
+  // The gpu-door SET: motion backends that run on hardware the operator controls (byo or local),
+  // mirroring the core's gpuDoorMotionModules. Cloud backends are excluded.
+  function gpuDoorMotionModules() {
+    return motionBackendModules().filter((m) => {
+      const l = motionLocality(m);
+      return l === "byo" || l === "local";
+    });
+  }
+
+  // The door a render lands on when it names none, mirroring the core's defaultGpuDoorModule:
+  // the byo door if one is installed, else the first gpu door in serving order (a local door is
+  // normally an explicit pick, so it becomes the default only when it is the ONLY gpu door).
+  // Exists so the panel can send an EXPLICIT motion_backend (local#327 / cf#344).
+  function defaultGpuDoorModule() {
+    const doors = gpuDoorMotionModules();
+    return doors.find((m) => motionLocality(m) === "byo") || doors[0] || null;
+  }
+
   function planEnhanceInstalled() {
     return hookModules("plan.enhance").length > 0;
   }
@@ -129,12 +159,15 @@
 
   global.plannerRegistry = {
     load,
+    registryUnavailable,
     moduleLabel,
     musicScoreModules,
     narrationScoreModules,
     beatSyncScoreModules,
     motionBackendModules,
     ownGpuModule,
+    gpuDoorMotionModules,
+    defaultGpuDoorModule,
     cloudMotionModules,
     planEnhanceInstalled,
     cloudModelLabel,

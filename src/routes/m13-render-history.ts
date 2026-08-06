@@ -14,7 +14,9 @@ import {
 import { startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
 import {
   getRenderByIdForUser,
+  insertRender,
   listUserTags,
+  type NewRenderRow,
 } from "@skyphusion-labs/vivijure-core/renders-db";
 import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
@@ -29,6 +31,7 @@ import { animateFromPreview } from "../finalize-from-keyframes.js";
 import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
 import { pollScoreBedGenerate, startScoreBedGenerate } from "../score-bed.js";
 import { resolveRenderId } from "../resolve-id.js";
+import { retryFailedRender } from "../render-retry.js";
 
 async function handle(c: { req: { raw: Request } }, fn: () => Promise<Response>): Promise<Response> {
   try {
@@ -158,18 +161,62 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
     }),
   );
 
+  // local#331 / cf#353: re-submit STORED row args; failed row stays; new row is the retry.
+  app.post("/api/storyboard/renders/:id/retry", (c) =>
+    handle(c, async () => {
+      const renderId = await resolveRenderId(env(), c.req.param("id"));
+      const row = await getRenderByIdForUser(env(), renderId);
+      if (!row) throw notFound("render");
+      const r = await retryFailedRender(env(), row);
+      if (!r.ok) return json({ ok: false, error: r.error }, r.status);
+      const view = r.view;
+      const mode: NewRenderRow["mode"] =
+        r.mode === "keyframes-only" || r.mode === "finalized" || r.mode === "cloud-finalized"
+          ? r.mode
+          : "full";
+      try {
+        await insertRender(env(), {
+          jobId: view.jobId,
+          project: row.project,
+          bundleKey: row.bundle_key,
+          qualityTier: row.quality_tier,
+          renderOverrides: row.render_overrides ?? undefined,
+          status: view.status,
+          mode,
+          projectId: row.project_id,
+          parentId: row.id,
+        });
+      } catch {
+        /* bookkeeping best-effort; job already started */
+      }
+      return json({ ok: true, ...view }, 201);
+    }),
+  );
+
   app.post("/api/storyboard/renders/:id/finalize", (c) =>
     handle(c, async () => {
       let audioKey: string | undefined;
+      let motionBackend: string | undefined;
+      let castLoras: Record<string, unknown> | undefined;
       try {
-        const b = await readBody<{ audioKey?: string }>(c.req.raw);
+        const b = await readBody<{
+          audioKey?: string;
+          motion_backend?: string;
+          motionBackend?: string;
+          castLoras?: Record<string, unknown>;
+        }>(c.req.raw);
         audioKey = b.audioKey;
+        const raw = b.motion_backend ?? b.motionBackend;
+        motionBackend = typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+        castLoras = b.castLoras;
       } catch {
         /* empty body ok */
       }
       return animatePreviewHandler(env(), await resolveRenderId(env(), c.req.param("id")), {
         deriveMode: "finalized",
         audioKey,
+        motionBackend,
+        castLoras,
       });
     }),
   );
