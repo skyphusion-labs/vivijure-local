@@ -104,6 +104,12 @@ export function deriveFramesKey(sourceKey: string, count: number, at: number | n
   return `${dir ? dir + "/" : ""}frames/${safeStem}-${spec}.jpg`;
 }
 
+/** Sidecar for reuse path (parity with cf#330). */
+export function deriveFramesMetaKey(sheetKey: string): string {
+  return sheetKey + ".frames-meta.json";
+}
+
+
 /** Every distinguishable way this can fail. These are NOT cosmetic: each implies a different operator
  *  action, and collapsing them is the defect cf#286/#288 exist to remove elsewhere in the stack.
  *  `route-not-served` is EXPECTED during a rollout window (this door's `containers/video-finish` is a
@@ -240,7 +246,23 @@ export async function buildFramesSheet(
   // tier check on purpose -- an existing sheet is serveable on a studio whose tier was later unbound.
   const existing = await platform.renders.head(key);
   if (existing) {
-    return { ok: true, key, count, grid, frame_times: [], duration: null, reused: true };
+    let frame_times: number[] = [];
+    let duration: number | null = null;
+    try {
+      // Local ObjectStore.get returns ArrayBuffer (not R2ObjectBody with .json()).
+      const metaBuf = await platform.renders.get(deriveFramesMetaKey(key));
+      if (metaBuf) {
+        const meta = JSON.parse(new TextDecoder().decode(metaBuf)) as {
+          frame_times?: unknown;
+          duration?: unknown;
+        };
+        if (Array.isArray(meta.frame_times)) {
+          frame_times = meta.frame_times.filter((n): n is number => typeof n === "number");
+        }
+        if (typeof meta.duration === "number") duration = meta.duration;
+      }
+    } catch { /* best-effort */ }
+    return { ok: true, key, count, grid, frame_times, duration, reused: true };
   }
 
   const vpc = platform.hostBindings?.VIDEO_FINISH_VPC;
@@ -270,6 +292,13 @@ export async function buildFramesSheet(
     ? (r.body.frame_times as unknown[]).filter((n): n is number => typeof n === "number")
     : [];
   const duration = typeof r.body.duration === "number" ? r.body.duration : null;
+  try {
+    await platform.renders.put(
+      deriveFramesMetaKey(key),
+      JSON.stringify({ frame_times: times, duration }),
+      { httpMetadata: { contentType: "application/json" } },
+    );
+  } catch { /* sheet already written */ }
   return { ok: true, key, count, grid, frame_times: times, duration, reused: false };
 }
 
