@@ -110,12 +110,21 @@ export async function pollKeyframeRunpod(
   }
   if (runpodJobGone(httpStatus, s)) {
     if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
-      return { ok: false, error: "keyframe job not found" };
+      // local#304: outcome carries the classification; do not make the studio parse "not found".
+      return { ok: false, error: "keyframe job not found", outcome: "gone" };
     }
     return { ok: true, pending: true };
   }
-  const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
+  // local#304: terminalErrorInOutput is backend-error; a bare string s.error is failed. Keep the
+  // render-path verdict (ok:false) identical; only the additive outcome field differs.
+  const backendErr = terminalErrorInOutput(s.output);
+  if (backendErr) {
+    return { ok: false, error: backendErr, ...runpodFaultMarkers(s), outcome: "backend-error" };
+  }
+  const stringErr = typeof s.error === "string" && s.error.trim() ? s.error.trim() : null;
+  if (stringErr) {
+    return { ok: false, error: stringErr, ...runpodFaultMarkers(s), outcome: "failed" };
+  }
   const failed = runpodTerminalFailure("keyframe", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
@@ -195,12 +204,18 @@ export async function pollOwnGpu(
   }
   if (runpodJobGone(httpStatus, s)) {
     if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
-      return { ok: false, error: `own-gpu job not found (shot ${st.shotId})` };
+      return { ok: false, error: `own-gpu job not found (shot ${st.shotId})`, outcome: "gone" };
     }
     return { ok: true, pending: true };
   }
-  const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
+  const backendErr = terminalErrorInOutput(s.output);
+  if (backendErr) {
+    return { ok: false, error: backendErr, ...runpodFaultMarkers(s), outcome: "backend-error" };
+  }
+  const stringErr = typeof s.error === "string" && s.error.trim() ? s.error.trim() : null;
+  if (stringErr) {
+    return { ok: false, error: stringErr, ...runpodFaultMarkers(s), outcome: "failed" };
+  }
   const failed = runpodTerminalFailure("own-gpu", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
@@ -290,12 +305,18 @@ async function pollFinish(
   }
   if (runpodJobGone(httpStatus, s)) {
     if (classifyGoneState(st.submittedAt, Date.now()) === "gone-failed") {
-      return { ok: false, error: `${moduleName} job not found` };
+      return { ok: false, error: `${moduleName} job not found`, outcome: "gone" };
     }
     return { ok: true, pending: true };
   }
-  const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
+  const backendErr = terminalErrorInOutput(s.output);
+  if (backendErr) {
+    return { ok: false, error: backendErr, ...runpodFaultMarkers(s), outcome: "backend-error" };
+  }
+  const stringErr = typeof s.error === "string" && s.error.trim() ? s.error.trim() : null;
+  if (stringErr) {
+    return { ok: false, error: stringErr, ...runpodFaultMarkers(s), outcome: "failed" };
+  }
   const failed = runpodTerminalFailure(moduleName, s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };
