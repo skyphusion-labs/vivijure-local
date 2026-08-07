@@ -106,6 +106,16 @@ export interface FinishPollState {
   srcFps: number;
   frames: number;
   submittedAt?: number;
+  /**
+   * Which door served the SUBMIT (local#378). Job ids live in that door's in-process registry, so
+   * polling a different door returns 404 and `runpodJobGone` would read a healthy job as missing.
+   * Rotation therefore applies to submit only; poll has affinity.
+   *
+   * OPTIONAL for backward compatibility: `decodeFinishPoll` is permissive, so a token minted before
+   * this field existed decodes without it and the poll path falls back to the first door, which is
+   * exactly the single-door behaviour those tokens were minted under.
+   */
+  doorUrl?: string;
 }
 
 export function encodeFinishPoll(s: FinishPollState): string {

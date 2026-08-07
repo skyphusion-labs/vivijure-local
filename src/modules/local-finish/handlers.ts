@@ -9,7 +9,7 @@ import type {
 import {
   finishBackendFromProcess,
   localFinishConfigured,
-  localFinishUrlFor,
+  localFinishUrlsFor,
   resolveFinishBackend,
   type FinishBackendEnv,
 } from "../finish-backend.js";
@@ -48,6 +48,56 @@ function cfgError(moduleName: string, env: FinishBackendEnv): string | null {
   return `${moduleName}: FINISH_BACKEND=local but ${urlKey} is unset`;
 }
 
+/**
+ * Round-robin cursor across doors (local#378). Process-local and deliberately not persisted: at two
+ * doors the only property that matters is that consecutive jobs do not both land on the same card,
+ * and a restart re-starting at zero costs nothing.
+ */
+let doorCursor = 0;
+
+/** Reset between tests; a module-level cursor otherwise leaks ordering across cases. */
+export function __resetDoorCursorForTests(): void {
+  doorCursor = 0;
+}
+
+const DOOR_HEALTH_TIMEOUT_MS = 3000;
+
+async function doorHealthy(url: string): Promise<boolean> {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), DOOR_HEALTH_TIMEOUT_MS);
+    try {
+      const r = await fetch(`${url}/health`, { signal: ctl.signal });
+      return r.ok;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Order the doors this submit should try, healthiest-first-and-rotated.
+ *
+ * A SINGLE DOOR TAKES NO HEALTH PROBE AT ALL. That is not an optimisation, it is the compatibility
+ * guarantee: every existing single-valued deployment keeps exactly today's behaviour and today's
+ * number of round trips, and a door that is up but whose /health is unimplemented cannot be turned
+ * into a refusal by this change.
+ *
+ * With several doors, probe them, keep the ones that answer, and rotate the starting point so
+ * consecutive jobs do not both land on the same card. The returned list is a PREFERENCE ORDER, not
+ * a single choice: the tail is the failover path.
+ */
+async function orderDoors(urls: string[]): Promise<string[]> {
+  if (urls.length <= 1) return urls;
+  const health = await Promise.all(urls.map((u) => doorHealthy(u)));
+  const healthy = urls.filter((_, i) => health[i]);
+  if (healthy.length === 0) return [];
+  const start = doorCursor++ % healthy.length;
+  return [...healthy.slice(start), ...healthy.slice(0, start)];
+}
+
 export async function invokeLocalFinish(
   env: FinishBackendEnv,
   moduleName: LocalFinishModuleName,
@@ -65,37 +115,77 @@ export async function invokeLocalFinish(
   const cfg = coerceFinishConfig(req.config ?? {});
   const misconfigured = cfgError(moduleName, env);
   if (misconfigured) return { ok: false, error: misconfigured };
-  const baseUrl = localFinishUrlFor(moduleName, env)!;
+  const { urls, dropped } = localFinishUrlsFor(moduleName, env);
+  if (dropped > 0) {
+    // Never silent: a dropped entry is lost capacity, and the operator's variable looks fine.
+    console.warn(
+      `${moduleName}: ${dropped} unusable entr${dropped === 1 ? "y" : "ies"} dropped from the ` +
+        `local finish door list; ${urls.length} usable`,
+    );
+  }
   const runBody =
     action === "lipsync_clip"
       ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
       : buildFinishBody(input, cfg, req.context.project, action, extra);
   // Sequential VRAM: local finish GPU shares the card with Ollama + the door.
   await ensureOllamaUnloadedForGpu(env);
-  try {
-    const r = await fetch(`${baseUrl}/run`, {
-      method: "POST",
-      headers: { ...authHeaders(env.LOCAL_FINISH_TOKEN), "content-type": "application/json" },
-      body: JSON.stringify(runBody),
-    });
-    if (!r.ok) return { ok: false, error: `${moduleName}: local finish /run -> ${r.status}` };
-    const jobId = ((await r.json()) as { id?: string }).id;
-    if (!jobId) return { ok: false, error: `${moduleName}: local finish /run returned no job id` };
+
+  const ordered = await orderDoors(urls);
+  if (ordered.length === 0) {
+    // DISTINGUISHABLE FROM UNSET, deliberately: "configured but nothing answers" and "not
+    // configured" are different facts and an operator acts differently on each. cfgError above
+    // already covers the unset case by name.
     return {
-      ok: true,
-      pending: true,
-      poll: encodeFinishPoll({
-        jobId,
-        shotId: input.shot_id,
-        clipKey: input.clip_key,
-        srcFps: input.src_fps ?? 24,
-        frames: input.frames ?? 0,
-        submittedAt: Date.now(),
-      }),
+      ok: false,
+      error: `${moduleName}: no healthy local finish door (${urls.length} configured, 0 reachable)`,
     };
-  } catch (e) {
-    return { ok: false, error: `${moduleName}: local finish submit error: ${(e as Error).message}` };
   }
+
+  let lastError = "";
+  for (let i = 0; i < ordered.length; i += 1) {
+    const baseUrl = ordered[i];
+    try {
+      const r = await fetch(`${baseUrl}/run`, {
+        method: "POST",
+        headers: { ...authHeaders(env.LOCAL_FINISH_TOKEN), "content-type": "application/json" },
+        body: JSON.stringify(runBody),
+      });
+      if (!r.ok) {
+        lastError = `local finish /run -> ${r.status}`;
+      } else {
+        const jobId = ((await r.json()) as { id?: string }).id;
+        if (!jobId) {
+          lastError = "local finish /run returned no job id";
+        } else {
+          if (i > 0) {
+            // Failover is the FEATURE here (the opposite of the proxy rule, where falling back
+            // defeats the purpose) -- but a silent retry turns a permanently dead card into an
+            // invisible 50% capacity loss, so both doors are always named.
+            console.warn(
+              `${moduleName}: local finish failed over -- ${ordered[i - 1]} did not serve ` +
+                `(${lastError}); ${baseUrl} did`,
+            );
+          }
+          return {
+            ok: true,
+            pending: true,
+            poll: encodeFinishPoll({
+              jobId,
+              shotId: input.shot_id,
+              clipKey: input.clip_key,
+              srcFps: input.src_fps ?? 24,
+              frames: input.frames ?? 0,
+              submittedAt: Date.now(),
+              doorUrl: baseUrl,
+            }),
+          };
+        }
+      }
+    } catch (e) {
+      lastError = `local finish submit error: ${(e as Error).message}`;
+    }
+  }
+  return { ok: false, error: `${moduleName}: ${lastError}` };
 }
 
 export async function pollLocalFinish(
@@ -107,7 +197,12 @@ export async function pollLocalFinish(
   if (!st) return { ok: false, error: `${moduleName}: bad poll token` };
   const misconfigured = cfgError(moduleName, env);
   if (misconfigured) return { ok: false, error: misconfigured };
-  const baseUrl = localFinishUrlFor(moduleName, env)!;
+  // AFFINITY, not rotation: the job id lives in the serving door's in-process registry, so polling
+  // any other door 404s and would read a healthy job as gone. Tokens minted before `doorUrl`
+  // existed, or naming a door no longer configured, fall back to the head of the pool -- which is
+  // exactly the single-door behaviour they were minted under.
+  const doors = localFinishUrlsFor(moduleName, env).urls;
+  const baseUrl = st.doorUrl && doors.includes(st.doorUrl) ? st.doorUrl : doors[0];
   let httpStatus = 0;
   let s: { status?: string; output?: unknown; error?: unknown };
   try {
