@@ -7,28 +7,43 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
-## v1.7.0 -- 2026-08-07
+## v1.8.0 -- 2026-08-07
 
-MINOR. Homelab SDXL cast train on the local door (no RunPod required for cast identity).
+MINOR. The finish backend accepts a POOL of local doors instead of exactly one, so a second GPU box
+is capacity rather than a warm spare (#378).
 
-### feat: SDXL cast train on the local door (no RunPod)
+### feat(finish): a comma-separated door list, with poll affinity (#378)
 
-Homelab `POST /api/cast/:id/train-lora` submits `action:train_lora` to `LOCAL_BACKEND_URL`
-when the door is wired (vivijure-core 1.9.0+). Door images (local-12gb / 16gb 1.1.0+) fit SDXL
-UNet LoRAs on the card; Wan train stays CF-prod only. Injects `LOCAL_BACKEND_URL` /
-`LOCAL_BACKEND_TOKEN` into platform vars so the cast route can see them.
+`LOCAL_FINISH_*_URL` now accepts a comma-separated list. **A single value is bit-for-bit unaffected**
+and takes no health probe at all. That is the compatibility guarantee rather than an optimisation: an
+existing deployment keeps today's exact round-trip count, and a door whose `/health` is unimplemented
+cannot be turned into a refusal by this change.
 
-### chore(deps): pin @skyphusion-labs/vivijure-core ^1.9.0
+With several doors: probe, keep the ones that answer, and rotate the starting point so consecutive
+jobs do not both land on the same card. An invalid entry is **dropped and counted** rather than
+failing the whole list, because a silently shortened pool is a capacity halving nobody sees. An
+all-invalid list reads as NOT configured, identical to unset.
 
-Requires published core 1.9.0 (local-door train submit/poll). Prior pin notes for 1.8.1 schema
-migrations still apply.
+**Poll affinity, which is why a load balancer could not have done this.** The door is async with
+per-container in-memory job state: `POST /run` returns an id and `GET /status/<id>` must reach the
+box that ran it. Rotation alone would have sent the poll to a door that never heard of the job, and
+`runpodJobGone` would have read a healthy job as MISSING, a silent wrong answer in the flattering
+direction. The poll token now records the serving door. **Rotation applies to submit; polls have
+affinity.** Pre-existing tokens fall back to the pool head, exactly the single-door behaviour they
+were minted under.
 
-## v1.6.1
+**Deployment note:** these keys live in the platform runtime store, NOT `.env` (#379). Setting the
+list in `.env` alone has no effect.
 
+**Dual-panel note:** local-only by construction. `vivijure-cf` has no local-finish path at all
+(vivijure-cf#480), so there is no cf half to pair this wave with.
 
-PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
+### fix(docs): repair a duplicated v1.7.0 section in this file
 
-## Unreleased
+The v1.7.0 cut left the section duplicated -- a truncated copy above a stray `## v1.6.1` heading and
+a second `## Unreleased`, with the complete copy below. **Verified the short copy was a strict subset
+before removing it (zero lines absent from the full copy), and the stranded v1.6.1 entry is preserved
+in its correct position** rather than deleted with the duplicate around it.
 
 ## v1.7.0 -- 2026-08-07
 
@@ -78,6 +93,11 @@ for the `PollResponse` failure-arm types.
 
 - **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
 
+
+## v1.6.1
+
+
+PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
 ## v1.6.0 -- 2026-08-02
 
