@@ -23,6 +23,7 @@ import {
   parseFinishOutput,
   passthroughOutput,
 } from "../runpod/finish-core.js";
+import { orderDoors, resetDoorCursorsForTests } from "../door-pool.js";
 import { classifyGoneState, runpodJobGone, runpodFaultMarkers, runpodTerminalFailure, terminalErrorInOutput } from "../runpod/shared.js";
 import { ensureOllamaUnloadedForGpu } from "../chain/ollama.js";
 
@@ -49,53 +50,14 @@ function cfgError(moduleName: string, env: FinishBackendEnv): string | null {
 }
 
 /**
- * Round-robin cursor across doors (local#378). Process-local and deliberately not persisted: at two
- * doors the only property that matters is that consecutive jobs do not both land on the same card,
- * and a restart re-starting at zero costs nothing.
+ * Door selection (health probe, single-door-no-probe, rotation) moved to `../door-pool.ts` so the
+ * speech door uses the SAME selector rather than a second one. Behaviour here is unchanged; the
+ * cursor is now keyed per pool, which for a one-module-per-process sidecar is the same counter.
  */
-let doorCursor = 0;
 
-/** Reset between tests; a module-level cursor otherwise leaks ordering across cases. */
+/** Reset between tests; kept at this name because local#378's suite imports it from here. */
 export function __resetDoorCursorForTests(): void {
-  doorCursor = 0;
-}
-
-const DOOR_HEALTH_TIMEOUT_MS = 3000;
-
-async function doorHealthy(url: string): Promise<boolean> {
-  try {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), DOOR_HEALTH_TIMEOUT_MS);
-    try {
-      const r = await fetch(`${url}/health`, { signal: ctl.signal });
-      return r.ok;
-    } finally {
-      clearTimeout(timer);
-    }
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Order the doors this submit should try, healthiest-first-and-rotated.
- *
- * A SINGLE DOOR TAKES NO HEALTH PROBE AT ALL. That is not an optimisation, it is the compatibility
- * guarantee: every existing single-valued deployment keeps exactly today's behaviour and today's
- * number of round trips, and a door that is up but whose /health is unimplemented cannot be turned
- * into a refusal by this change.
- *
- * With several doors, probe them, keep the ones that answer, and rotate the starting point so
- * consecutive jobs do not both land on the same card. The returned list is a PREFERENCE ORDER, not
- * a single choice: the tail is the failover path.
- */
-async function orderDoors(urls: string[]): Promise<string[]> {
-  if (urls.length <= 1) return urls;
-  const health = await Promise.all(urls.map((u) => doorHealthy(u)));
-  const healthy = urls.filter((_, i) => health[i]);
-  if (healthy.length === 0) return [];
-  const start = doorCursor++ % healthy.length;
-  return [...healthy.slice(start), ...healthy.slice(0, start)];
+  resetDoorCursorsForTests();
 }
 
 export async function invokeLocalFinish(

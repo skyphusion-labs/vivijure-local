@@ -68,6 +68,15 @@ export interface SpeechPollState {
   shotId: string;
   audioKey: string;
   submittedAt?: number;
+  /**
+   * The door that ACCEPTED this job, when it was submitted to a local door (local#383).
+   *
+   * Present means local door, absent means RunPod -- that is the discriminator the poll reads, and
+   * it is why a token minted before this field existed still polls RunPod exactly as it did. The
+   * job id lives in the serving door's in-process registry, so polling any other door 404s and
+   * would read a healthy job as gone.
+   */
+  doorUrl?: string;
 }
 
 export function encodeSpeechPoll(s: SpeechPollState): string {
@@ -83,6 +92,7 @@ export function decodeSpeechPoll(token: string): SpeechPollState | null {
         shotId: o.shotId,
         audioKey: o.audioKey,
         submittedAt: typeof o.submittedAt === "number" ? o.submittedAt : undefined,
+        doorUrl: typeof o.doorUrl === "string" && o.doorUrl ? o.doorUrl : undefined,
       };
     }
   } catch {
@@ -105,11 +115,23 @@ export function parseSpeechBackendOutput(output: unknown): SpeechBackendOutput |
   };
 }
 
-export function successRunpodOutput(st: SpeechPollState, out: SpeechBackendOutput): SpeechOutput {
+/**
+ * `fallbackTag` is what we claim when the backend completed but named no `applied` tag.
+ *
+ * It is a per-backend argument rather than a constant because the tag is a CLAIM about what ran:
+ * the RunPod satellite is resemble-enhance, and an on-box door is whatever the operator started, so
+ * the honest minimum there is that a local door served it. Never a tag naming work we cannot
+ * evidence.
+ */
+export function successRunpodOutput(
+  st: SpeechPollState,
+  out: SpeechBackendOutput,
+  fallbackTag = "speech-upscale:resemble-enhance",
+): SpeechOutput {
   return {
     shot_id: st.shotId,
     audio_key: out.output_key as string,
-    applied: out.applied && out.applied.length ? out.applied : ["speech-upscale:resemble-enhance"],
+    applied: out.applied && out.applied.length ? out.applied : [fallbackTag],
   };
 }
 

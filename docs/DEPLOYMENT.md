@@ -289,7 +289,8 @@ RunPod backend worker for vivijure-cf/production (and only as explicit RunPod op
 panel).
 
 When registered, lipsync/upscale sidecars proxy to **RunPod** (`FINISH_BACKEND=runpod`) or **local
-GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL`). A
+GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_UPSCALE_URL`;
+`speech-upscale` has its own `LOCAL_FINISH_SPEECH_URL`, local#383). A
 registered module with missing creds or backend URL **fails the shot** (`ok: false`); finish
 handlers do not passthrough fake output.
 
