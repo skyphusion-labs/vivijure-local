@@ -17,8 +17,12 @@ import {
 import { __resetDoorCursorForTests, invokeLocalFinish } from "../src/modules/local-finish/handlers.js";
 import { decodeFinishPoll } from "../src/modules/runpod/finish-core.js";
 
-const A = "http://door-a:8012";
-const B = "http://10.1.1.11:8012";
+// RFC 5737 documentation addresses, deliberately. These doors are fetch-mocked, so the test never
+// needed a routable address -- and a real internal address in a tracked file in a public repo is
+// exactly what the topology check exists to stop. Two DIFFERENT reserved blocks so the pair is
+// visibly heterogeneous, which is the property the multi-door path has to handle.
+const A = "http://192.0.2.10:8012";
+const B = "http://198.51.100.20:8012";
 
 function env(url: string | undefined): FinishBackendEnv {
   return {
