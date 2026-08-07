@@ -176,7 +176,8 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 Conservative estimate: **4–7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
 Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
-`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on the render endpoint.
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on `LOCAL_BACKEND_URL`
+(the door) when wired, else the optional cloud render endpoint.
 
 ## Rollout order (post-musetalk smoke)
 
