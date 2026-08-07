@@ -14,8 +14,9 @@ handlers never fake a step with passthrough output when creds or GPU dispatch ar
 
 Default homelab: all CPU module URLs wired in compose; finish GPU and cloud i2v URLs left empty
 until you opt in with profiles + `.env`. **Wan cast LoRA train is not homelab-scoped:** do not set
-`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` uses SDXL on the render endpoint (train on CF
-prod for Wan).
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID`. **SDXL cast train** (`POST /api/cast/:id/train-lora`) prefers
+`LOCAL_BACKEND_URL` (the 12gb/16gb door's `action: train_lora`) when the door is wired; falls back
+to `RUNPOD_ENDPOINT_ID` only if you opt into a cloud render EP.
 
 ## Default (homelab)
 

@@ -11,6 +11,18 @@ PATCH: dependency updates (including vivijure-core pin group where already on ma
 
 ## Unreleased
 
+### feat: SDXL cast train on the local door (no RunPod)
+
+Homelab `POST /api/cast/:id/train-lora` submits `action:train_lora` to `LOCAL_BACKEND_URL`
+when the door is wired (vivijure-core 1.9.0+). Door images (local-12gb / 16gb 1.1.0+) fit SDXL
+UNet LoRAs on the card; Wan train stays CF-prod only. Injects `LOCAL_BACKEND_URL` /
+`LOCAL_BACKEND_TOKEN` into platform vars so the cast route can see them.
+
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.9.0
+
+Requires published core 1.9.0 (local-door train submit/poll). Prior pin notes for 1.8.1 schema
+migrations still apply.
+
 ### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.1
 
 Dual-panel of vivijure-cf core pin. Brings PollResponse failure fields (`outcome`,
