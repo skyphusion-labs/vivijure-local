@@ -7,6 +7,37 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.9.0 -- 2026-08-07
+
+MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).
+
+### feat(speech): route speech-upscale to an on-box door (#383, #384)
+
+`LOCAL_FINISH_SPEECH_URL` sends speech to a local door instead of the RunPod
+`vivijure-audio-upscale` endpoint. The generic half of the #378 door pool moved to
+`src/modules/door-pool.ts` and is now genuinely SHARED rather than copied -- one parser, one
+selector, with `finish-backend.ts` re-exporting the old names as aliases so `normalizeFinishBaseUrl`
+keeps its exact contract by being the same function object.
+
+**`LOCAL_FINISH_SPEECH_URL` wins on PRESENCE, not usability**, deliberately unlike
+`localFinishConfigured`. Writing a value into it IS the operator saying keep speech off RunPod, and
+the fall-through here is a CLOUD CALL rather than a refusal -- so a typo read as "unset" would
+silently restore the exact traffic the variable exists to remove, arriving as success. Failures
+degrade honestly instead: `ok: true`, the INPUT audio passed through, `applied: []` with no invented
+tag, and a named reason. None reaches RunPod.
+
+**This release is what makes the key settable at all.** #384 merged after the v1.8.0 cut, so a studio
+on 1.8.0 does not know the key exists -- and `PATCH /api/settings/secrets` answers `ok: true` with
+`applied: []` for an unrecognised key rather than refusing. An operator would get a success response
+and a studio still sending every speech job to RunPod.
+
+### docs(finish): retract an overstated local#380 note (#385)
+
+An earlier note claimed the #378 door pool "cannot be exercised from a compose deployment" -- a wrong
+inference from a correct measurement, and wrong in the alarming direction, making a merged working
+feature read as broken. These modules resolve settings from the platform runtime store, not container
+env (#379). The narrower true trap remains: `.env` alone will not configure the two finish sidecars.
+
 ## v1.8.0 -- 2026-08-07
 
 MINOR. The finish backend accepts a POOL of local doors instead of exactly one, so a second GPU box
