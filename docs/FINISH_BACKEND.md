@@ -228,14 +228,24 @@ None of these reaches RunPod. Only malformed input (`shot_id` / `audio_key` miss
 and startable in the `satellites` lane where the on-box doors run. It reads `LOCAL_FINISH_SPEECH_URL`
 and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
 
-> **Known gap, NOT fixed here (local#380).** `module-finish-lipsync` and `module-finish-upscale`
+> **Known trap, NOT fixed here (local#380).** `module-finish-lipsync` and `module-finish-upscale`
 > declare their own `environment: { RUNPOD_WORKERS_MAX }`, and an explicit `environment:` REPLACES a
 > `<<:` anchor's mapping wholesale -- so those two sidecars receive **exactly one** environment
-> variable, not the twenty-two the anchor lists. Measured on `compose.yaml` at this commit. The
-> practical effect is that `FINISH_BACKEND`, `LOCAL_FINISH_LIPSYNC_URL`, `LOCAL_FINISH_UPSCALE_URL`
-> and `LOCAL_FINISH_TOKEN` never reach the finish sidecars, so the local#378 door pool cannot be
-> exercised from a compose deployment. `module-speech-upscale` is unaffected because its
-> `environment:` block is written out in full.
+> variable, not the twenty-two the anchor lists. Measured on `compose.yaml` at this commit.
+> `module-speech-upscale` is unaffected because its `environment:` block is written out in full.
+>
+> **It is NOT blocking, and an earlier version of this note said it was.** That claim ("the
+> local#378 door pool cannot be exercised from a compose deployment") was a wrong INFERENCE from a
+> correct measurement, and it was wrong in the alarming direction, which is the direction that gets
+> acted on: it made a merged, working feature read as broken. These modules resolve settings from
+> the **platform runtime store**, not from container env (local#379), so a value set through the
+> store reaches them whatever compose injects. local#378's door pool was measured live at a 3/3
+> distribution across two doors on the day this was written.
+>
+> The trap that remains is real and narrower: **`.env` alone will not configure these two
+> sidecars**, because the compose path that would carry it is severed. Set them through the store
+> (`npm run sync:secrets`), and treat the `environment:` block as unreliable for them until #380
+> lands.
 
 ## Rollout order (post-musetalk smoke)
 
