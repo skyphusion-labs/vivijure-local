@@ -79,14 +79,62 @@ export function normalizeFinishBaseUrl(raw: string): string | null {
   }
 }
 
-export function localFinishUrlFor(moduleName: string, env: FinishBackendEnv): string | null {
+/** A resolved door pool plus what it cost to resolve it (local#378). */
+export interface FinishDoorSet {
+  /** Usable, normalised, de-duplicated door base URLs, in declaration order. */
+  urls: string[];
+  /** Entries present in the raw value that did NOT become a usable door.
+   *
+   *  SURFACED RATHER THAN SWALLOWED, deliberately: a silently shortened pool is a capacity
+   *  halving nobody sees. One typo in a two-door list is a 50% loss that no error reports. */
+  dropped: number;
+}
+
+/**
+ * Parse a COMMA-SEPARATED door list. Same variable as before (local#378) -- no new env key.
+ *
+ * A single value parses to a one-element list with `dropped: 0`, so every existing deployment is
+ * bit-for-bit unaffected. `normalizeFinishBaseUrl` keeps its exact contract and its tests; this is
+ * additive and delegates to it per entry, so the two can never disagree about what a valid URL is.
+ *
+ * An INVALID ENTRY IS DROPPED rather than failing the whole list: one bad door must not take a
+ * healthy one down with it. An all-invalid list returns `urls: []`, which `localFinishConfigured`
+ * reads as NOT configured -- the same state as unset, which is correct, because a list that
+ * resolves to no door configures nothing.
+ */
+export function normalizeFinishBaseUrls(raw: string): FinishDoorSet {
+  const urls: string[] = [];
+  let dropped = 0;
+  for (const part of raw.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed) continue; // a trailing comma is sloppiness, not a lost door
+    const normalized = normalizeFinishBaseUrl(trimmed);
+    if (!normalized) {
+      dropped += 1;
+      continue;
+    }
+    if (!urls.includes(normalized)) urls.push(normalized); // same door twice is one door
+  }
+  return { urls, dropped };
+}
+
+export function localFinishUrlsFor(moduleName: string, env: FinishBackendEnv): FinishDoorSet {
   const key = MODULE_LOCAL_URL_KEY[moduleName];
-  if (!key) return null;
+  if (!key) return { urls: [], dropped: 0 };
   const raw = env[key];
-  if (typeof raw !== "string") return null;
-  return normalizeFinishBaseUrl(raw);
+  if (typeof raw !== "string") return { urls: [], dropped: 0 };
+  return normalizeFinishBaseUrls(raw);
+}
+
+/**
+ * The FIRST usable door, or null. Unchanged in meaning for a single-valued variable, which is what
+ * its existing tests pin; for a list it is the head. Selection among several doors is
+ * `localFinishUrlsFor` plus the health/rotation logic in local-finish/handlers.ts, never this.
+ */
+export function localFinishUrlFor(moduleName: string, env: FinishBackendEnv): string | null {
+  return localFinishUrlsFor(moduleName, env).urls[0] ?? null;
 }
 
 export function localFinishConfigured(moduleName: string, env: FinishBackendEnv): boolean {
-  return localFinishUrlFor(moduleName, env) != null;
+  return localFinishUrlsFor(moduleName, env).urls.length > 0;
 }
