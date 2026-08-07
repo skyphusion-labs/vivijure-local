@@ -59,7 +59,7 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 | Keyframe + motion | `module-local-gpu`, **`localgpu` profile only** (16GB door). No door: the service is **not in the stack**, and the host reports both hooks unavailable -- no mock, no doorless stand-in (local#229, local#280) |
 | Dialogue / music-gen | AI Gateway sidecars (honest degrade when gateway creds unset) |
 | RunPod keyframe | **not started** (`profiles: [cloud]`; `MODULE_KEYFRAME_URL` unset) |
-| speech-upscale | **not started** (`profiles: [cloud]`; `MODULE_SPEECH_UPSCALE_URL` unset) |
+| speech-upscale | **not started** (`profiles: [cloud, satellites]`; `MODULE_SPEECH_UPSCALE_URL` unset) |
 | Finish GPU (lip-sync, upscale) | **not started** (`profiles: [satellites]`; no `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL`) |
 | Cloud i2v / own-gpu | **not started** (`profiles: [cloud]`; `MODULE_*` unset) |
 | RIFE interpolation | **not supported** on vivijure-local (RunPod / vivijure-cf only) |
@@ -117,7 +117,9 @@ COMPOSE_PROFILES=cloud docker compose up -d
 
 Music mastering stays on the default CPU path: `audio-master` (VPC shim, port 8784) and
 `module-audio-master` (`MODULE_AUDIO_MASTER_URL`). Do not confuse that chain with `speech-upscale`,
-which polishes dialogue audio on RunPod only.
+which polishes dialogue audio. `speech-upscale` is **no longer RunPod-only** (local#383): set
+`LOCAL_FINISH_SPEECH_URL` and it runs on your own box instead, with no fallback to RunPod. Its
+sidecar is startable from the `satellites` lane as well as `cloud`.
 
 ## Profile: `satellites` (finish GPU sidecars, lipsync/upscale only)
 
@@ -140,6 +142,12 @@ MODULE_UPSCALE_URL=http://module-finish-upscale:9112
 # FINISH_BACKEND defaults to local; set these or the sidecars refuse by name:
 # LOCAL_FINISH_LIPSYNC_URL=http://finish-lipsync:8011
 # LOCAL_FINISH_UPSCALE_URL=http://finish-upscale:8012
+
+# local#383: speech-upscale on your own box too. Comma-separate for several cards. Setting this
+# takes speech audio off RunPod entirely -- it wins over AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID and never
+# falls back. Its sidecar starts in this lane as well as `cloud`.
+# MODULE_SPEECH_UPSCALE_URL=http://module-speech-upscale:9143
+# LOCAL_FINISH_SPEECH_URL=http://speech-upscale:8013
 
 COMPOSE_PROFILES=satellites docker compose up -d
 ```

@@ -3,14 +3,14 @@
 Tracking: [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180) (post-musetalk cutover).
 Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/153) (local keyframe coupling; separate lane).
 
-## Ruling (Conrad — current)
+## Ruling (Conrad -- current)
 
 **No local RIFE image in vivijure-local.** RIFE stays on the RunPod `vivijure-backend` finish path
 (vivijure-cf / opt-in RunPod). Homelab default is CPU `video-finish` assemble. There is no
 `containers/finish-rife-serve`, no `vivijure-local-finish-rife` GHCR image, and no
 `LOCAL_FINISH_RIFE_URL` path.
 
-History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28** —
+History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28** --
 Conrad: do not ship finish-rife in vivijure-local. Closed paths (do not revive): fleet-chezmoi
 #1009, PR #185, local#204 overlay, local#260 CI bake.
 
@@ -24,7 +24,7 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** — RunPod opt-in only |
+| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
@@ -55,7 +55,7 @@ historically RIFE):
 | `finish-lipsync` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-musetalk` |
 | `finish-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-upscale` |
 | `speech-upscale` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* | `vivijure-audio-upscale` |
-| `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` — **CF/production only; not local panel** |
+| `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` -- **CF/production only; not local panel** |
 
 CPU assemble (`video-finish`, `audio-*`, `image-prep`) runs locally in compose. Motion i2v defaults
 to **`LOCAL_BACKEND_URL`** (16gb door on propagandhi).
@@ -79,7 +79,8 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 | `FINISH_BACKEND` | `local` (**the default**, local#229) or `runpod` (explicit opt-in) |
 | `LOCAL_FINISH_LIPSYNC_URL` | HTTP base for MuseTalk / `lipsync_clip` |
 | `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip` |
-| `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`) |
+| `LOCAL_FINISH_SPEECH_URL` | HTTP base for `speech-upscale` (local#383). Not governed by `FINISH_BACKEND` -- see below |
+| `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`); covers the speech door too |
 | `FINISH_LIPSYNC_BACKEND` | Optional per-module override (`local` \| `runpod`) |
 | `FINISH_UPSCALE_BACKEND` | Optional per-module override |
 
@@ -103,16 +104,16 @@ Verified on propagandhi:
 
 | Container | Status | Action after #186 merge |
 |-----------|--------|-------------------------|
-| `vivijure-finish-gpu-finish-rife-1` | Running (healthy) | **Tear down** — no local RIFE path |
-| `vivijure-local-module-finish-rife-1` | Running (legacy sidecar) | **Stop/remove** — not in default compose |
+| `vivijure-finish-gpu-finish-rife-1` | Running (healthy) | **Tear down** -- no local RIFE path |
+| `vivijure-local-module-finish-rife-1` | Running (legacy sidecar) | **Stop/remove** -- not in default compose |
 | `vivijure-finish-gpu-finish-{lipsync,upscale}-*` | Running | Keep if pursuing local lipsync/upscale; else tear down with finish-gpu stack |
-| `vivijure-local-video-finish-1` | Running | **Keep** — CPU assemble path |
+| `vivijure-local-video-finish-1` | Running | **Keep** -- CPU assemble path |
 
 Minimal homelab bar after cutover: clips from local-gpu door → `video-finish` CPU assemble. No
 finish GPU sidecars required.
 
 ```bash
-# On propagandhi — remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
+# On propagandhi -- remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
 cd /opt/fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu
 sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 ```
@@ -143,7 +144,7 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 
 | Finish step | GPU work lives in | Homelab HTTP serve overlay |
 |-------------|-------------------|----------------------------|
-| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **None** — not shipped in vivijure-local |
+| RIFE (`finish_clip`) | `vivijure-backend` handler (RunPod image) | **None** -- not shipped in vivijure-local |
 | Lip-sync | `vivijure-musetalk` | `vivijure-musetalk` `Dockerfile.serve` |
 | Video upscale | `vivijure-upscale` | `vivijure-upscale` `Dockerfile.serve` |
 
@@ -171,13 +172,70 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 | Backend (render) | 3 (keyframe + own-gpu pressure) | RIFE already off local path; keyframe off local path after #153 |
 | MuseTalk | 2 | Full endpoint idle for local panel |
 | Video upscale | 2 | Full endpoint idle for local panel |
-| Audio upscale | 2 | Optional: move to local or keep for speech-upscale only |
+| Audio upscale | 2 | **Moved to local** (local#383): set `LOCAL_FINISH_SPEECH_URL` and no speech audio reaches it |
 
-Conservative estimate: **4–7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
+Conservative estimate: **4-7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
 Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
 `RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on `LOCAL_BACKEND_URL`
 (the door) when wired, else the optional cloud render endpoint.
+
+## `speech-upscale` on an on-box door (local#383)
+
+**`speech-upscale` is NOT a finish module in this codebase, and that is the whole reason this
+section exists.** It is a CHAIN module (`src/modules/chain/`): a different env type, a different
+typed I/O (`audio_key`, not `clip_key`), its own poll token, and its own backend switch. Nothing on
+its path calls `resolveFinishBackend` or `localFinishUrlsFor`, so adding it to `MODULE_LOCAL_URL_KEY`
+in `finish-backend.ts` would be **dead code** -- it would route nothing. Do not try it.
+
+What it DOES share is the door-pool logic, which now lives in `src/modules/door-pool.ts` and is used
+by both paths so there is exactly one parser and one selector: comma-separated lists, invalid
+entries dropped AND counted, no health probe when there is a single door, health-probe plus rotation
+across several, and poll affinity to the door that accepted the job.
+
+### Where speech work goes
+
+| Condition | Backend |
+|-----------|---------|
+| `LOCAL_FINISH_SPEECH_URL` non-empty | **on-box door** -- always, and it never falls back to RunPod |
+| else RunPod configured (`RUNPOD_API_KEY` + `AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID`, or the generic `RUNPOD_ENDPOINT_ID`) | RunPod `vivijure-audio-upscale` |
+| else | the pre-existing byte-copy mock, tagged `speech-upscale:local-mock` |
+
+**Presence wins, not usability.** This is deliberately laxer than `localFinishConfigured`, where a
+list resolving to zero doors reads as unset. Writing a value into `LOCAL_FINISH_SPEECH_URL` IS the
+operator saying *keep speech off RunPod*; if a typo were read as "unset" the fall-through would be a
+cloud call to the exact endpoint the variable exists to avoid, arriving silently and looking like
+success. The finish sidecars can be laxer because their fall-through is a refusal, not a cloud call.
+
+### Failure is an honest degrade, never a cloud fallback
+
+`speech-upscale` is a POLISH step, so a miss must not fail the shot (local#249/#77). Every local-door
+failure returns `ok: true` with the **input** audio passed through, `applied: []` (no invented tag)
+and a named `degraded` reason:
+
+| `degraded` | Means |
+|---|---|
+| `local-door-unusable: ...` | the variable is set but resolved to zero usable doors |
+| `local-door-unreachable: N configured, 0 reachable` | doors configured, none answered `/health` |
+| `local-door-submit-failed: ...` | doors answered health, none accepted `/run` |
+| `local-door-unconfigured-mid-job` | the door was unset while a job was in flight |
+
+None of these reaches RunPod. Only malformed input (`shot_id` / `audio_key` missing) fails loud.
+
+### Compose
+
+`module-speech-upscale` now carries `profiles: [cloud, satellites]` -- unchanged for the cloud lane,
+and startable in the `satellites` lane where the on-box doors run. It reads `LOCAL_FINISH_SPEECH_URL`
+and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
+
+> **Known gap, NOT fixed here (local#380).** `module-finish-lipsync` and `module-finish-upscale`
+> declare their own `environment: { RUNPOD_WORKERS_MAX }`, and an explicit `environment:` REPLACES a
+> `<<:` anchor's mapping wholesale -- so those two sidecars receive **exactly one** environment
+> variable, not the twenty-two the anchor lists. Measured on `compose.yaml` at this commit. The
+> practical effect is that `FINISH_BACKEND`, `LOCAL_FINISH_LIPSYNC_URL`, `LOCAL_FINISH_UPSCALE_URL`
+> and `LOCAL_FINISH_TOKEN` never reach the finish sidecars, so the local#378 door pool cannot be
+> exercised from a compose deployment. `module-speech-upscale` is unaffected because its
+> `environment:` block is written out in full.
 
 ## Rollout order (post-musetalk smoke)
 
