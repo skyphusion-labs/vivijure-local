@@ -1,0 +1,21 @@
+# vivijure-cf commit pin for quality-tier-drift only (local#295).
+#
+# WHY A PIN. local CI runs vivijure-core's full test suite, which includes
+# tests/quality-tier-drift.test.ts. That test imports MANIFEST from
+# vivijure-cf modules/keyframe and modules/own-gpu via a sibling checkout
+# (see .github/workflows/ci.yml). Floating cf@main means an unrelated cf
+# merge can red every open local PR with no signal on the cf side and no
+# change in this repo -- the exact failure local#295 recorded.
+#
+# Bump this SHA deliberately when:
+#   - core QUALITY_TIERS changes, or
+#   - keyframe / own-gpu config_schema tier enums change on cf, or
+#   - the module entrypoints gain imports that break the checkout (and you
+#     have verified the pin still loads MANIFEST under core's vitest alias).
+#
+# NOT used by manifest-drift.yml (or containers-drift). Those jobs track
+# cf@main on purpose: their job is to catch drift against current cf, not
+# to freeze a quality-tier snapshot.
+#
+# Format: one SHA= line with a full 40-char lowercase hex commit.
+SHA=545121578c97fb98a7d6bc6f8aee718f4b276447
