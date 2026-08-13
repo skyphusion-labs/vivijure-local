@@ -1094,6 +1094,9 @@ async function finalizeRender(row, btnEl) {
     // the Worker side.
     const finalizeBody = {};
     if (planState.audioKey) finalizeBody.audioKey = planState.audioKey;
+    // motion_backend on finalize is owned by local#348 (adds defaultGpuDoorModule to the
+    // browser registry). Do not guard on a function that does not exist on main -- that
+    // made the finalize half of this PR dead code with a green CI (joan-prreview-local).
     // v0.135.6: server gates readiness against fresh D1 state (see submitRender).
     const finalizeCastLoras = buildCastLoraSubmit();
     if (Object.keys(finalizeCastLoras).length > 0) {

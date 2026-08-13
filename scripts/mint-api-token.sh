@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Mint a named per-consumer API token (parity with vivijure scripts/studio-consumer-token.sh).
+#
+# HONESTY (local#238): the token is attributed as api-token:<name> but is NOT scoped. It can do
+# everything STUDIO_API_TOKEN can (submit renders, mutate settings, all /api routes). Revoke by
+# setting revoked_at; do not mint a "read-only" name expecting read-only reach.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NAME="${1:-}"
 if [[ -z "$NAME" ]]; then
-  echo "usage: $0 <consumer-name>" >&2
+  echo "usage: $0 <consumer-name>   # full operator-equivalent reach; name is attribution only" >&2
   exit 1
 fi
 export DATABASE_PATH="${DATABASE_PATH:-$ROOT/data/studio.db}"
