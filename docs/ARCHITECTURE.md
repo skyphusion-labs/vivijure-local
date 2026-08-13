@@ -1,15 +1,18 @@
-# Architecture -- vivijure-local (Option B)
+# Architecture -- vivijure-local
 
 Provider-neutral host for Vivijure Studio. Cloudflare-hosted reference: `vivijure-cf` on Cloudflare Workers.
 
 Operator docs: [quickstart.md](quickstart.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [SECURITY.md](SECURITY.md) · [constellation.md](constellation.md).
 
-> **Still evolving.** Adapters and compose layout may still change as we extract `vivijure-core`
-> (see [ROADMAP.md](ROADMAP.md)).
+> Shared orchestration already lives in **`@skyphusion-labs/vivijure-core`** (published npm dep).
+> This host is a thin Node adapter: HTTP router, `src/platform/*`, compose, and operator surface.
+> See [ROADMAP.md](ROADMAP.md) Phase 3 (historical) and core's `docs/HOST-ADOPTION.md`.
 
 ## Design principle
 
-The film pipeline and module registry are **host-agnostic logic** trapped behind Cloudflare bindings today. This repo ports that logic onto explicit platform adapters so a future `vivijure-core` package (vivijure v2.0) can import the same code both hosts use.
+The film pipeline and module registry are **host-agnostic** and already published as
+`@skyphusion-labs/vivijure-core`. This repo implements `NodePlatform` (SQLite, S3/MinIO, HTTP
+module sidecars) and routes; `vivijure-cf` implements the CF platform. Both import the same package.
 
 ```
                     +------------------+
@@ -30,9 +33,11 @@ The film pipeline and module registry are **host-agnostic logic** trapped behind
   migrations/           renders/<key>        MODULE_*_URL sidecars
 ```
 
-## Platform interface (`src/platform/types.ts`)
+## Platform interface
 
-Designed for v2.0 extraction into `vivijure-core`. Cloudflare `Env` becomes `CloudflarePlatform implements Platform`; this repo implements `NodePlatform`.
+Canonical ICD: `@skyphusion-labs/vivijure-core/platform` (this host re-exports / implements under
+`src/platform/`). Cloudflare `Env` becomes `CloudflarePlatform implements Platform`; this repo
+implements `NodePlatform`.
 
 | Adapter | Replaces (CF) | Implementation |
 |---------|---------------|----------------|
@@ -58,7 +63,7 @@ Production vivijure binds each module as a CF Worker (`MODULE_KEYFRAME`, etc.). 
 | Module | Sidecar port | Notes |
 |--------|--------------|-------|
 | `keyframe` or `local-gpu` door | 9101+ | Pick motion path |
-| `local-gpu` | 9102 | `vivijure-local-12gb` / `-16gb` |
+| `local-gpu` | 9102 | `vivijure-local-12gb` (LTX) / `-16gb` (CogVideoX) -- different engines + duration_grid; see local#235 |
 | `finish-lipsync`, `finish-upscale` | 911x | Optional polish chain (RIFE is RunPod/CF-only, not local) |
 | `beat-sync`, `audio-master` | 912x | CPU via compose or module VPC shim |
 | `film-titles`, `subtitle` | 913x | Optional |
@@ -90,6 +95,13 @@ Module workers that called VPC fetchers (`beat-sync`, finish modules) use `*_VPC
 ## Auth
 
 v1 supports `AUTH_MODE=token` only (`STUDIO_API_TOKEN` + D1-shaped `api_tokens` table). CF Access is a cloud-host concern; not ported.
+
+**Named tokens are attribution, not scope (local#238).** `api_tokens` is `(name, token_hash,
+created_at, revoked_at)` with **no capability column**. `verifyTokenRequest` admits a named token
+with the same authority as `STUDIO_API_TOKEN` (renders, settings, every `/api` route). Blast radius
+is bounded by **revocation** and visible via **attribution** (`sub: api-token:<name>`), not by
+permission. Honest description until a scope column lands: an operator token with a name on it.
+Mint with `scripts/mint-api-token.sh`; revoke by setting `revoked_at`.
 
 ## Port order (implementation sequence)
 

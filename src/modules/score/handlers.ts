@@ -22,6 +22,7 @@ import {
   classifyGoneState,
   runpodBase,
   runpodJobGone,
+  runpodFaultMarkers,
   runpodTerminalFailure,
   terminalErrorInOutput,
 } from "../runpod/shared.js";
@@ -331,7 +332,7 @@ export async function pollNarrationGen(
     return { ok: true, pending: true };
   }
   const term = terminalErrorInOutput(s.output) ?? (typeof s.error === "string" ? s.error : null);
-  if (term) return { ok: false, error: term };
+  if (term) return { ok: false, error: term, ...runpodFaultMarkers(s) };
   const failed = runpodTerminalFailure("narration-gen", s); // #47: TIMED_OUT/CANCELLED/crashed-worker FAILED
   if (failed) return failed;
   if (s.status !== "COMPLETED") return { ok: true, pending: true };

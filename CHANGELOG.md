@@ -7,6 +7,224 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.9.0 -- 2026-08-07
+
+MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).
+
+### feat(speech): route speech-upscale to an on-box door (#383, #384)
+
+`LOCAL_FINISH_SPEECH_URL` sends speech to a local door instead of the RunPod
+`vivijure-audio-upscale` endpoint. The generic half of the #378 door pool moved to
+`src/modules/door-pool.ts` and is now genuinely SHARED rather than copied -- one parser, one
+selector, with `finish-backend.ts` re-exporting the old names as aliases so `normalizeFinishBaseUrl`
+keeps its exact contract by being the same function object.
+
+**`LOCAL_FINISH_SPEECH_URL` wins on PRESENCE, not usability**, deliberately unlike
+`localFinishConfigured`. Writing a value into it IS the operator saying keep speech off RunPod, and
+the fall-through here is a CLOUD CALL rather than a refusal -- so a typo read as "unset" would
+silently restore the exact traffic the variable exists to remove, arriving as success. Failures
+degrade honestly instead: `ok: true`, the INPUT audio passed through, `applied: []` with no invented
+tag, and a named reason. None reaches RunPod.
+
+**This release is what makes the key settable at all.** #384 merged after the v1.8.0 cut, so a studio
+on 1.8.0 does not know the key exists -- and `PATCH /api/settings/secrets` answers `ok: true` with
+`applied: []` for an unrecognised key rather than refusing. An operator would get a success response
+and a studio still sending every speech job to RunPod.
+
+### docs(finish): retract an overstated local#380 note (#385)
+
+An earlier note claimed the #378 door pool "cannot be exercised from a compose deployment" -- a wrong
+inference from a correct measurement, and wrong in the alarming direction, making a merged working
+feature read as broken. These modules resolve settings from the platform runtime store, not container
+env (#379). The narrower true trap remains: `.env` alone will not configure the two finish sidecars.
+
+## v1.8.0 -- 2026-08-07
+
+MINOR. The finish backend accepts a POOL of local doors instead of exactly one, so a second GPU box
+is capacity rather than a warm spare (#378).
+
+### feat(finish): a comma-separated door list, with poll affinity (#378)
+
+`LOCAL_FINISH_*_URL` now accepts a comma-separated list. **A single value is bit-for-bit unaffected**
+and takes no health probe at all. That is the compatibility guarantee rather than an optimisation: an
+existing deployment keeps today's exact round-trip count, and a door whose `/health` is unimplemented
+cannot be turned into a refusal by this change.
+
+With several doors: probe, keep the ones that answer, and rotate the starting point so consecutive
+jobs do not both land on the same card. An invalid entry is **dropped and counted** rather than
+failing the whole list, because a silently shortened pool is a capacity halving nobody sees. An
+all-invalid list reads as NOT configured, identical to unset.
+
+**Poll affinity, which is why a load balancer could not have done this.** The door is async with
+per-container in-memory job state: `POST /run` returns an id and `GET /status/<id>` must reach the
+box that ran it. Rotation alone would have sent the poll to a door that never heard of the job, and
+`runpodJobGone` would have read a healthy job as MISSING, a silent wrong answer in the flattering
+direction. The poll token now records the serving door. **Rotation applies to submit; polls have
+affinity.** Pre-existing tokens fall back to the pool head, exactly the single-door behaviour they
+were minted under.
+
+**Deployment note:** these keys live in the platform runtime store, NOT `.env` (#379). Setting the
+list in `.env` alone has no effect.
+
+**Dual-panel note:** local-only by construction. `vivijure-cf` has no local-finish path at all
+(vivijure-cf#480), so there is no cf half to pair this wave with.
+
+### fix(docs): repair a duplicated v1.7.0 section in this file
+
+The v1.7.0 cut left the section duplicated -- a truncated copy above a stray `## v1.6.1` heading and
+a second `## Unreleased`, with the complete copy below. **Verified the short copy was a strict subset
+before removing it (zero lines absent from the full copy), and the stranded v1.6.1 entry is preserved
+in its correct position** rather than deleted with the duplicate around it.
+
+## v1.7.0 -- 2026-08-07
+
+MINOR. Homelab SDXL cast train on the local door (no RunPod required for cast identity).
+
+### feat: SDXL cast train on the local door (no RunPod)
+
+Homelab `POST /api/cast/:id/train-lora` submits `action:train_lora` to `LOCAL_BACKEND_URL`
+when the door is wired (vivijure-core 1.9.0+). Door images (local-12gb / 16gb 1.1.0+) fit SDXL
+UNet LoRAs on the card; Wan train stays CF-prod only. Injects `LOCAL_BACKEND_URL` /
+`LOCAL_BACKEND_TOKEN` into platform vars so the cast route can see them.
+
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.9.0
+
+Requires published core 1.9.0 (local-door train submit/poll). Prior pin notes for 1.8.1 schema
+migrations still apply.
+
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.1
+
+Dual-panel of vivijure-cf core pin. Brings PollResponse failure fields (`outcome`,
+`runpodStatus`, `errorType`), keyframe provenance `bundle_key`, render
+`motion_backend` / `keyframe_backend`, scatter D1-empty dialogue fallback, plus
+everything already in 1.8.0 (finish_elapsed_ms, FilmSummary duration fields, cast
+family readiness, install-patch dropped keys, untrained-LoRA voice copy).
+
+**Schema (required before any process loads 1.8.1):**
+- `migrations/0018_render_output_ms.sql` -- `renders.output_ms` (core 1.7.1+ read path)
+- `migrations/0019_finish_elapsed_ms.sql` -- `renders.finish_elapsed_ms` (core 1.8.0)
+- `migrations/0020_render_motion_backend.sql` -- `renders.motion_backend` + `keyframe_backend` (core 1.8.1 / cf#393)
+
+Local migration numbers already used 0016-0019 for runpod_job_log + output/finish;
+0020 is the dual of cf 0018. Studio applies on boot via `migrateDatabase`. Pin
+without 0020 = `no such column` on every render read/insert.
+
+### Fixed: module poll carries structured `outcome` (local#304)
+
+Module poll already classified gone / backend-error / failed / cancelled, then
+flattened them into `{ok:false, error: prose}` so `runpod_job_log.outcome` could
+only reach three of five values on this door. Additive `outcome` on the poll
+envelope (closed set); studio transport records that field and never parses the
+English `error` string. Render-path verdict stays `ok: false`. Needs core 1.8.1
+for the `PollResponse` failure-arm types.
+
+- **docs: named API tokens are operator-equivalent (local#238).** No scope column; ARCHITECTURE + mint script state the honest blast radius.
+
+- **docs: 12GB LTX vs 16GB CogVideoX engine asymmetry (local#235).** Documented in `docs/DEPLOYMENT.md` so a door swap is not read as a pin-only change.
+
+- **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
+
+
+## v1.6.1
+
+
+PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
+
+## v1.6.0 -- 2026-08-02
+
+MINOR: the self-host door gets everything the hosted door got tonight, in the same wave. An agent can
+turn an artifact key into a fetchable link, and can look at a frame of motion output.
+
+**READ THIS BEFORE ASSUMING THE FEATURE IS LIVE ON YOUR BOX.** Publishing a release is not deploying
+one. `POST /api/render/frames` calls `POST /frames` on the `video-finish` container, and that route
+only exists in the image THIS TAG BUILDS. **Until you pull the new image and point your deployment at
+it, the route answers `route-not-served` by name** -- deliberately, so the failure says what is wrong
+instead of looking like a bug in your caller. On the reference deployment that means bumping
+`VJ_IMAGE_TAG`; it is pinned on purpose (`pin, do not run :latest in prod`) and pinning stays correct.
+
+**What is proven and what is not.** The container half of this feature was smoked END TO END on the
+hosted door before this release was cut, against **the same file, not a same-shaped copy**:
+
+```
+vivijure-cf     containers/video-finish/app.py   1284 lines   sha256 dadeacbf1da144e3368248927020a1ad...
+vivijure-local  containers/video-finish/app.py   1284 lines   sha256 dadeacbf1da144e3368248927020a1ad...
+```
+
+Byte-identical across the WHOLE FILE at both `origin/main`s, verified with `cmp` and a control proving
+`cmp` reports a difference when one exists. That is what makes the ordering argument airtight rather
+than merely reasonable: the smoke exercised the same 1284 lines a self-hoster gets. On that code a
+real clip returned a 9-frame contact sheet, the derived key resolved through the artifact routes to
+real jpeg bytes, and a second call returned `reused: true` without invoking the container.
+
+**What has NOT been exercised is that path on a self-host deployment**, because no deployment is
+running this image yet. **Parity-in-code is not parity-in-effect**, and this release is exactly where
+the difference becomes visible: identical bytes shipped to both doors, one of them running them. The
+failure states exist precisely so that gap reports itself.
+
+**Honest note on the reference box:** it currently runs `vivijure-local-video-finish:1.2.2`, four
+releases behind, and nothing detects that drift. Filed as local#317. The pin is correct policy; the
+absence of a drift detector is the defect.
+
+### feat(api): contact-sheet frame extraction, so an agent can SEE motion output (local#311)
+
+Parity with vivijure-cf cf#322 / PR #324, same release wave per the dual-panel gate. The MCP
+tool-result content union carries exactly two variants, text and image, and has no video variant, so
+a finished film could only ever be handed to an agent as a link -- cf#322 measured 128 of the 129
+most recent COMPLETED hosted renders carrying `keyframes: null`, so the mp4 was the only artifact
+that existed for them. `POST /api/render/frames` closes the same gap on this door: sample a rendered
+clip into ONE jpeg contact sheet (3x3 default; `count=1` plus `at=` for a single frame), store it via
+`platform.renders` as a normal artifact, and return the KEY, never bytes -- so `/api/artifact`,
+`/api/artifact-url` (local#309) and, once installed, MCP `view_artifact`/`artifact_url` all pick it
+up for free.
+
+Extraction runs in the `video-finish` CPU container over `VIDEO_FINISH_VPC`
+(`vpc-transport.ts`'s compose fetcher), the same way every other local finish call reaches it.
+`containers/video-finish/app.py` here is a straight `rsync --delete` mirror of vivijure-cf's copy
+(`scripts/sync-containers.sh`), so the container side of cf#322 arrives on this door automatically
+the next time that script runs against cf's `main` -- after cf PR #324 merges upstream, not before.
+Until the image is synced and rebuilt, the route answers `route-not-served`, honestly and by name,
+the same rollout state cf#324 defines.
+
+Two properties the design rests on, checked against THIS door's real code rather than assumed from
+cf: the derived key must stay inside `ARTIFACT_PREFIXES` (it inherits the source clip's own
+directory by construction) or the sheet 404s through both artifact routes while every unit test
+passes; and the stored content type must survive `safeArtifactContentType` (now exported) and match
+MCP image-inlining's `/^image\//`. Both asserted against the real exported guards, each with a
+control watched failing.
+
+Four distinct failure states plus a fifth this door alone needs: `tier-unavailable`,
+`route-not-served` (EXPECTED during rollout, said so), `container-unreachable`, `container-error`,
+and `store-unpresignable` -- the filesystem storage backend (`LocalObjectPresigner`, local#309)
+refuses to presign either end honestly rather than pretending, which is a storage-configuration
+state, not a container fault, so it does not get folded into `container-error`. Not reused from
+`callVideoFinish` (`vivijure-core/film-orchestrator.ts`), which collapses all of these into a bare
+`Response | null`.
+
+If a clip's duration cannot be probed, the container drops to a single frame and reports it, never
+sampling one instant N times and presenting it as a spread.
+
+All five failure-state guards, the prefix-preservation guard, and the content-type guard were
+watched FAILING on reconstructed defects before being trusted (fixed-literal key, content type
+outside the allowlist, 404 collapsed into container-error, idempotence check removed, presign
+failure collapsed into container-error), then the source was verified byte-identical to its
+pre-injection backup.
+
+### feat(artifacts): honest /api/artifact-url on the self-host door (local#309)
+
+Parity with vivijure-cf#317 (v1.16.0): `GET /api/artifact-url/*key` turns an artifact key into a
+fetchable URL plus the object's real content type and size, so `list_renders`' `output_key` and
+`keyframes[].key` stop being dead ends on this door too. Same guards as the serve route (key-safety
++ known-prefix check, existence checked before ever minting a URL) and the same TTL contract as cf:
+`expires_in` clamps into [60, 3600]s, default 300, and a caller can never widen it.
+
+The trap this port had to avoid: the filesystem presigner (`LocalObjectPresigner.presignGet`)
+silently dropped the requested TTL and returned a URL embedding the full studio bearer token as a
+query param -- the exact inverse of the scope-and-expiry guarantees a presigned URL rests on. It had
+zero callers, so nothing ever shipped that URL to anyone; the hazard was in the path of this port,
+not in the running product. It now refuses honestly instead of pretending: `presignGet` throws with
+an actionable message (configure MinIO / S3_ENDPOINT), and the route turns that refusal into a 503.
+The MinIO/S3 backend is unaffected and mints a real, key-scoped, TTL-clamped presigned GET.
+
 ### feat(telemetry): durable RunPod job log on the self-host door (local#294)
 
 Parity with vivijure-cf#279. Every RunPod job this studio submits gets a durable row

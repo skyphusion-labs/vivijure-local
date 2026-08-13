@@ -15,7 +15,6 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    branches: [main]
     paths:
       - Dockerfile
       - compose.yaml
@@ -124,7 +123,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: studio
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -135,7 +134,7 @@ jobs:
 
       - name: Log in to GHCR
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -178,7 +177,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: caddy
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -189,7 +188,7 @@ jobs:
 
       - name: Log in to GHCR
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -235,7 +234,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: cpu-${{ matrix.image }}
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "gpu"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -255,7 +254,7 @@ jobs:
 
       - name: Log in to GHCR
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

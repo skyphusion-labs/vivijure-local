@@ -16,6 +16,11 @@ Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-c
 host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
 Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
+**Dependency pins (this repo, see `package.json` / lock):** `@skyphusion-labs/vivijure-core`
+`^1.5.0` (lock `1.5.0`), `@skyphusion-labs/vivijure-mcp` `^1.1.0` (lock `1.1.0`). Product
+capability parity with `vivijure-cf` is the dual-panel release-wave gate; package floors can lag
+the CF host.
+
 Provider-neutral host for [Vivijure Studio](https://vivijure.com): same reference API
 ([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)).
 GPU render backends (`vivijure-local-16gb` first, `vivijure-local-12gb` alternate, finish sidecars)
@@ -130,24 +135,27 @@ flowchart LR
 | [docs/PARITY.md](docs/PARITY.md) | API route checklist vs the studio host |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones; [PHASE3.md](docs/PHASE3.md) shared-core extraction |
 
-## Strategy
+## Strategy (historical)
 
-| Phase | Goal |
-|-------|------|
-| **v1 (this repo, Option B)** | Fork-adapt the Vivijure studio core onto Node + SQLite + object storage. Hold CONTRACT parity on a homelab stack. |
-| **v2 (shared core, Option A)** | Extract shared orchestration into `vivijure-core`; both hosts become thin adapters. |
+| Phase | Goal | Status |
+|-------|------|--------|
+| **v1 (Option B)** | Node + SQLite + object storage host; CONTRACT parity on a homelab stack | done |
+| **v2 (shared core)** | Orchestration in `@skyphusion-labs/vivijure-core`; hosts thin adapters | **done** (published dep) |
 
-Phase 1 milestones (M0--M8) and the crew demo exit criterion are **done** on `main`; see
+Phase 1 milestones (M0--M8) and Phase 3 extraction are **done** on `main`; see
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## What is copied verbatim from the studio host
+## What this host keeps vs what lives in core
 
-- `public/` -- planner / cast / settings UI (projection from `GET /api/modules`), held in parity with [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) `public/`
+- `public/` -- planner / cast / settings UI (projection from `GET /api/modules`); product parity with
+  [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) is a release-wave review obligation
+  (no byte-identity CI)
 - `migrations/` -- SQLite schema (D1-compatible SQL)
-- `src/modules/types.ts` -- the `vivijure-module/2` contract (shared, dependency-free; tracked against `vivijure-core`)
+- `src/platform/` -- Node Platform adapters
+- **Module contract + orchestration** -- `@skyphusion-labs/vivijure-core` (not a forked
+  `src/modules/types.ts` in this repo)
 
-Everything else is ported behind `src/platform/` adapters. Object storage defaults to **MinIO**
-(`S3_*` in `.env`); R2 or AWS S3 is a config swap.
+Object storage defaults to **MinIO** (`S3_*` in `.env`); R2 or AWS S3 is a config swap.
 
 ## License
 
@@ -155,4 +163,5 @@ AGPL-3.0-only (same as the rest of the Vivijure constellation).
 
 That grant covers the SOFTWARE. The model weights the local GPU door runs carry their own
 third-party licenses, several of which restrict commercial use; the per-model truth, and the
-two supported commercial paths, are in [USE.md](USE.md).
+two supported commercial paths, are in [USE.md](USE.md). Full inventory + FLUX commercial rule
+(local#277): [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md).

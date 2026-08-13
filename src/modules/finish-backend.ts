@@ -2,7 +2,19 @@
  *
  * Local RIFE is NOT supported (Conrad 2026-07-28): there is no vivijure-local finish-rife image
  * and no LOCAL_FINISH_RIFE_URL path. RIFE, when wanted, is RunPod-only (vivijure-cf / opt-in).
+ *
+ * `speech-upscale` IS NOT ROUTED HERE and adding it to the maps below would be dead code. It is a
+ * CHAIN module (src/modules/chain/): different env type, different typed I/O (`audio_key`, not
+ * `clip_key`), its own poll token, and its own backend switch. Its local door lives in
+ * chain/handlers.ts and shares this file's door-pool logic through `door-pool.ts`, which is the
+ * only place that logic exists. See docs/FINISH_BACKEND.md.
  */
+
+import {
+  normalizeDoorBaseUrl,
+  normalizeDoorBaseUrls,
+  type DoorSet,
+} from "./door-pool.js";
 
 export type FinishBackendMode = "local" | "runpod";
 
@@ -67,26 +79,35 @@ export function resolveFinishBackend(moduleName: string, env: FinishBackendEnv):
   return override;
 }
 
-export function normalizeFinishBaseUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  try {
-    const u = new URL(trimmed);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-    return u.toString().replace(/\/+$/, "");
-  } catch {
-    return null;
-  }
+/**
+ * The door-pool primitives, re-exported under the names local#378 shipped.
+ *
+ * These are ALIASES, not copies: the implementation moved to `door-pool.ts` so the speech door can
+ * use the identical parser and selector instead of a second one. `normalizeFinishBaseUrl` keeps its
+ * exact contract because it IS the same function object, and the plural still delegates to it per
+ * entry, so the two can never disagree about what a valid URL is.
+ */
+export const normalizeFinishBaseUrl = normalizeDoorBaseUrl;
+export const normalizeFinishBaseUrls = normalizeDoorBaseUrls;
+export type FinishDoorSet = DoorSet;
+
+export function localFinishUrlsFor(moduleName: string, env: FinishBackendEnv): FinishDoorSet {
+  const key = MODULE_LOCAL_URL_KEY[moduleName];
+  if (!key) return { urls: [], dropped: 0 };
+  const raw = env[key];
+  if (typeof raw !== "string") return { urls: [], dropped: 0 };
+  return normalizeFinishBaseUrls(raw);
 }
 
+/**
+ * The FIRST usable door, or null. Unchanged in meaning for a single-valued variable, which is what
+ * its existing tests pin; for a list it is the head. Selection among several doors is
+ * `localFinishUrlsFor` plus the health/rotation logic in door-pool.ts, never this.
+ */
 export function localFinishUrlFor(moduleName: string, env: FinishBackendEnv): string | null {
-  const key = MODULE_LOCAL_URL_KEY[moduleName];
-  if (!key) return null;
-  const raw = env[key];
-  if (typeof raw !== "string") return null;
-  return normalizeFinishBaseUrl(raw);
+  return localFinishUrlsFor(moduleName, env).urls[0] ?? null;
 }
 
 export function localFinishConfigured(moduleName: string, env: FinishBackendEnv): boolean {
-  return localFinishUrlFor(moduleName, env) != null;
+  return localFinishUrlsFor(moduleName, env).urls.length > 0;
 }

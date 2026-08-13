@@ -49,3 +49,15 @@ Fence: `tests/finish-rife-not-local-291.test.ts`.
 - `bare-planner.json` -- a deliberate enum-less fixture for the gate / e2e, not produced by sync.
 - `plan-enhance.json` -- the local-only Ollama first-win catalog (Conrad 2026-07-28 / #265). cf keeps
   the Anthropic / AI Gateway manifest. Do not re-sync this file from cf.
+
+## `cast-image.json` default is a `@cf/` id on purpose (local#277)
+
+The committed default `model` is `@cf/black-forest-labs/flux-2-klein-9b`. That is Cloudflare's
+BFL partner channel: lawful commercial inference. FLUX.2 klein-9B and flux-2-dev **weights** are
+non-commercial on Hugging Face; self-hosting them is a license violation. Apache-2.0 Klein 4B is
+the only FLUX family member allowed to self-host.
+
+Do not "fix" this fixture's default to a Hugging Face self-host id. The code guard and full
+table live in `src/modules/chain/cast-image-model-policy.ts` and `THIRD_PARTY_MODELS.md`. The
+fixture itself stays byte-synced with vivijure-cf (no local annotation key -- that would red the
+manifest-drift job).

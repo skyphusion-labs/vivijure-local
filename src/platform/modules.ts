@@ -29,6 +29,9 @@ export interface ModuleJobEvent {
   outcome: RunpodJobOutcome;
   submittedAtMs?: number;
   detail?: string;
+  /** cf#288: the fault CLASS, carried across the envelope by the module poll because the studio
+   *  never sees the RunPod /status payload. Absent means the endpoint did not report one. */
+  errorType?: string;
 }
 
 /** Sink for job events. MUST NOT throw: the transport calls it inside a try, but a sink that throws
@@ -43,6 +46,20 @@ export type ModuleJobRecorder = (event: ModuleJobEvent) => void;
  *  against manifests. */
 export function moduleLabelFromBinding(binding: string): string {
   return binding.replace(/^MODULE_/, "").toLowerCase().replace(/_/g, "-");
+}
+
+/** Closed terminal outcomes the module poll may declare (local#304). Anything else falls back. */
+const POLL_OUTCOMES = new Set<RunpodJobOutcome>(["backend-error", "failed", "gone", "cancelled"]);
+
+/** Read structured outcome off a poll envelope. Never parse `error` prose. */
+export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJobOutcome {
+  const declared = body.outcome;
+  if (typeof declared === "string" && POLL_OUTCOMES.has(declared as RunpodJobOutcome)) {
+    return declared as RunpodJobOutcome;
+  }
+  // cf#298 legacy path: markers without outcome still distinguish CANCELLED.
+  if (body.runpodStatus === "CANCELLED") return "cancelled";
+  return "failed";
 }
 
 /** How many in-flight poll tokens to remember. A submit is correlated to its terminal outcome through
@@ -138,10 +155,15 @@ export class HttpModuleTransport implements ModuleTransport {
         return;
       }
       const detail = typeof body.error === "string" ? body.error.slice(0, DETAIL_MAX) : undefined;
-      // ONLY failed is reachable here. The module poll collapses backend-error and gone into the same
-      // {ok:false, error: prose} shape, so the studio cannot tell them apart without matching English
-      // error sentences. See migrations/0016_runpod_job_log.sql.
-      this.recorder({ ...job, outcome: "failed", detail });
+      // cf#288: the fault CLASS, read from the STRUCTURED marker the module poll now carries. Never
+      // derived from `error`, which is prose. Absent stays absent: the recorder writes NULL, and NULL
+      // means "the endpoint did not tell us", never "this was not a refusal".
+      const errorType = typeof body.errorType === "string" && body.errorType ? body.errorType : undefined;
+      // local#304: prefer the closed-set `outcome` the module poll already computed (gone /
+      // backend-error / failed / cancelled). Fall back to runpodStatus for CANCELLED (cf#298) and
+      // otherwise `failed`. Never derive outcome from the English `error` string.
+      const outcome = pollOutcomeFromEnvelope(body);
+      this.recorder({ ...job, outcome, detail, errorType });
     } catch {
       // Telemetry must never affect a render.
     }

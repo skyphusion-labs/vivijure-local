@@ -443,23 +443,11 @@ function buildHistoryRow(r, childrenByParent) {
   rerun.addEventListener("click", () => rerunBundle(r));
   actions.appendChild(rerun);
 
-  // v0.60.0: one-click retry on terminal-failure rows. Re-POSTs the
-  // same args server-side (project, bundle_key, quality_tier,
-  // render_overrides, mode); the GPU side resumes incrementally off
-  // the network volume so this is much cheaper than the original
-  // submit. Finalize rows have their own retry path (click finalize
-  // on the parent preview) and are excluded.
-  const isFailed =
-    r.status === "FAILED" || r.status === "CANCELLED" || r.status === "TIMED_OUT";
-  if (isFailed && r.mode !== "finalized") {
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.className = "planner-history-action";
-    retry.textContent = "retry";
-    retry.title = "resubmit this render as-is (the GPU resumes off the volume so it picks up where it died)";
-    retry.addEventListener("click", () => retryFailedRender(r, retry));
-    actions.appendChild(retry);
-  }
+  // local#331 / cf#331: the "retry" button is GONE. It POSTed
+  // /api/storyboard/renders/<id>/retry, a route that has never existed
+  // here either. Every click produced a bare 404. Real one-click retry
+  // (server re-POST of the row's stored args + volume resume) is
+  // tracked as cf#353. "re-render" above remains for failed rows.
 
   // v0.35.4: delete the row from history (and the silent MP4 from R2 when
   // no other row references it). Confirmation prompt before any destructive
@@ -1106,6 +1094,9 @@ async function finalizeRender(row, btnEl) {
     // the Worker side.
     const finalizeBody = {};
     if (planState.audioKey) finalizeBody.audioKey = planState.audioKey;
+    // motion_backend on finalize is owned by local#348 (adds defaultGpuDoorModule to the
+    // browser registry). Do not guard on a function that does not exist on main -- that
+    // made the finalize half of this PR dead code with a green CI (joan-prreview-local).
     // v0.135.6: server gates readiness against fresh D1 state (see submitRender).
     const finalizeCastLoras = buildCastLoraSubmit();
     if (Object.keys(finalizeCastLoras).length > 0) {
@@ -1449,50 +1440,6 @@ function rerunBundle(row) {
   renderSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// v0.60.0: one-click retry for a FAILED / CANCELLED / TIMED_OUT row.
-// POSTs /api/storyboard/renders/<id>/retry; the Worker re-submits with
-// the row's stored args and the GPU resumes incrementally off the
-// volume (lora_already_trained + _indices_skip_locked). On success, a
-// fresh row appears at the top of the history list; the failed row
-// stays for the audit trail.
-async function retryFailedRender(row, btnEl) {
-  const confirmMsg =
-    "retry this render?\n\n"
-    + "the GPU side resumes off its volume so any already-trained LoRAs "
-    + "and already-rendered shots are reused. on the same endpoint within "
-    + "the volume's retention window this is much cheaper than a fresh "
-    + "submit.\n\ncontinue?";
-  if (!window.confirm(confirmMsg)) return;
-
-  btnEl.disabled = true;
-  btnEl.textContent = "submitting...";
-
-  let resp = null;
-  let data = null;
-  try {
-    resp = await fetch(
-      "/api/storyboard/renders/" + encodeURIComponent(row.id) + "/retry",
-      { method: "POST" },
-    );
-    data = await resp.json();
-  } catch (err) {
-    btnEl.disabled = false;
-    btnEl.textContent = "retry";
-    window.alert("retry submit failed: " + err.message);
-    return;
-  }
-  if (!resp.ok || !data || !data.ok) {
-    btnEl.disabled = false;
-    btnEl.textContent = "retry";
-    const msg = (data && (data.error
-      || (Array.isArray(data.errors) && data.errors.join(", "))))
-      || ("HTTP " + (resp ? resp.status : "?"));
-    window.alert("retry submit failed: " + msg);
-    return;
-  }
-  btnEl.textContent = "retry submitted";
-  loadHistory();
-}
 
 // v0.35.1: paste an R2 bundle key directly to render a bundle that does
 // not appear in the history (e.g. one staged by curl or one from before

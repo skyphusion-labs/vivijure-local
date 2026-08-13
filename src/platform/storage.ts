@@ -135,16 +135,29 @@ export class FilesystemObjectStore implements ObjectStore {
   }
 }
 
-/** Local presigner: returns studio-routed URLs (artifact handler serves bytes). */
+/** Local presigner: the filesystem backend has no independent capability mechanism, so it cannot
+ *  produce a URL that is genuinely scoped to one key AND genuinely expires (local#309 / cf#317
+ *  twin). The old behavior here embedded the full studio bearer token as a `?token=` query param
+ *  (grants everything the token grants, not one object) and silently ignored `_expiresSec` (never
+ *  expires) -- the exact inverse of the two guarantees a presigned URL is supposed to carry, and it
+ *  would have shipped quietly because the API shape still advertised a TTL. Refusing honestly beats
+ *  pretending: presignGet throws instead, and /api/artifact-url turns that into a 503 naming what to
+ *  configure. constructor params kept for compatibility with existing callers/tests that construct
+ *  this class as a Platform.presigner stand-in without exercising presignGet. */
 export class LocalObjectPresigner implements ObjectPresigner {
   constructor(
-    private readonly publicBase: string,
-    private readonly token?: string,
+    private readonly _publicBase: string,
+    private readonly _token?: string,
   ) {}
 
-  async presignGet(key: string, _expiresSec?: number): Promise<string> {
-    const q = this.token ? `?token=${encodeURIComponent(this.token)}` : "";
-    return `${this.publicBase}/api/artifact/${encodeURIComponent(key)}${q}`;
+  async presignGet(_key: string, _expiresSec?: number): Promise<string> {
+    throw new Error(
+      "the filesystem artifact store cannot mint a scoped, expiring URL: a public link off it would " +
+        "have to embed the full studio bearer token to authenticate at all, and any TTL passed to it " +
+        "would be silently ignored; configure MinIO or another S3-compatible store (S3_ENDPOINT, " +
+        "S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, or the legacy MINIO_* aliases) to serve " +
+        "/api/artifact-url",
+    );
   }
 
   async presignPut(_key: string, _contentType: string, _expiresSec?: number): Promise<string> {

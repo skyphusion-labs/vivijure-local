@@ -85,6 +85,9 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 - [x] `POST /api/upload`
 - [x] `GET /api/artifact/*key` (incl. Range)
+- [x] `GET /api/artifact-url/*key` (local#309, cf#317 twin -- found missing from this checklist
+  while doing local#311, added here rather than left stale)
+- [x] `POST /api/render/frames` (local#311, cf#322 / cf PR #324 twin)
 
 ## Prefs
 
@@ -145,7 +148,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^1.2.1` (Wan LoRA poll/harvest writeback; cf#29 parity with vivijure-cf v1.7.1)
+- [x] `@skyphusion-labs/vivijure-core` `^1.5.0` (lock resolves `1.5.0`; see `package.json` -- may lag `vivijure-cf`'s core pin)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 

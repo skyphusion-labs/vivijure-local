@@ -19,11 +19,14 @@ import type { Database } from "./platform/types.js";
 
 /** Terminal states observable from the studio side. submitted is the open state.
  *
- *  NOTE, and it is a real limitation of THIS door: backend-error and gone are part of the closed set
- *  for parity with cf, but the studio cannot currently produce them, because the module poll collapses
- *  every failure into {ok:false, error: prose} before the studio sees it. They are kept in the type so
- *  the vocabulary matches cf exactly and so a later fix needs no schema change. */
-export type RunpodJobOutcome = "submitted" | "completed" | "backend-error" | "failed" | "gone";
+ *  Closed set matches cf. Producers on THIS door (local#304): the module poll carries a structured
+ *  `outcome` on the envelope for gone / backend-error / failed / cancelled; the studio transport
+ *  records that field and never parses the English `error` string. Pre-#304, gone and backend-error
+ *  were collapsed into prose and unreachable in the log; that is fixed.
+ *
+ *  cancelled (cf#298, cf PR #304) names an observed RunPod CANCELLED status, not a deliberate
+ *  refusal. Refusals are discriminated by error_type (cf#286 / cf#288), NOT by this value. */
+export type RunpodJobOutcome = "submitted" | "completed" | "backend-error" | "failed" | "gone" | "cancelled";
 
 export interface RunpodJobRecord {
   /** RunPod job id. The upsert key; a blank id is dropped (nothing to reconcile against later). */
@@ -36,14 +39,40 @@ export interface RunpodJobRecord {
   submittedAtMs?: number;
   /** Error text on a fault outcome. Bounded to DETAIL_MAX before it reaches the statement. */
   detail?: string;
+  /** Machine label for the fault CLASS (cf#288), e.g. HarnessError. Bounded to ERROR_TYPE_MAX.
+   *  OMIT IT rather than passing a placeholder when the endpoint did not report one: NULL means
+   *  "not told", which must stay distinguishable from "told, and it was not a refusal". */
+  errorType?: string;
 }
 
 /** Same bound cf applies, and the same one the module poll paths already apply to an error string. */
 export const DETAIL_MAX = 160;
 
+/** A class name, not prose. Generous enough for a fully-qualified python class, short enough that a
+ *  vendor deciding to put a sentence in this key cannot widen the row. Verbatim from cf. */
+export const ERROR_TYPE_MAX = 80;
+
 /** A write on this path must not outlive a poll tick. Past this the write is abandoned, warned, and the
- *  caller proceeds; the row is lost, which is the correct trade for best-effort telemetry. */
+ *  caller proceeds; the row is lost, which is the correct trade for best-effort telemetry. This bound
+ *  covers the retry too, so the caller's worst case is unchanged from before the retry existed. */
 export const RUNPOD_JOB_LOG_TIMEOUT_MS = 2000;
+
+/** cf#298: one bounded retry on a failed write, INSIDE the existing timeout budget.
+ *
+ *  WHY. The terminal write happens when a module poll returns a terminal envelope. Nothing polls that
+ *  job again afterwards, so a write lost to a transient database error is lost PERMANENTLY: the row
+ *  stays submitted and reads as an in-flight job forever. Measured on cf at 2 of 20 module jobs in a
+ *  run with zero actual faults, i.e. a perfect run presenting as 10% unexplained.
+ *
+ *  WHAT THIS DOES NOT DO, stated plainly so nobody reads cf#298 as closed. It reduces the window; it
+ *  does not remove it. An outage longer than the budget still loses the row, and nothing here revisits
+ *  a row after the fact. The real fix is a reconciler that re-asks RunPod for rows with terminal_at
+ *  IS NULL, under a hard constraint: RunPod keeps async results for ~30 minutes and has no
+ *  job-history API, so a reconciler running later than that must record unknown rather than guess.
+ *
+ *  Safe to repeat: the upsert is keyed on job_id and guarded by WHERE terminal_at IS NULL, so a
+ *  second attempt landing after a first one succeeded is a no-op rather than a rewrite. */
+export const RUNPOD_JOB_LOG_RETRY_DELAY_MS = 150;
 
 /**
  * Upsert keyed on job_id. The submit write lands submitted with terminal_at NULL; the first terminal
@@ -54,11 +83,12 @@ export const RUNPOD_JOB_LOG_TIMEOUT_MS = 2000;
  * on. Verbatim from cf, so a cross-door query cannot need two shapes.
  */
 export const RUNPOD_JOB_LOG_UPSERT =
-  "INSERT INTO runpod_job_log (job_id, module, outcome, detail, submitted_at, terminal_at) " +
-  "VALUES (?1, ?2, ?3, ?4, ?5, ?6) " +
+  "INSERT INTO runpod_job_log (job_id, module, outcome, detail, submitted_at, terminal_at, error_type) " +
+  "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) " +
   "ON CONFLICT(job_id) DO UPDATE SET " +
   "outcome = excluded.outcome, " +
   "detail = COALESCE(excluded.detail, runpod_job_log.detail), " +
+  "error_type = COALESCE(excluded.error_type, runpod_job_log.error_type), " +
   "terminal_at = excluded.terminal_at " +
   "WHERE runpod_job_log.terminal_at IS NULL";
 
@@ -94,21 +124,37 @@ export async function recordRunpodJob(
       return;
     }
     const detail = rec.detail === undefined || rec.detail === null ? null : String(rec.detail).slice(0, DETAIL_MAX);
+    const errorType =
+      rec.errorType === undefined || rec.errorType === null || rec.errorType === ""
+        ? null
+        : String(rec.errorType).slice(0, ERROR_TYPE_MAX);
     const terminalAt = rec.outcome === "submitted" ? null : Math.floor(nowMs / 1000);
     const submittedAt = rec.submittedAtMs === undefined ? null : Math.floor(rec.submittedAtMs / 1000);
     // .then(ok, err) rather than a bare await: the write promise must never be able to reject, or a
     // rejection arriving after the timeout already won the race becomes an unhandled rejection.
-    const write = db
-      .prepare(RUNPOD_JOB_LOG_UPSERT)
-      .bind(rec.jobId, rec.module, rec.outcome, detail, submittedAt, terminalAt)
-      .run()
-      .then(
-        () => "ok" as const,
-        (e: unknown) => {
-          warn("write failed (module=" + rec.module + ", outcome=" + rec.outcome + "): " + describe(e));
-          return "failed" as const;
-        },
-      );
+    const attempt = (): Promise<"ok" | "failed"> =>
+      db
+        .prepare(RUNPOD_JOB_LOG_UPSERT)
+        .bind(rec.jobId, rec.module, rec.outcome, detail, submittedAt, terminalAt, errorType)
+        .run()
+        .then(
+          () => "ok" as const,
+          (e: unknown) => {
+            warn("write failed (module=" + rec.module + ", outcome=" + rec.outcome + "): " + describe(e));
+            return "failed" as const;
+          },
+        );
+    // cf#298: a lost terminal write never reconciles, so spend one bounded retry on it. Still one
+    // race against ONE timer, so the caller's worst-case delay is unchanged.
+    const write: Promise<"ok" | "failed"> = attempt().then(async (first) => {
+      if (first === "ok") return "ok" as const;
+      await new Promise<void>((resolve) => setTimeout(resolve, RUNPOD_JOB_LOG_RETRY_DELAY_MS));
+      const second = await attempt();
+      if (second !== "ok") {
+        warn("write failed twice (module=" + rec.module + ", outcome=" + rec.outcome + ") -- row NOT recorded");
+      }
+      return second;
+    });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const expiry = new Promise<"timeout">((resolve) => {
       timer = setTimeout(() => resolve("timeout"), RUNPOD_JOB_LOG_TIMEOUT_MS);
@@ -139,4 +185,55 @@ export function runpodJobRecorder(db: Database | undefined): (event: RunpodJobRe
   return (event: RunpodJobRecord): void => {
     void recordRunpodJob(db, event);
   };
+}
+
+// ------------------------------------------------------------------------------------------------
+// FAULT CLASS EXTRACTION (cf#288): read a STRUCTURED key, or read nothing.
+//
+// PARITY: byte-for-byte the same behaviour as cf's modules/_shared/runpod-job-log.ts, so a row
+// written by either door means the same thing. Kept as a separate exported function rather than
+// inlined at the call site for exactly that reason: the two doors have to be comparable.
+//
+// The RunPod /status `error` field for a vivijure-backend fault is a JSON STRING whose first key is
+// `error_type`, e.g. "<class 'vivijure_backend.harness.handler.HarnessError'>". That class is the
+// only thing separating a DELIBERATE REFUSAL from an OOM: both arrive as RunPod FAILED and both are
+// written as outcome `failed`.
+//
+// IT RETURNS undefined FOR A BARE ERROR STRING, and that is the point rather than a shortfall. The
+// satellite containers return a bare string for BOTH a validation refusal and a genuine crash, so
+// there is no class to read; deriving one from the message would be a parser only as fresh as the
+// sentence it was built from, and would make the classification LOOK solved on a surface where it is
+// not. undefined becomes NULL, and NULL means "not told".
+// ------------------------------------------------------------------------------------------------
+
+/** Unwraps python's repr of a class object. "<class 'a.b.C'>" -> "C". Anything else is returned as
+ *  given, so a plain class name from a future producer passes through unharmed. */
+function normalizeClassName(raw: string): string {
+  const m = /^<class\s+'([^']+)'>$/.exec(raw.trim());
+  const qualified = m ? m[1] : raw.trim();
+  const leaf = qualified.slice(qualified.lastIndexOf(".") + 1);
+  return leaf || qualified;
+}
+
+/**
+ * Extract the fault CLASS from a RunPod /status error field.
+ *
+ * Accepts the payload in the shapes it actually arrives in: an object, or a JSON string holding an
+ * object. Returns undefined when there is no structured `error_type` key. NEVER derives a class from
+ * the message.
+ */
+export function parseRunpodErrorType(err: unknown): string | undefined {
+  let obj: unknown = err;
+  if (typeof err === "string") {
+    try {
+      obj = JSON.parse(err);
+    } catch {
+      // A bare error string carries no class. Saying so is the point; guessing one is the trap.
+      return undefined;
+    }
+  }
+  if (!obj || typeof obj !== "object") return undefined;
+  const raw = (obj as { error_type?: unknown }).error_type;
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+  return normalizeClassName(raw).slice(0, ERROR_TYPE_MAX);
 }
