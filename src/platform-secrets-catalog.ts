@@ -264,9 +264,20 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "LOCAL_FINISH_SPEECH_URL",
+    label: "Local speech upscale URL",
+    blurb:
+      "HTTP base(s) for speech-upscale on your own box (comma-separated for several cards). " +
+      "SET THIS AND NO SPEECH AUDIO GOES TO RUNPOD: presence wins over the RunPod endpoint, and a " +
+      "value that resolves to no usable door degrades honestly rather than falling back to cloud.",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
     key: "LOCAL_FINISH_TOKEN",
     label: "Local finish backend token",
-    blurb: "Optional bearer token for LOCAL_FINISH_*_URL services.",
+    blurb: "Optional bearer token for LOCAL_FINISH_*_URL services, including the speech door.",
     category: "providers",
     sensitive: true,
     applies_on: "immediate",

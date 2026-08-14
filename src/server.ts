@@ -76,6 +76,9 @@ export async function buildStudio(): Promise<StudioBoot> {
       VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID"),
       MUSETALK_RUNPOD_ENDPOINT_ID: runtime.get("MUSETALK_RUNPOD_ENDPOINT_ID"),
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: runtime.get("AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID"),
+      // Homelab door: cast SDXL train_lora submits here when set (no RunPod required).
+      LOCAL_BACKEND_URL: runtime.get("LOCAL_BACKEND_URL"),
+      LOCAL_BACKEND_TOKEN: runtime.get("LOCAL_BACKEND_TOKEN"),
       STORAGE_BACKEND: storage.backend,
       // core#52 storage ceiling in BYTES. Unset / "0" / non-integer = OFF.
       R2_STORAGE_QUOTA_BYTES: runtime.get("R2_STORAGE_QUOTA_BYTES"),
