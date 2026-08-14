@@ -229,13 +229,21 @@ export async function invokePlanEnhance(
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
         // The provider answered with nothing. Ollama THROWS on an empty reply and lands in
-        // the catch below as ok:false, but Workers AI callLocal RETURNS an empty string, so
-        // without this tag the identical failure is machine-visible on one provider only.
+        // the catch below as ok:false; Workers AI callLocal RETURNS an empty string and used
+        // to land here as ok:true. TWO SIBLING PATHS FOR ONE FAILURE CLASS FALLING OPPOSITE
+        // WAYS IN ONE FUNCTION -- and only the note's CONTENTS distinguished a skipped chat
+        // from a real one, which is prose nobody parses.
+        //
+        // Chat has no storyboard to pass through, so there is nothing to degrade TO: an empty
+        // `scenes: []` is the absence of a result, not a partial one. Fails closed, matching
+        // the catch.
+        //
+        // The reason rides the error STRING and not a field, because InvokeResponse's failure
+        // arm is `{ ok: false; error: string }`; the closed-set token leads so it is greppable
+        // and the prefix differs from the catch's, keeping the two modes distinguishable.
         return {
-          ok: true,
-          output: planFailOpenOutput({ scenes: [] }, "chat skipped: empty reply", "no_reply", {
-            ollamaSelected,
-          }),
+          ok: false,
+          error: "plan.enhance chat: no_reply (provider returned an empty reply)",
         };
       }
       return { ok: true, output: { storyboard: { scenes: [] }, notes: [text] } };

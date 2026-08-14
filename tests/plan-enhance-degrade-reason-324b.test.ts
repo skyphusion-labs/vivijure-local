@@ -18,7 +18,10 @@
 //     undefined or "" with no throw, so chat returns
 //         { ok:true, notes:["chat skipped: empty reply"] }
 //     with no `degraded` and no `degrade_reason`: the exact failure shape this PR adds a
-//     signal for, arriving with no signal on it.
+//     signal for, arriving with no signal on it. RULED 2026-08-14: that case now fails CLOSED
+//     (ok:false) to match its own catch, rather than being tagged as a degrade -- there is
+//     nothing to degrade to, and two sibling paths for one failure class must not fall
+//     opposite ways in one function.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invokePlanEnhance } from "../src/modules/chain/handlers.js";
 
@@ -146,7 +149,7 @@ describe("local#324b: the degrade reason comes from the ERROR, not from the bran
   });
 });
 
-describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => {
+describe("local#324b: chat mode fails CLOSED on EVERY provider", () => {
   // CONTROL, RUN FIRST: on a provider that THROWS on an empty reply, chat really does fail
   // closed, so the claim below is about the other provider and not about chat in general.
   it("CONTROL: chat on Ollama with an empty reply fails CLOSED (ok:false)", async () => {
@@ -163,7 +166,7 @@ describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => 
     expect(r.ok, `control: ${JSON.stringify(r)}`).toBe(false);
   });
 
-  it("chat on Workers AI with an empty reply carries degraded + degrade_reason", async () => {
+  it("chat on Workers AI with an empty reply fails CLOSED, like its own catch", async () => {
     const fetchMock = vi.fn(async (input: string | URL) => {
       const url = String(input);
       if (url.includes("api.cloudflare.com")) {
@@ -191,16 +194,22 @@ describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => 
       "control: the Workers AI provider was never called",
     ).toBe(1);
 
-    if (!("output" in r) || !r.output) {
-      // Failing closed here would also be a defensible fix; what must not happen is an
-      // untagged ok:true. If this branch is ever taken, the claim below is moot by design.
-      expect(r.ok, "chat returned no output, so it failed closed").toBe(false);
-      return;
-    }
-    const out = r.output as Degraded;
-    const evidence = `ok=${String(r.ok)} out=${JSON.stringify(out)}`;
-    expect(out.degraded, "an empty reply is the failure shape this PR exists to tag. " + evidence).toBe(true);
-    expect(out.degrade_reason, evidence).toBe("no_reply");
+    // RULED: an empty reply is a model FAILURE, not a degrade. There is nothing to degrade
+    // to -- `scenes: []` is the absence of a result, not a partial one -- and the catch eight
+    // lines below already returns ok:false for the same failure class. Two sibling paths for
+    // one class falling opposite ways in one function is the defect.
+    const evidence = `ok=${String(r.ok)} r=${JSON.stringify(r)}`;
+    expect(r.ok, "an empty reply must fail closed, exactly as the thrown case does. " + evidence).toBe(
+      false,
+    );
+    if (r.ok) throw new Error("unreachable once the assertion above holds");
+    // The two chat failure modes must be distinguishable from each other. NOTE: this is a
+    // STRING, not a field -- InvokeResponse's ok:false arm is `{ ok: false; error: string }`
+    // and carries no room for degrade_reason. Measured, not assumed: planting the fields the
+    // ruling described gives TS2353 "'degraded' does not exist in type '{ ok: false; error:
+    // string; }'". That residual is named on the PR rather than rounded up.
+    expect(r.error, evidence).toContain("no_reply");
+    expect(r.error, evidence).toMatch(/empty reply/i);
   });
 
   it("CONTROL: a GOOD Workers AI chat reply carries no degrade fields", async () => {
