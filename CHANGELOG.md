@@ -7,6 +7,19 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(telemetry): a degraded terminal is no longer recorded as `completed` (local#307)
+
+`observe()` used `ok` alone as the completion test, so any terminal module poll returning `ok: true`
+wrote `completed` to `runpod_job_log` -- including a soft-degrade, where the module caught a backend
+fault and passed the source through instead of failing the render. `passthroughOutput` defaults to
+`degraded ?? true`, so a degrade is that helper's default shape rather than an edge case. The table
+exists to measure backend outcomes, so this undercounted exactly the population it was built to
+count, invisibly: the row is present, well-formed, and wrong. Adds a `degraded` outcome, read
+STRUCTURALLY from `output.degraded` and never inferred from `applied` or from prose. Kept distinct
+from `backend-error` on purpose -- backend-error means no result, degraded means no result AND the
+module absorbed it into a usable render; collapsing them would trade an undercount for the loss of
+the recovery signal.
+
 ## v1.9.0 -- 2026-08-07
 
 MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).
