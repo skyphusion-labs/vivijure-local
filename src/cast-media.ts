@@ -148,7 +148,8 @@ export async function handleCastPortraitUpload(
           `cast/${id}/portrait`,
         );
         const row = await setPortrait(env, id, key, mime);
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
@@ -175,7 +176,8 @@ export async function handleCastPortraitUpload(
       httpMetadata: { contentType: mime },
     });
     const row = await setPortrait(env, id, key, mime);
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -209,7 +211,8 @@ export async function handleCastRefAdd(
           `cast/${id}/refs/${crypto.randomUUID()}`,
         );
         const row = await addRef(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
@@ -229,7 +232,8 @@ export async function handleCastRefAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addRef(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -279,7 +283,8 @@ export async function handleCastSourceAdd(
           `cast/${id}/sources/${crypto.randomUUID()}`,
         );
         const row = await addSource(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
@@ -299,7 +304,8 @@ export async function handleCastSourceAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addSource(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
