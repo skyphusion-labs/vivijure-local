@@ -59,6 +59,39 @@ function stripOllamaPrefix(id: string): string {
   return id.trim().replace(/^ollama\//, "");
 }
 
+/**
+ * Why an Ollama call failed. The distinction that matters is ANSWERED vs DID NOT ANSWER:
+ * a 404 "model not found, try pulling it first" means the server is UP and healthy, and
+ * reporting it as unreachable pages an operator into restarting a working container.
+ */
+export type OllamaFailureKind =
+  /** OLLAMA_BASE_URL missing, so we never asked. */
+  | "not_configured"
+  /** fetch itself rejected: dead process, connection refused, DNS. Genuinely unreachable. */
+  | "unreachable"
+  /** The server ANSWERED with a non-2xx (model not pulled, bad request). It is up. */
+  | "http_error"
+  /** The server ANSWERED 200 with no usable content. It is up. */
+  | "empty_reply";
+
+/** Typed failure so callers classify by KIND rather than by sniffing the message prose. */
+export class OllamaError extends Error {
+  readonly kind: OllamaFailureKind;
+  readonly status?: number;
+
+  constructor(kind: OllamaFailureKind, message: string, status?: number) {
+    super(message);
+    this.name = "OllamaError";
+    this.kind = kind;
+    if (status !== undefined) this.status = status;
+  }
+
+  /** True when Ollama replied at all. A non-2xx is an ANSWER, not a silence. */
+  get answered(): boolean {
+    return this.kind === "http_error" || this.kind === "empty_reply";
+  }
+}
+
 export interface OllamaChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -98,7 +131,7 @@ export async function callOllama(
   opts?: CallOllamaOptions,
 ): Promise<string> {
   const base = ollamaBaseUrl(env);
-  if (!base) throw new Error("ollama requires OLLAMA_BASE_URL");
+  if (!base) throw new OllamaError("not_configured", "ollama requires OLLAMA_BASE_URL");
   const model = ollamaPlanModel(env, modelOverride);
   const think = opts?.think === true;
   const temperature =
@@ -110,20 +143,28 @@ export async function callOllama(
   const num_ctx =
     typeof opts?.num_ctx === "number" && opts.num_ctx > 0 ? opts.num_ctx : OLLAMA_DEFAULT_NUM_CTX;
 
-  const resp = await fetch(`${base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: false,
-      // Top-level think (not options.think) -- required for qwen3 / r1 on native API.
-      think,
-      options: { temperature, num_ctx },
-      // Keep the model loaded only for this call; unloadOllamaModel frees VRAM after.
-      keep_alive: "5m",
-    }),
-  });
+  // Only a REJECTED fetch is unreachability. Everything below this point means the
+  // server answered, and the message is passed through verbatim so nothing that reads
+  // the prose changes.
+  let resp: Response;
+  try {
+    resp = await fetch(`${base}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        // Top-level think (not options.think) -- required for qwen3 / r1 on native API.
+        think,
+        options: { temperature, num_ctx },
+        // Keep the model loaded only for this call; unloadOllamaModel frees VRAM after.
+        keep_alive: "5m",
+      }),
+    });
+  } catch (e) {
+    throw new OllamaError("unreachable", (e as Error).message);
+  }
 
   if (!resp.ok) {
     const errText = await resp.text();
@@ -131,13 +172,17 @@ export async function callOllama(
       resp.status === 404 || /not found|pull/i.test(errText)
         ? ` (is ${model} pulled? run: docker compose run --rm ollama-pull)`
         : "";
-    throw new Error(`ollama ${resp.status}: ${errText.slice(0, 300)}${hint}`);
+    throw new OllamaError(
+      "http_error",
+      `ollama ${resp.status}: ${errText.slice(0, 300)}${hint}`,
+      resp.status,
+    );
   }
   const data = (await resp.json()) as {
     message?: { content?: string; thinking?: string };
   };
   const text = stripThinkingContent(data.message?.content ?? "");
-  if (!text) throw new Error("ollama returned no message content");
+  if (!text) throw new OllamaError("empty_reply", "ollama returned no message content");
   return text;
 }
 

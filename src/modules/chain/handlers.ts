@@ -65,7 +65,7 @@ import {
 } from "./plan-enhance-core.js";
 import { augmentSystemForOllama } from "./ollama-prompts.js";
 import { ollamaConfigured } from "./ollama.js";
-import { planFailOpenOutput } from "./plan-enhance-degrade.js";
+import { degradeReasonFromError, planFailOpenOutput } from "./plan-enhance-degrade.js";
 import { direct as directPlanEnhance, pickProvider } from "./plan-enhance-provider.js";
 import { coerceConfig as coerceSpeechConfig, processSpeechLocal } from "./speech-upscale-core.js";
 import {
@@ -178,7 +178,7 @@ export async function invokePlanEnhance(
           output: planFailOpenOutput(
             storyboard,
             `${mode} skipped: model error (${(e as Error).message})`,
-            "provider_unreachable",
+            degradeReasonFromError(e),
             { ollamaSelected },
           ),
         };
@@ -222,7 +222,15 @@ export async function invokePlanEnhance(
       const { reply } = await directPlanEnhance(env, messages, modelId, { think: true });
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
-        return { ok: true, output: { storyboard: { scenes: [] }, notes: ["chat skipped: empty reply"] } };
+        // The provider answered with nothing. Ollama THROWS on an empty reply and lands in
+        // the catch below as ok:false, but Workers AI callLocal RETURNS an empty string, so
+        // without this tag the identical failure is machine-visible on one provider only.
+        return {
+          ok: true,
+          output: planFailOpenOutput({ scenes: [] }, "chat skipped: empty reply", "no_reply", {
+            ollamaSelected,
+          }),
+        };
       }
       return { ok: true, output: { storyboard: { scenes: [] }, notes: [text] } };
     } catch (e) {
@@ -264,7 +272,7 @@ export async function invokePlanEnhance(
       output: planFailOpenOutput(
         storyboard,
         `enhancement skipped: model error (${(e as Error).message})`,
-        "provider_unreachable",
+        degradeReasonFromError(e),
         { ollamaSelected },
       ),
     };

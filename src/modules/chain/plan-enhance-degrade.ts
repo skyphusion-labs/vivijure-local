@@ -7,6 +7,7 @@
  * assert on them, never on the English notes.
  */
 import type { PlanEnhanceOutput, PlanEnhanceStoryboard } from "@skyphusion-labs/vivijure-core";
+import { OllamaError } from "./ollama.js";
 
 /** Why plan/enhance/refine skipped while still returning ok:true. */
 export type PlanDegradeReason = "provider_unreachable" | "invalid_reply" | "no_reply";
@@ -25,6 +26,24 @@ export interface PlanEnhanceDegradeFields {
 }
 
 export type PlanEnhanceOutputDegraded = PlanEnhanceOutput & PlanEnhanceDegradeFields;
+
+/**
+ * Classify a thrown provider error into a degrade reason.
+ *
+ * The reason must come from the ERROR, never from which branch caught it. callOllama throws
+ * for four distinguishable conditions and only a rejected fetch is unreachability; a 404
+ * "model not found, try pulling it first" and an empty 200 both mean Ollama is UP. Hardcoding
+ * the catch arm to provider_unreachable reports ollama_reachable:false for a healthy server
+ * whose model is simply not pulled, and an operator paged on that restarts a working container.
+ *
+ * Unknown (non-Ollama) provider errors stay conservative at provider_unreachable.
+ */
+export function degradeReasonFromError(e: unknown): PlanDegradeReason {
+  if (e instanceof OllamaError) {
+    return e.answered ? "no_reply" : "provider_unreachable";
+  }
+  return "provider_unreachable";
+}
 
 export function planFailOpenOutput(
   storyboard: PlanEnhanceStoryboard,
