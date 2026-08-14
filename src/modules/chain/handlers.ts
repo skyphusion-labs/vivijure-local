@@ -75,7 +75,13 @@ import {
   passthroughOutput as speechPassthrough,
   successRunpodOutput,
 } from "./speech-upscale-core.js";
-import { speechRunpodConfigured, speechRunpodEndpointId } from "./chain-env.js";
+import {
+  resolveSpeechBackend,
+  speechLocalDoorRaw,
+  speechRunpodConfigured,
+  speechRunpodEndpointId,
+} from "./chain-env.js";
+import { normalizeDoorBaseUrls, orderDoors } from "../door-pool.js";
 import {
   authHeader,
   cancelRunpodJobBestEffort,
@@ -279,6 +285,9 @@ export async function invokeCastImage(
   if (!input || typeof input.cast_id !== "number" || !input.portrait_url) {
     return { ok: false, error: "cast.image: input needs cast_id and portrait_url" };
   }
+  // Cloud catalog only here (MODELS / DEFAULT_CAST_MODEL). Self-host HF ids are refused by
+  // cast-image-model-policy when a local sidecar path is wired; they must never sneak in as
+  // the cloud default (local#277 / FLUX Non-Commercial).
   const model =
     typeof req.config?.model === "string" && MODELS.includes(req.config.model as (typeof MODELS)[number])
       ? req.config.model
@@ -470,6 +479,105 @@ export async function pollDialogueGen(
   return { ok: true, pending: true };
 }
 
+/** Bearer for the on-box doors; same token as the LOCAL_FINISH_* finish doors. */
+function localDoorHeaders(env: ChainModuleEnv): Record<string, string> {
+  const t = env.LOCAL_FINISH_TOKEN?.trim();
+  return t ? { authorization: `Bearer ${t}` } : {};
+}
+
+/**
+ * Submit to an on-box speech door (local#383).
+ *
+ * The door serves the RunPod contract (`/run`, `/status/{id}`, `/health`) because it IS the
+ * `vivijure-audio-upscale` image behind a serve overlay, so the request body, the status shapes and
+ * the output parsing are the RunPod ones unchanged -- the base URL and the credential are the whole
+ * difference. Door selection is the shared `door-pool` selector, identical to the finish doors.
+ *
+ * EVERY FAILURE HERE DEGRADES HONESTLY AND STOPS. It never reaches RunPod: falling back would put
+ * the traffic on the endpoint this path exists to take it off, and it would look like success. A
+ * degrade is `ok: true` + passthrough + `applied: []` + a named `degraded` reason, because
+ * speech-upscale is a POLISH step and a polish miss must not fail the chain (local#249/#77). Only
+ * malformed I/O fails loud, which the caller already handles.
+ */
+async function submitSpeechToLocalDoor(
+  env: ChainModuleEnv,
+  input: SpeechInput,
+  cfg: ReturnType<typeof coerceSpeechConfig>,
+  project: string,
+): Promise<InvokeResponse<SpeechOutput>> {
+  const { urls, dropped } = normalizeDoorBaseUrls(speechLocalDoorRaw(env));
+  if (dropped > 0) {
+    // Never silent: a dropped entry is lost capacity, and the operator's variable looks fine.
+    console.warn(
+      `speech-upscale: ${dropped} unusable entr${dropped === 1 ? "y" : "ies"} dropped from ` +
+        `LOCAL_FINISH_SPEECH_URL; ${urls.length} usable`,
+    );
+  }
+  if (urls.length === 0) {
+    // SET BUT UNUSABLE is not UNSET -- see resolveSpeechBackend. Stopping here is the point.
+    return {
+      ok: true,
+      output: speechPassthrough(input, "local-door-unusable", `LOCAL_FINISH_SPEECH_URL yielded 0 usable doors`),
+    };
+  }
+  const ordered = await orderDoors(urls);
+  if (ordered.length === 0) {
+    // DISTINGUISHABLE FROM UNUSABLE: "configured but nothing answers" and "configured wrong" are
+    // different facts and an operator acts differently on each.
+    return {
+      ok: true,
+      output: speechPassthrough(
+        input,
+        "local-door-unreachable",
+        `${urls.length} configured, 0 reachable`,
+      ),
+    };
+  }
+  let lastError = "";
+  for (let i = 0; i < ordered.length; i += 1) {
+    const baseUrl = ordered[i];
+    try {
+      const r = await fetch(`${baseUrl}/run`, {
+        method: "POST",
+        headers: { ...localDoorHeaders(env), "content-type": "application/json" },
+        body: JSON.stringify(buildRunPodBody(input, cfg, project)),
+      });
+      if (!r.ok) {
+        lastError = `local speech door /run -> ${r.status}`;
+        continue;
+      }
+      const jobId = ((await r.json()) as { id?: string }).id;
+      if (!jobId) {
+        lastError = "local speech door /run returned no job id";
+        continue;
+      }
+      if (i > 0) {
+        // A silent retry turns a permanently dead card into an invisible capacity loss, so both
+        // doors are always named.
+        console.warn(
+          `speech-upscale: local door failed over -- ${ordered[i - 1]} did not serve ` +
+            `(${lastError}); ${baseUrl} did`,
+        );
+      }
+      return {
+        ok: true,
+        pending: true,
+        jobId,
+        poll: encodeSpeechPoll({
+          jobId,
+          shotId: input.shot_id,
+          audioKey: input.audio_key,
+          submittedAt: Date.now(),
+          doorUrl: baseUrl,
+        }),
+      };
+    } catch (e) {
+      lastError = `local speech door submit error: ${(e as Error).message}`;
+    }
+  }
+  return { ok: true, output: speechPassthrough(input, "local-door-submit-failed", lastError) };
+}
+
 export async function invokeSpeechUpscale(
   env: ChainModuleEnv,
   store: ArtifactStore,
@@ -483,7 +591,11 @@ export async function invokeSpeechUpscale(
   if (!cfg.enable) {
     return { ok: true, output: speechPassthrough(input, "disabled") };
   }
-  if (!speechRunpodConfigured(env)) {
+  const backend = resolveSpeechBackend(env);
+  if (backend === "local-door") {
+    return submitSpeechToLocalDoor(env, input, cfg, req.context.project);
+  }
+  if (backend === "mock") {
     const output = await processSpeechLocal(store, input, cfg);
     return { ok: true, output };
   }
@@ -530,16 +642,40 @@ export async function pollSpeechUpscale(
 ): Promise<PollResponse<SpeechOutput>> {
   const st = decodeSpeechPoll(body.poll);
   if (!st) return { ok: false, error: "speech-upscale: bad poll token" };
-  if (!speechRunpodConfigured(env)) {
+
+  // AFFINITY, not rotation (local#383): the job id lives in the SERVING door's in-process registry,
+  // so polling any other door 404s and would read a healthy job as gone. A token naming a door no
+  // longer configured falls back to the head of the current pool -- which is exactly the
+  // single-door behaviour it was minted under. A token with no `doorUrl` predates the local door,
+  // or was minted against RunPod, and takes the RunPod path below unchanged.
+  const localDoors = normalizeDoorBaseUrls(speechLocalDoorRaw(env)).urls;
+  const localBase = st.doorUrl
+    ? st.doorUrl && localDoors.includes(st.doorUrl)
+      ? st.doorUrl
+      : localDoors[0]
+    : undefined;
+  if (st.doorUrl && !localBase) {
+    // The operator unset the door mid-flight. Refusing to guess is the honest answer; a poll against
+    // RunPod here would resurrect the traffic this path exists to remove.
+    return {
+      ok: true,
+      output: speechPassthrough(
+        { shot_id: st.shotId, audio_key: st.audioKey },
+        "local-door-unconfigured-mid-job",
+      ),
+    };
+  }
+
+  if (!localBase && !speechRunpodConfigured(env)) {
     return { ok: false, error: "speech-upscale local mock completes synchronously on /invoke" };
   }
-  const apiKey = env.RUNPOD_API_KEY!;
-  const endpointId = speechRunpodEndpointId(env)!;
-  const base = runpodBase(endpointId);
+  const apiKey = env.RUNPOD_API_KEY;
+  const base = localBase ?? runpodBase(speechRunpodEndpointId(env)!);
+  const pollHeaders = localBase ? localDoorHeaders(env) : authHeader(apiKey!);
   let httpStatus = 0;
   let s: { status?: string; output?: unknown; error?: unknown };
   try {
-    const resp = await fetch(`${base}/status/${st.jobId}`, { headers: authHeader(apiKey) });
+    const resp = await fetch(`${base}/status/${st.jobId}`, { headers: pollHeaders });
     httpStatus = resp.status;
     s = (await resp.json()) as typeof s;
   } catch {
@@ -578,7 +714,9 @@ export async function pollSpeechUpscale(
   if (s.status !== "COMPLETED") {
     const backendErr = terminalErrorInOutput(s.output);
     if (backendErr) {
-      await cancelRunpodJobBestEffort(apiKey, base, st.jobId);
+      // Best-effort cancel is a RunPod API call; the on-box door has no such endpoint, so skipping
+      // it there is correct rather than a gap. The degrade below is identical either way.
+      if (!localBase && apiKey) await cancelRunpodJobBestEffort(apiKey, base, st.jobId);
       return passthrough("endpoint-error", backendErr.slice(0, DETAIL_MAX), {
         outcome: "backend-error",
         ...runpodFaultMarkers(s),
@@ -588,7 +726,10 @@ export async function pollSpeechUpscale(
   }
   const out = parseSpeechBackendOutput(s.output);
   if (!out?.output_key) return passthrough("no-output-key");
-  return { ok: true, output: successRunpodOutput(st, out) };
+  return {
+    ok: true,
+    output: successRunpodOutput(st, out, localBase ? "speech-upscale:local-door" : undefined),
+  };
 }
 
 export async function invokeNotifyEmail(

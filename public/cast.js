@@ -72,7 +72,14 @@
     try { data = await resp.json(); } catch { /* non-JSON */ }
     if (!resp.ok) {
       const msg = (data && data.error) || `HTTP ${resp.status}`;
-      throw new Error(msg);
+      // local#329: carry the HTTP STATUS on the error, not just the message. Purely additive:
+      // every existing caller in this file reads err.message only, so nothing changes for them.
+      // It is what lets one caller tell "this host never wired that capability" (501) apart
+      // from a real failure without string-matching server prose -- and the server 501 text for
+      // Wan training names an env var, which must never be shown to whoever clicked the button.
+      const err = new Error(msg);
+      err.status = resp.status;
+      throw err;
     }
     return data;
   }
@@ -1478,13 +1485,32 @@
     )) return;
     setWanLoraStatusText("submitting...", "loading");
     try {
-      const data = await api("/api/cast/" + id + "/train-lora", { method: "POST" });
+      // local#329 / core#174: the button says Wan, so it posts to the EXPLICIT Wan route,
+      // which hardcodes model_family "wan" server-side and cannot be talked out of it.
+      // The old call went to /train-lora carrying body {model_family:"wan"}; on a host with
+      // no Wan training endpoint wired, that shared route resolves an asked-for "wan" back
+      // to "sdxl" and trains the WRONG family without saying so. /train-wan-lora refuses
+      // instead of substituting. No body is sent because that route hardcodes the family and
+      // ignores the field, and it tolerates a missing body -- so sending one would only
+      // re-introduce the impression that the client picks the family.
+      const data = await api("/api/cast/" + id + "/train-wan-lora", { method: "POST" });
       const idx = state.cast.findIndex((x) => x.id === id);
       if (idx >= 0) state.cast[idx] = data.cast;
       renderLoraPane(data.cast);
       renderWanLoraPane(data.cast);
       schedulePollLoraStatus(id);
     } catch (e) {
+      // A 501 here is not a failure, it is a host that never wired Wan training. Say so in
+      // product language and stop: the server message names the env var an OPERATOR would
+      // wire, which is not something to put in front of whoever clicked the button. Every
+      // other status keeps the existing behaviour, verbatim.
+      if (e && e.status === 501) {
+        setWanLoraStatusText(
+          "Wan LoRA training is unavailable here. Ask whoever runs this studio to enable it.",
+          "warn"
+        );
+        return;
+      }
       setWanLoraStatusText("submit failed: " + e.message, "error");
     }
   }
@@ -1531,7 +1557,13 @@
   // cf#129: hydrateImagePicker and getSelectedTrainingModelId are exported too, so the
   // projected-catalog states (rows / honestly-empty / failed / retry) are asserted against
   // the REAL shipped file rather than a reimplementation of it in a test.
-  window.__castHelpers = { encodeRefKey, artifactUrl, composeTrainingPrompt, hydrateImagePicker, getSelectedTrainingModelId };
+  // local#329: state, trainLora and trainWanLora are exported so the route test can drive
+  // the REAL click handlers against a stub fetch. A test aimed at some extracted
+  // submitTraining(url) helper would stay green while the shipped handler still posted the
+  // old URL inline, so the shipped handler itself is the only seam the defect cannot hide
+  // behind. state is exported with them because which cast is selected is the only input
+  // those handlers take.
+  window.__castHelpers = { encodeRefKey, artifactUrl, composeTrainingPrompt, hydrateImagePicker, getSelectedTrainingModelId, state, trainLora, trainWanLora };
 
   document.addEventListener("DOMContentLoaded", () => {
     wire();

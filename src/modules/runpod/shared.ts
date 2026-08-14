@@ -50,9 +50,12 @@ export function terminalErrorInOutput(output: unknown): string | null {
 }
 
 /**
- * Closed-set RunPod job fate a module poll may declare on the envelope (local#307 soft-degrade;
- * local#304 hard fail). Content-free by construction. Absent on non-RunPod shortfalls so those
- * keep the studio default (completed for soft-degrade without a marker; failed for ok:false).
+ * Closed-set RunPod job fate a module poll may declare on the envelope (local#304 hard fail;
+ * local#307 soft-degrade). The module poll already computed it and must carry it ACROSS the
+ * envelope so the studio can write runpod_job_log.outcome without parsing English error strings.
+ * Content-free by construction. Absent on non-RunPod shortfalls (bad token, missing config,
+ * no output key) so those keep the studio default: completed for an ok:true soft-degrade with
+ * no marker, failed for ok:false.
  */
 export type RunpodPollOutcome = "backend-error" | "failed" | "gone" | "cancelled";
 
@@ -68,7 +71,7 @@ export interface RunpodFaultMarkers {
   /** The exception CLASS from the structured `error_type` key, e.g. HarnessError. This is what
    *  separates a deliberate refusal from an OOM; both arrive as RunPod FAILED. */
   errorType?: string;
-  /** Which closed outcome the module classified this poll as (local#307 / local#304). */
+  /** Which closed outcome the module classified this poll as (local#304 / local#307). */
   outcome?: RunpodPollOutcome;
 }
 
@@ -99,6 +102,8 @@ export function runpodTerminalFailure(
       ok: false,
       error: `${label} job ${s.status}: ${JSON.stringify(s.error ?? s).slice(0, 200)}`,
       ...runpodFaultMarkers(s),
+      // local#304: CANCELLED is its own outcome; FAILED and TIMED_OUT stay failed.
+      outcome: s.status === "CANCELLED" ? "cancelled" : "failed",
     };
   }
   return null;
