@@ -111,7 +111,7 @@ the studio container.
 | Variable | Default (compose) | Purpose |
 |----------|-------------------|---------|
 | `STUDIO_API_TOKEN` | `change-me-local-dev-only` | Operator login; **change this** |
-| `AUTH_MODE` | `token` | Only supported mode in v1 |
+| `AUTH_MODE` | `token` | `token` or `demo`; `access` is refused by name (see docs/SECURITY.md) |
 | `PORT` | `8790` | HTTP listen port |
 | `PUBLIC_BASE_URL` | `http://127.0.0.1:8790` | Presign + artifact URLs for host clients |
 | `DATABASE_PATH` | `/app/vivijure-local/data/studio.db` | SQLite file (persisted volume) |

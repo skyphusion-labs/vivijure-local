@@ -26,7 +26,7 @@ internet exposure without additional front-door controls you operate.
 
 ---
 
-## Auth mode: token only (v1)
+## Auth modes: token and demo (v1)
 
 | Mode | Supported locally | Behavior |
 |------|-------------------|----------|
