@@ -13,8 +13,21 @@ function dockerfile(rel: string): string {
 }
 
 describe("containers intentional Dockerfile pins (local#314)", () => {
-  it("video-finish stays on python 3.14 (local unconstrained group)", () => {
-    expect(dockerfile("video-finish/Dockerfile")).toMatch(/^FROM python:3\.14/m);
+  // WAS 3.14, AND THAT PREMISE WAS NEVER TRUE ON ANY BRANCH. local#314 was filed while
+  // video-finish sat on 3.14 in the dependabot "unconstrained" group. local#316 landed in the
+  // same window via PR #358 and PINNED it to 3.11 for dual-panel parity with cf -- which is where
+  // cf has been the whole time. This PR was opened BEFORE #358 merged and sat behind main, so its
+  // assertion describes a world that stopped existing while the PR waited.
+  //
+  // Bumping the Dockerfile to 3.14 to satisfy the old assertion would be the wrong repair: it
+  // contradicts an already-merged, already-tested decision and would immediately break
+  // tests/video-finish-python-316.test.ts, which asserts the exact opposite.
+  //
+  // The duplication with that sibling test is deliberate and worth keeping. It asserts the pin
+  // because the PIN is the point (cf parity); this asserts it because DRIFT is the point. They
+  // would need to disagree for a reason, and if one is ever deleted the other still fails.
+  it("video-finish stays on python 3.11 (cf parity, local#316)", () => {
+    expect(dockerfile("video-finish/Dockerfile")).toMatch(/^FROM python:3\.11/m);
   });
 
   it("image-prep stays on python 3.11 (numba pin)", () => {

@@ -15,8 +15,10 @@
 #     Local host docs (compose, no Workers VPC). cf documents GHCR/VPC publish.
 #
 #   containers/video-finish/Dockerfile
-#     Local base is python:3.14 (unconstrained group in .github/dependabot.yml). cf pins
-#     3.11 with the numba-frozen set. Cross-repo policy conflict; do not rsync either side.
+#     Base must stay python:3.11 on BOTH sides (cf parity, local#316 / PR #358). There is no
+#     longer a python delta here -- this path stays allowlisted only because local carries a
+#     longer comment block recording that 3.14 was built cleanly twice and still rejected.
+#     Content under the FROM line is free to diverge in comments only.
 #
 #   containers/image-prep/Dockerfile
 #   containers/audio-beat-sync/Dockerfile
@@ -66,8 +68,8 @@ pin_dockerfiles() {
   local ip="$ROOT/containers/image-prep/Dockerfile"
   local abs="$ROOT/containers/audio-beat-sync/Dockerfile"
 
-  if ! grep -qE '^FROM python:3\.14' "$vf"; then
-    echo "check-containers-drift: PIN FAIL video-finish/Dockerfile must FROM python:3.14 (local unconstrained policy)" >&2
+  if ! grep -qE '^FROM python:3\.11' "$vf"; then
+    echo "check-containers-drift: PIN FAIL video-finish/Dockerfile must FROM python:3.11 (cf parity, local#316)" >&2
     fail=1
   fi
   if ! grep -qE '^FROM python:3\.11' "$ip"; then
@@ -131,7 +133,7 @@ if [[ ${#drift[@]} -gt 0 || "$pin_fail" -ne 0 ]]; then
   if [[ ${#drift[@]} -gt 0 ]]; then
     echo "check-containers-drift: FAIL -- ${#drift[@]} drifting path(s): ${drift[*]}" >&2
     echo "check-containers-drift: fix with: VIVIJURE_SRC=$UP npm run sync-containers" >&2
-    echo "check-containers-drift: then restore intentional Dockerfile pins (video-finish 3.14; image-prep/audio-beat-sync 3.11 comments) and README.md" >&2
+    echo "check-containers-drift: then restore intentional Dockerfile pins (video-finish/image-prep/audio-beat-sync all 3.11; local comment blocks) and README.md" >&2
   fi
   exit 1
 fi
