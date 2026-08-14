@@ -6,7 +6,7 @@ name: ci
 #
 # Installs @skyphusion-labs/vivijure-core and @skyphusion-labs/vivijure-mcp from npm.
 # Sibling vivijure-core checkout remains for conformance + core typecheck/test scripts;
-# vivijure sparse checkout for quality-tier-drift in core's vitest.
+# pinned vivijure-cf checkout for quality-tier-drift in core's vitest (local#295).
 
 on:
   push:
@@ -46,24 +46,96 @@ jobs:
           # remedy is giving the guard its inputs, not freezing the repo it lives in.
           fetch-tags: true
           fetch-depth: 0
+      - name: Read vivijure-cf pin (quality-tier-drift only)
+        id: cf_pin
+        working-directory: vivijure-local
+        run: |
+          set -euo pipefail
+          pin_file=dev/cf-quality-tier-pin
+          if [[ ! -f "$pin_file" ]]; then
+            echo "local#295: missing $pin_file -- quality-tier-drift needs a deliberate cf pin" >&2
+            exit 1
+          fi
+          sha=$(grep -E '^SHA=' "$pin_file" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "local#295: $pin_file must set SHA=<40-char lowercase hex>; got: ${sha:-<empty>}" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "local#295: quality-tier-drift will use vivijure-cf@$sha (not floating main)"
       - name: Checkout vivijure-cf (quality-tier-drift module manifests)
         uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/vivijure-cf
+          # PINNED (local#295). Do not change to main/branch without updating
+          # dev/cf-quality-tier-pin in the same commit. Floating main is how an
+          # unrelated cf merge reds every local PR with no signal on the cf side.
+          ref: ${{ steps.cf_pin.outputs.sha }}
           path: vivijure
-          # EVERY PATH THESE TWO MODULES IMPORT HAS TO BE IN THIS LIST, not just the module dirs.
-          # A sparse checkout that misses one does not fail at checkout; it fails later as
-          # ERR_MODULE_NOT_FOUND inside a test, reading like our bug rather than a missing file.
-          # modules/_shared is imported by BOTH (`../../_shared/runpod-job-log`, keyframe
-          # src/index.ts:27 and own-gpu src/index.ts:28) and its absence reds every PR in this repo.
-          # Before trimming this list, grep the checked-out modules for relative imports that
-          # escape their own directory.
+          # Whole modules/ tree (cone mode), not a hand-listed subset. A path list
+          # that must stay in sync with cf's relative imports is the class that
+          # reded every local PR when cf#280 added modules/_shared (local#295).
+          # Checking out modules/ removes that enumeration; a pin removes the
+          # "floating main" half. Class is not fully gone until the guard reads
+          # MANIFEST as data rather than importing module entrypoints (see issue
+          # analysis on #295 / vivijure-core) -- this is the local-side fix.
+          #
+          # `migrations` is a SEPARATE top-level cone entry, not a module import.
+          # vivijure-core's tests/helpers/d1-sqlite.ts (cfMigrationsDir()) reads
+          # vivijure/migrations/0001_init.sql at test time to build a real SQLite
+          # facade for the renders-db suite; it is a DATA FILE dependency of that
+          # test, never something any module's src imports. A checkout missing it
+          # fails with "vivijure-cf migrations not found (looked for 0001_init.sql
+          # in: ...)" thrown by cfMigrationsDir() itself, NOT ERR_MODULE_NOT_FOUND --
+          # a distinct signature worth recognising before assuming this list only
+          # has to track module import graphs. Before trimming this entry, grep
+          # vivijure-core for cfMigrationsDir() and confirm nothing still needs it.
           sparse-checkout: |
-            modules/keyframe
-            modules/own-gpu
-            modules/_shared
+            modules
             migrations
-          sparse-checkout-cone-mode: false
+          sparse-checkout-cone-mode: true
+      - name: Preflight quality-tier cf checkout (local#295)
+        run: |
+          set -euo pipefail
+          # Fail with a message that names the coupling, not ERR_MODULE_NOT_FOUND
+          # buried inside a vitest import graph hours later on an unrelated PR.
+          root=vivijure/modules
+          need=(
+            keyframe/src/index.ts
+            own-gpu/src/index.ts
+          )
+          missing=0
+          for rel in "${need[@]}"; do
+            if [[ ! -f "$root/$rel" ]]; then
+              echo "local#295: pinned vivijure-cf checkout is missing modules/$rel" >&2
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            echo "local#295: quality-tier-drift imports MANIFEST from those entrypoints via vivijure-core." >&2
+            echo "local#295: pin file: vivijure-local/dev/cf-quality-tier-pin  workflow: .github/workflows/ci.yml" >&2
+            echo "local#295: bump the pin deliberately, or fix the sparse checkout; do not leave this red on unrelated PRs." >&2
+            exit 1
+          fi
+          # Surface relative imports that escape the module dir so the next miss
+          # is visible here (with this issue id) rather than as a bare module-not-found.
+          while IFS= read -r line; do
+            # from "../../something" or from '../../../something'
+            imp=$(echo "$line" | sed -n 's/.*from ["'\'']\(\.\.\/\.\.\/[^"'\'']*\)["'\''].*/\1/p')
+            [[ -z "$imp" ]] && continue
+            # Resolve relative to modules/<mod>/src/
+            # ../../_shared/foo -> modules/_shared/foo
+            base=$(echo "$imp" | sed 's|^\.\./\.\./||')
+            # try .ts then plain
+            if [[ -f "vivijure/modules/$base.ts" || -f "vivijure/modules/$base" || -f "vivijure/modules/$base/index.ts" ]]; then
+              continue
+            fi
+            echo "local#295: modules entrypoint imports '$imp' which is not present under the pinned modules/ tree" >&2
+            echo "local#295: failing checkout preflight so this does not look like a random vitest bug on the next PR." >&2
+            echo "local#295: either the pin is incomplete for this SHA, or cf added a path outside modules/." >&2
+            exit 1
+          done < <(grep -hE 'from ["'\'']\.\./\.\./' vivijure/modules/keyframe/src/index.ts vivijure/modules/own-gpu/src/index.ts || true)
+          echo "local#295: quality-tier cf checkout preflight OK (keyframe + own-gpu + escaped relative imports)"
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
