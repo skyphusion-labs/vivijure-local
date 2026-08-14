@@ -8,17 +8,23 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000
 
 # ffmpeg ships ffprobe too. fonts-dejavu-core provides DejaVu Sans at
-# /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf, which ffmpeg drawtext
-# needs for the /overlay route added in #190. fontconfig supplies the
-# runtime alias resolution that lets drawtext resolve font names (the
-# text-overlay module passes font=<name> not fontfile=<path>, so fontconfig
-# must be present so the name lookup does not fail).
+# /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf, which ffmpeg drawtext needs.
 #
-# NOTE: the text-overlay module default is font=Arial. Debian fontconfig
-# includes a metric-alias that maps Arial -> DejaVu Sans / Liberation Sans,
-# so font=Arial resolves correctly here. If that alias is ever absent,
-# drawtext will error; the fix is to change the module default to
-# "DejaVu Sans" or switch to fontfile= with an explicit path.
+# THE LIVE CONSUMER IS /film-titles (_title_card_filter / _credits_card_filter in
+# app.py), which builds drawtext filters with font="DejaVu Sans" -- a NAME, not a
+# fontfile= path. fontconfig supplies the runtime alias resolution that turns that
+# name into a file, so BOTH packages are load-bearing and removing either breaks
+# title and credit cards.
+#
+# This rationale used to name the /overlay route (#190) exclusively. That route is
+# RETIRED (410), so anyone trimming this image would have read the justification,
+# seen the route was gone, and dropped the packages -- breaking /film-titles, which
+# needs them for the identical reason. A justification pointing at a dead consumer
+# is worse than none: it invites the removal it looks like it is guarding against.
+#
+# NOTE on aliases: a caller passing font=Arial relies on Debian fontconfig's
+# metric-alias mapping Arial -> DejaVu Sans / Liberation Sans. If that alias is ever
+# absent, drawtext errors; the fix is to pass "DejaVu Sans" or fontfile= explicitly.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         fonts-dejavu-core \
