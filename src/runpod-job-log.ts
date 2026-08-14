@@ -19,21 +19,13 @@ import type { Database } from "./platform/types.js";
 
 /** Terminal states observable from the studio side. submitted is the open state.
  *
- *  NOTE, and it is a real limitation of THIS door: backend-error and gone are part of the closed set
- *  for parity with cf, but the studio cannot currently produce them, because the module poll collapses
- *  every failure into {ok:false, error: prose} before the studio sees it. They are kept in the type so
- *  the vocabulary matches cf exactly and so a later fix needs no schema change.
+ *  Closed set matches cf. Producers on THIS door (local#304): the module poll carries a structured
+ *  `outcome` on the envelope for gone / backend-error / failed / cancelled; the studio transport
+ *  records that field and never parses the English `error` string. Pre-#304, gone and backend-error
+ *  were collapsed into prose and unreachable in the log; that is fixed.
  *
- *  cancelled (cf#298, cf PR #304) is DIFFERENT from those two: it has a producer here. The module
- *  poll already distinguishes CANCELLED from FAILED and TIMED_OUT (runpodTerminalFailure, local#47),
- *  so the status is known at the module seam and only has to be carried across the envelope.
- *
- *  READ THIS BEFORE ASSUMING cf#286 WAS OVERRULED. cf#286 and cf#288 both REFUSED a cancelled value,
- *  and they were right about what they were refusing: it was proposed there as the home for a
- *  DELIBERATE REFUSAL, and a refusal never becomes CANCELLED (a raise inside the handler propagates
- *  and the SDK books the job FAILED), so it would have named the wrong thing and never fired for its
- *  stated purpose. That reasoning is untouched. Refusals are discriminated by error_type, NOT by this
- *  value. This value names an observed RunPod terminal status and nothing else. */
+ *  cancelled (cf#298, cf PR #304) names an observed RunPod CANCELLED status, not a deliberate
+ *  refusal. Refusals are discriminated by error_type (cf#286 / cf#288), NOT by this value. */
 export type RunpodJobOutcome = "submitted" | "completed" | "backend-error" | "failed" | "gone" | "cancelled";
 
 export interface RunpodJobRecord {
