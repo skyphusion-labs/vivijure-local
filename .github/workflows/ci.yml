@@ -33,6 +33,19 @@ jobs:
         with:
           repository: skyphusion-labs/vivijure-core
           path: vivijure-core
+          # local CI runs core's OWN suite, which includes a guard comparing package.json
+          # against the `vivijure-core-v*` tags. Without tags that guard sees an empty tag
+          # set and REFUSES rather than passing -- correctly, because a tag comparison with
+          # no tags is a vacuous green. The refusal is the guard working; the missing tags
+          # were ours. Its message says so in terms: "CI must fetch-tags and local clones
+          # need git fetch --tags or this guard is a vacuous green".
+          #
+          # This is the same class as local#295 / local#313 arriving through the CORE
+          # sibling checkout rather than through vivijure-cf: a change in another repo
+          # reddens every PR here with no change on this side. It is not a pin, because the
+          # remedy is giving the guard its inputs, not freezing the repo it lives in.
+          fetch-tags: true
+          fetch-depth: 0
       - name: Read vivijure-cf pin (quality-tier-drift only)
         id: cf_pin
         working-directory: vivijure-local
