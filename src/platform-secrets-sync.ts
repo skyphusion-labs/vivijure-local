@@ -37,6 +37,9 @@ export const PLATFORM_TUNNEL_SYNC_KEYS = [
   "FINISH_UPSCALE_BACKEND",
   "LOCAL_FINISH_LIPSYNC_URL",
   "LOCAL_FINISH_UPSCALE_URL",
+  // local#379: without this row the .env seed never reaches the runtime store, so the key would be
+  // settable in the GUI and silently ignored from .env. (.env is a SEED; the store is the value.)
+  "LOCAL_FINISH_SPEECH_URL",
   "LOCAL_FINISH_TOKEN",
 ] as const satisfies readonly (typeof PLATFORM_SECRET_FIELDS)[number]["key"][];
 
