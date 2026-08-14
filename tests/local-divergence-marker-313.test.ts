@@ -19,7 +19,7 @@
 // so the temp tree carries its own scripts/ dir: the script derives ROOT from
 // import.meta.dirname, which makes a copied script write into the copy.
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -153,32 +153,126 @@ describe("local#313: a marked fixture survives regeneration", () => {
   });
 });
 
-describe("local#313: the checker discovers exclusions from the marker, not a hand list", () => {
-  const script = (): string => readFileSync(join(repo, "scripts", "check-module-manifest-drift.sh"), "utf8");
+// A verifier suspected this block only READ the checker's source text, and refused to assert
+// it without running the mutation. CONFIRMED by mutation rather than by reading:
+//
+//   is_local_divergence() { return 1; ... }   // never excludes; every STRING left intact
+//
+//   block 2, shipped checker    4 passed
+//   block 2, MUTANT checker     4 passed      <-- green about a checker that excludes nothing
+//   MUTANT driven for real      exit 1, "DRIFT plan-enhance.json"
+//   SHIPPED driven for real     exit 0, "local-divergence ... plan-enhance.json"
+//
+// So the old assertions were satisfied by the script NAMING the rule rather than DOING it.
+// Rewritten to drive the checker as a SUBPROCESS, the way block 1 drives the regenerator.
+describe("local#313: the checker EXCLUDES by marker, driven as a subprocess", () => {
+  /** A tree the real checker can run in: its own scripts/, dev/manifests/ and synthetic cf. */
+  function checkerTree(opts: { marker: boolean; pinFile?: boolean }): string {
+    const root = mkdtempSync(join(tmpdir(), "joan-local-fixes-313c-"));
+    mkdirSync(join(root, "scripts"), { recursive: true });
+    mkdirSync(join(root, "dev", "manifests"), { recursive: true });
+    for (const s of ["check-module-manifest-drift.sh", "sync-module-manifests.ts"]) {
+      cpSync(join(repo, "scripts", s), join(root, "scripts", s));
+    }
+    writeFileSync(join(root, "package.json"), JSON.stringify({ type: "module" }) + "\n", "utf8");
+    // The checker prefers a repo-local tsx; give it one rather than letting it reach the network.
+    symlinkSync(join(repo, "node_modules"), join(root, "node_modules"));
+    writeSyntheticCf(root);
 
-  it("CONTROL: the checker is readable and non-trivial", () => {
-    const n = script().split("\n").filter((l) => l.trim() !== "").length;
-    expect(n, `read ${n} non-blank lines`).toBeGreaterThan(40);
+    // A fixture that DIFFERS from the synthetic cf, so there is real drift to report.
+    const fixture: Record<string, unknown> = {
+      name: "plan-enhance",
+      version: "0.3.1",
+      api: "vivijure-module/2",
+      provides: [{ hook: "plan.enhance", label: "Ollama auto-direction (homelab)" }],
+    };
+    if (opts.marker) {
+      fixture._local_divergence = "do-not-sync";
+      fixture._local_divergence_why = "local-only Ollama first-win catalog (local#265 / #313).";
+    }
+    writeFileSync(
+      join(root, "dev", "manifests", "plan-enhance.json"),
+      JSON.stringify(fixture, null, 2) + "\n",
+      "utf8",
+    );
+    if (opts.pinFile) {
+      mkdirSync(join(root, "dev"), { recursive: true });
+      writeFileSync(
+        join(root, "dev", "cf-manifest-pin"),
+        "SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n",
+        "utf8",
+      );
+    }
+    return root;
+  }
+
+  function runChecker(root: string): { rc: number; out: string } {
+    try {
+      const out = execFileSync("bash", [join(root, "scripts", "check-module-manifest-drift.sh"), join(root, "cf")], {
+        cwd: repo,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      return { rc: 0, out };
+    } catch (e) {
+      const err = e as { status?: number; stdout?: string; stderr?: string };
+      if (typeof err.status !== "number") {
+        throw new Error(`HARNESS FAILURE: the checker did not run.\n${String(err.stderr ?? e)}`);
+      }
+      return { rc: err.status, out: `${err.stdout ?? ""}${err.stderr ?? ""}` };
+    }
+  }
+
+  const trees: string[] = [];
+  afterEach(() => {
+    while (trees.length) rmSync(trees.pop() as string, { recursive: true, force: true });
   });
 
-  it("the hand-maintained EXCLUDE_RE is gone", () => {
+  // CONTROL FIRST. Without the marker the checker MUST report drift. If this does not fire,
+  // the exclusion test below is consistent with "the checker reports nothing about anything".
+  it("CONTROL: an UNMARKED fixture that differs from cf is reported as DRIFT", () => {
+    const root = checkerTree({ marker: false });
+    trees.push(root);
+    const { rc, out } = runChecker(root);
+    expect(rc, `the checker did not go red, so it cannot be shown to discriminate.\n${out}`).toBe(1);
+    expect(out).toMatch(/DRIFT plan-enhance\.json/);
+    expect(out).toMatch(/FAIL -- 1 drifting manifest/);
+  });
+
+  it("the SAME fixture carrying the marker is excluded, and the exclusion is announced", () => {
+    const root = checkerTree({ marker: true });
+    trees.push(root);
+    const { rc, out } = runChecker(root);
+    expect(rc, `the marker did not exclude the file.\n${out}`).toBe(0);
+    expect(out, "a skip nobody can see is how an exclusion becomes a blind spot").toMatch(
+      /local-divergence \(marker _local_divergence=do-not-sync\): plan-enhance\.json/,
+    );
+    expect(out).toMatch(/PASS/);
+    expect(out, "an excluded file must not also be reported as drift").not.toMatch(/DRIFT/);
+  });
+
+  it("REGRESSION: the checker consults NO pin file, proved by planting one", () => {
+    // Behavioural, not a grep: a bogus pin sits in the tree and must change nothing. A parity
+    // guard that pins selects a reference point at which drift is invisible (local#403 closed
+    // local#362 on that argument).
+    const root = checkerTree({ marker: true, pinFile: true });
+    trees.push(root);
+    const { rc, out } = runChecker(root);
+    expect(rc, out).toBe(0);
+    expect(out, "the checker read a pin file").not.toMatch(/deadbeef/);
+    expect(out, "the checker mentioned a pin").not.toMatch(/cf-manifest-pin/);
+  });
+
+  // SOURCE-LEVEL, and labelled as such deliberately. This is a DESIGN guard against a hand
+  // list coming back; it is NOT the behavioural check and must never stand in for one. The
+  // behavioural checks are the three above, and they are what the mutation proved the old
+  // version of this block lacked.
+  it("DESIGN GUARD (source-level): no hand-maintained EXCLUDE_RE returns", () => {
+    const s = readFileSync(join(repo, "scripts", "check-module-manifest-drift.sh"), "utf8");
+    expect(s.split("\n").filter((l) => l.trim() !== "").length, "empty read").toBeGreaterThan(40);
     expect(
-      script(),
+      s,
       "a hand list in the checker is a second copy of institutional memory and drifts from it",
     ).not.toMatch(/EXCLUDE_RE=/);
-  });
-
-  it("exclusions come from the marker, and the pass line names them", () => {
-    const s = script();
-    expect(s).toMatch(/_local_divergence/);
-    expect(s).toMatch(/is_local_divergence/);
-    // A skip nobody can see is how an exclusion becomes a blind spot.
-    expect(s, "the pass line must name what it excluded").toMatch(/local-divergence/);
-  });
-
-  it("REGRESSION: no pin. A parity guard that pins cannot go red on drift", () => {
-    const s = script();
-    expect(s, "local#403 closed local#362 on exactly this argument").not.toMatch(/cf-manifest-pin/);
-    expect(s).not.toMatch(/PIN_FILE/);
   });
 });
