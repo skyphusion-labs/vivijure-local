@@ -52,6 +52,21 @@ export function moduleLabelFromBinding(binding: string): string {
 const POLL_OUTCOMES = new Set<RunpodJobOutcome>(["backend-error", "failed", "gone", "cancelled"]);
 
 /** Read structured outcome off a poll envelope. Never parse `error` prose. */
+/** The degrade reason a terminal poll carries, or null if it carries none (local#307).
+ *
+ *  Read STRUCTURALLY from `output.degraded`, never inferred from prose or from `applied`. Absent
+ *  stays absent: a module that does not report a degrade is recorded as a plain completion, which is
+ *  honest rather than a guess. A boolean true carries no reason, so it becomes a fixed marker instead
+ *  of an empty string -- an empty detail is indistinguishable from "we did not look". */
+export function degradeReason(body: Record<string, unknown>): string | null {
+  const output = body.output;
+  if (!output || typeof output !== "object") return null;
+  const d = (output as Record<string, unknown>).degraded;
+  if (typeof d === "string" && d) return d;
+  if (d === true) return "degraded";
+  return null;
+}
+
 export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJobOutcome {
   const declared = body.outcome;
   if (typeof declared === "string" && POLL_OUTCOMES.has(declared as RunpodJobOutcome)) {
@@ -151,6 +166,23 @@ export class HttpModuleTransport implements ModuleTransport {
       if (!job) return; // submit happened in a previous process (see MAX_TRACKED_JOBS)
       this.tracked.delete(sentToken);
       if (ok) {
+        // local#307. `ok` alone was the completion test, so ANY terminal poll returning ok:true
+        // recorded `completed` -- including a soft-degrade, where the module caught a backend fault
+        // and passed the source through rather than failing the render. `passthroughOutput` defaults
+        // to `degraded ?? true`, so a degrade is the DEFAULT shape of that helper, not an edge case.
+        //
+        // The cost is specific to this table: runpod_job_log exists to measure backend outcomes, and
+        // recording a fault-driven passthrough as `completed` undercounts exactly the population it
+        // was built to count. The render is fine; the measurement is not.
+        //
+        // `degraded` is distinct from `backend-error` on purpose. backend-error means the job did not
+        // produce a result. degraded means it did not, AND the module absorbed that into a usable
+        // render. Collapsing them would trade one undercount for the loss of the recovery signal.
+        const degrade = degradeReason(body);
+        if (degrade) {
+          this.recorder({ ...job, outcome: "degraded", detail: degrade.slice(0, DETAIL_MAX) });
+          return;
+        }
         this.recorder({ ...job, outcome: "completed" });
         return;
       }

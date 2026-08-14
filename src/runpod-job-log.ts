@@ -26,7 +26,14 @@ import type { Database } from "./platform/types.js";
  *
  *  cancelled (cf#298, cf PR #304) names an observed RunPod CANCELLED status, not a deliberate
  *  refusal. Refusals are discriminated by error_type (cf#286 / cf#288), NOT by this value. */
-export type RunpodJobOutcome = "submitted" | "completed" | "backend-error" | "failed" | "gone" | "cancelled";
+export type RunpodJobOutcome =
+  | "submitted"
+  | "completed"
+  | "degraded"
+  | "backend-error"
+  | "failed"
+  | "gone"
+  | "cancelled";
 
 export interface RunpodJobRecord {
   /** RunPod job id. The upsert key; a blank id is dropped (nothing to reconcile against later). */
