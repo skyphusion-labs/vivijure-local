@@ -17,5 +17,17 @@
 # cf@main on purpose: their job is to catch drift against current cf, not
 # to freeze a quality-tier snapshot.
 #
+# STALENESS POLICY (local#295 follow-up). Nothing used to assert that this pin was still
+# close to cf; .github/workflows/cf-pin-staleness.yml now does, on a SCHEDULE.
+#
+# It is deliberately NOT a pull_request check. Failing local PRs when cf drifts is the
+# precise coupling this pin exists to remove, so asserting staleness there would rebuild
+# the bug inside its own fix. A scheduled red blocks nobody and still gets noticed.
+#
+# Thresholds are generous on purpose: this catches a pin nobody has touched in a long
+# time, it does not nag. Tighten either line if that turns out to be too loose.
+MAX_BEHIND_COMMITS=150
+MAX_AGE_DAYS=30
+#
 # Format: one SHA= line with a full 40-char lowercase hex commit.
 SHA=545121578c97fb98a7d6bc6f8aee718f4b276447

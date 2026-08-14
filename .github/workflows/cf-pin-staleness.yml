@@ -1,0 +1,93 @@
+name: cf-pin-staleness
+
+# local#295 follow-up. SOMETHING has to assert that dev/cf-quality-tier-pin is not
+# drifting; before this, nothing did, and a pin nobody measures is a pin that quietly
+# freezes local CI against a vivijure-cf that has moved on.
+#
+# WHY THIS IS SCHEDULED AND NOT A PR CHECK, and it is the whole design:
+# a staleness gate on the pull_request path would red every open local PR the moment cf
+# merges enough commits -- which is EXACTLY the coupling local#295 exists to remove. The
+# pin's purpose is that an unrelated cf merge cannot touch a local PR. Asserting staleness
+# on the PR path would reintroduce that in the fix's own name.
+#
+# So this runs on a schedule and on demand. When it goes red, nobody's PR is blocked; the
+# pin simply needs a deliberate bump. The thresholds live in the pin file so tightening
+# them is a one-line change by whoever owns the policy, not a workflow edit.
+
+on:
+  schedule:
+    # Daily. The pin is a snapshot, not a live dependency; hourly would be noise.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Measure the pin against vivijure-cf main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pin_file=dev/cf-quality-tier-pin
+          test -f "$pin_file" || { echo "local#295: missing $pin_file" >&2; exit 1; }
+
+          sha=$(grep -E '^SHA=' "$pin_file" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "local#295: bad SHA in $pin_file: ${sha:-<empty>}" >&2; exit 1; }
+
+          # Policy lives with the pin, not in this file. Defaults are deliberately generous:
+          # this exists to catch a pin nobody has touched in a long time, not to nag.
+          max_behind=$(grep -E '^MAX_BEHIND_COMMITS=' "$pin_file" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+          max_age=$(grep -E '^MAX_AGE_DAYS=' "$pin_file" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+          max_behind=${max_behind:-150}
+          max_age=${max_age:-30}
+
+          # POSITIVE CONTROL FIRST: prove the pinned commit is a real vivijure-cf commit
+          # before believing anything a comparison says. An empty or errored compare would
+          # otherwise read as "zero behind", which is the reassuring answer.
+          if ! pin_date=$(gh api "repos/skyphusion-labs/vivijure-cf/commits/$sha" --jq '.commit.committer.date' 2>/dev/null); then
+            echo "local#295: the pinned SHA $sha does not resolve on vivijure-cf." >&2
+            echo "local#295: a pin pointing at nothing is worse than a stale pin: CI cannot check it out." >&2
+            exit 1
+          fi
+          echo "CONTROL: pinned commit resolves. sha=$sha date=$pin_date"
+
+          cmp_json=$(gh api "repos/skyphusion-labs/vivijure-cf/compare/$sha...main")
+          behind=$(printf '%s' "$cmp_json" | jq -r '.ahead_by')   # main ahead of pin
+          status=$(printf '%s' "$cmp_json" | jq -r '.status')
+          head_date=$(printf '%s' "$cmp_json" | jq -r '.commits[-1].commit.committer.date // empty')
+          head_date=${head_date:-$(gh api repos/skyphusion-labs/vivijure-cf/commits/main --jq '.commit.committer.date')}
+
+          age_days=$(( ( $(date -u -d "$head_date" +%s) - $(date -u -d "$pin_date" +%s) ) / 86400 ))
+
+          # Print the numbers EVERY run, red or green, so the age is visible without
+          # anyone having to make this job fail first.
+          echo "PIN STALENESS (measured $(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          echo "  pinned sha      : $sha"
+          echo "  pinned date     : $pin_date"
+          echo "  cf main date    : $head_date"
+          echo "  compare status  : $status"
+          echo "  commits behind  : $behind   (threshold $max_behind)"
+          echo "  days behind     : $age_days (threshold $max_age)"
+
+          fail=0
+          if [[ "$behind" -gt "$max_behind" ]]; then
+            echo "local#295: pin is $behind commits behind vivijure-cf main (max $max_behind)." >&2
+            fail=1
+          fi
+          if [[ "$age_days" -gt "$max_age" ]]; then
+            echo "local#295: pin is $age_days days old (max $max_age)." >&2
+            fail=1
+          fi
+          if [[ "$fail" -ne 0 ]]; then
+            echo "local#295: bump SHA= in dev/cf-quality-tier-pin deliberately and re-run ci." >&2
+            echo "local#295: NOTE this job blocks no pull request by design -- gating PRs on cf drift" >&2
+            echo "local#295: is the exact coupling the pin exists to remove." >&2
+            exit 1
+          fi
+          echo "local#295: pin is within both thresholds."
