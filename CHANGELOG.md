@@ -7,6 +7,16 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(cast): copy the replacement portrait before retiring the old object (local#407)
+
+`handleCastPortraitUpload`'s `from_chat_artifact` path deleted the existing R2 object BEFORE the
+replacement copy was awaited, so a copy that failed left `portrait_key` naming an object that no
+longer existed. Reordered to copy first and retire the old key only once a replacement provably
+exists, skipping the delete entirely when the new key equals the old one. Regression test asserts
+on the SURVIVING OBJECT rather than on the error, because asserting the request fails passes
+against both orderings; mutation-tested by restoring the original ordering and confirming it goes
+red.
+
 ## v1.9.0 -- 2026-08-07
 
 MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).

@@ -135,18 +135,25 @@ export async function handleCastPortraitUpload(
       }
 
       if (typeof body.from_chat_artifact === "string" && body.from_chat_artifact) {
-        if (cur.portrait_key) {
-          try {
-            await env.R2_RENDERS.delete(cur.portrait_key);
-          } catch {
-            /* ignore */
-          }
-        }
+        // ORDER IS THE FIX (local#407). The delete used to run BEFORE this copy was awaited, so a
+        // throwing copy left portrait_key naming an object that no longer existed. The request
+        // failed loudly and counted as an error, but the row it left behind was corrupt and
+        // nothing reported that -- a failure whose visible half is honest and whose durable half
+        // is silent. Copy first; only retire the old key once a replacement provably exists.
         const { key, mime } = await copyChatArtifactToRenders(
           env,
           body.from_chat_artifact,
           `cast/${id}/portrait`,
         );
+        // Deleting a key we are about to overwrite is pointless, and deleting the key the row
+        // still names is how this went wrong the first time.
+        if (cur.portrait_key && cur.portrait_key !== key) {
+          try {
+            await env.R2_RENDERS.delete(cur.portrait_key);
+          } catch {
+            /* best effort: an orphaned object costs storage, a missing one costs the portrait */
+          }
+        }
         const row = await setPortrait(env, id, key, mime);
         if (!row) throw new HttpError(404, "cast not found");
         return json({ cast: toPublicCast(row) });
