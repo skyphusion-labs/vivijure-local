@@ -22,6 +22,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invokePlanEnhance } from "../src/modules/chain/handlers.js";
 
+// Host match by PARSED hostname, never by substring. A substring test is true for a URL that
+// merely MENTIONS the provider in a query parameter, and for a lookalike host that has it as a
+// prefix of a longer domain -- so it cannot distinguish the real provider from an attacker-chosen
+// host. Harmless in a mock router; fixed here because test helpers are the most-copied code in a
+// repo and this shape reaches production by imitation.
+const isWorkersAI = (u: string | URL): boolean => {
+  try {
+    return new URL(String(u)).hostname === "api.cloudflare.com";
+  } catch {
+    return false;
+  }
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -166,7 +179,7 @@ describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => 
   it("chat on Workers AI with an empty reply carries degraded + degrade_reason", async () => {
     const fetchMock = vi.fn(async (input: string | URL) => {
       const url = String(input);
-      if (url.includes("api.cloudflare.com")) {
+      if (isWorkersAI(url)) {
         // callLocal RETURNS this. It does not throw. `response` is empty.
         return new Response(JSON.stringify({ result: { response: "" } }), {
           status: 200,
@@ -187,7 +200,7 @@ describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => 
     // Denominator beside the claim: prove the Workers AI call was actually made, so an
     // untagged result cannot be "the provider was never reached".
     expect(
-      fetchMock.mock.calls.filter((c) => String(c[0]).includes("api.cloudflare.com")).length,
+      fetchMock.mock.calls.filter((c) => isWorkersAI(c[0] as string | URL)).length,
       "control: the Workers AI provider was never called",
     ).toBe(1);
 
@@ -207,7 +220,7 @@ describe("local#324b: chat mode tags its soft-degrade on EVERY provider", () => 
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL) =>
-        String(input).includes("api.cloudflare.com")
+        isWorkersAI(input)
           ? new Response(JSON.stringify({ result: { response: "a lighthouse at dusk" } }), { status: 200 })
           : new Response("nope", { status: 404 }),
       ),
