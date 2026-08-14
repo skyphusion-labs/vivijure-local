@@ -1,4 +1,6 @@
 {
+  "_local_divergence": "do-not-sync",
+  "_local_divergence_why": "synthetic enum-less planner fixture for gate / e2e; not produced by cf sync (local#313).",
   "_fixture": "SYNTHETIC FIXTURE. Not a real module. Deliberately declares NO config_schema.model.",
   "_why": "The catalog projection has TWO legitimate row shapes. A module WITH a model enum yields one row per enum value: id is the model id, label is the provides-label joined to the model id. A module WITHOUT one yields a SINGLE row whose id IS THE MODULE NAME and whose label carries no separator at all. No real local module produces the second shape, so it went untested until the cf#129 parity gate, where it immediately caught two assertions that were wrong and had been passing.",
   "_do_not_fix": "Adding a config_schema.model enum to this file DEFEATS ITS ENTIRE PURPOSE. If you want an enum-declaring planner fixture, use plan-enhance.json. This one exists to BE the degenerate case.",
