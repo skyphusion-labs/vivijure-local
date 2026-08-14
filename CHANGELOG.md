@@ -131,6 +131,7 @@ for the `PollResponse` failure-arm types.
 PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
 - **video-finish `POST /overlay` returns 410 (cf#24 parity).** text-overlay retired; honest 410.
+- **Docs audit 2026-08-05:** SECURITY demo + named tokens; AUTH_MODE; compose profile honesty; dash strip.
 
 
 ## v1.6.0 -- 2026-08-02

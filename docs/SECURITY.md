@@ -26,13 +26,13 @@ internet exposure without additional front-door controls you operate.
 
 ---
 
-## Auth mode: token only (v1)
+## Auth modes: token and demo (v1)
 
 | Mode | Supported locally | Behavior |
 |------|-------------------|----------|
 | `token` | **Yes** (default) | `Authorization: Bearer <STUDIO_API_TOKEN>` on every `/api/*` request |
 | `access` | No | Cloudflare Access JWT verification (cloud host only) |
-| `demo` | No | Read-only public demo deploy (cloud only) |
+| `demo` | Yes (browse + capped demo routes) | Capped write surface; not cloud-only |
 
 Implementation: `src/auth-gate.ts` (ported from upstream). The gate **fails closed**: unknown mode,
 missing token, or wrong token denies the request.
@@ -92,7 +92,7 @@ SSRF guards in `containers/*/url_guard.py` restrict outbound fetch hosts (MinIO 
 
 ## What this build does not include
 
-- Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- not ported in v1.
+- Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- ported (named tokens; no scopes yet -- local#238).
 - Cloudflare Access / SSO / device posture.
 - Rate limiting across operators (in-memory limiter only where ported).
 - Audit log shipping (stdout only).
