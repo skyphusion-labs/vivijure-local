@@ -14,6 +14,7 @@ import {
 import type { DbEnv } from "@skyphusion-labs/vivijure-core/db-env";
 import { HttpError } from "./errors.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
+import { isSafeRelKey } from "./shared.js";
 import { extFromMime } from "./utils.js";
 
 export const CAST_IMAGE_MIME_RE = /^image\/(png|jpe?g|webp)$/i;
@@ -64,6 +65,15 @@ function requireCastImageMime(claimed: string, bytes?: ArrayBuffer | Uint8Array)
   } catch (e) {
     throw new HttpError(400, (e as Error).message);
   }
+}
+
+/** JSON upload path: key must be a safe path under this cast member (local#328 / cf f239532). */
+function requireCastStagedKey(castId: number, key: string): string {
+  const prefix = `cast/${castId}/`;
+  if (!isSafeRelKey(key) || !key.startsWith(prefix) || key.length <= prefix.length) {
+    throw new HttpError(400, "key must be a safe staged path under this cast member");
+  }
+  return key;
 }
 
 export interface CastMediaEnv extends DbEnv {
@@ -138,12 +148,14 @@ export async function handleCastPortraitUpload(
           `cast/${id}/portrait`,
         );
         const row = await setPortrait(env, id, key, mime);
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await setPortrait(env, id, body.key, mime);
+      const key = requireCastStagedKey(id, body.key);
+      const row = await setPortrait(env, id, key, mime);
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -164,7 +176,8 @@ export async function handleCastPortraitUpload(
       httpMetadata: { contentType: mime },
     });
     const row = await setPortrait(env, id, key, mime);
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -198,12 +211,14 @@ export async function handleCastRefAdd(
           `cast/${id}/refs/${crypto.randomUUID()}`,
         );
         const row = await addRef(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await addRef(env, id, { key: body.key, mime });
+      const key = requireCastStagedKey(id, body.key);
+      const row = await addRef(env, id, { key, mime });
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -217,7 +232,8 @@ export async function handleCastRefAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addRef(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -267,12 +283,14 @@ export async function handleCastSourceAdd(
           `cast/${id}/sources/${crypto.randomUUID()}`,
         );
         const row = await addSource(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await addSource(env, id, { key: body.key, mime });
+      const key = requireCastStagedKey(id, body.key);
+      const row = await addSource(env, id, { key, mime });
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -286,7 +304,8 @@ export async function handleCastSourceAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addSource(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 

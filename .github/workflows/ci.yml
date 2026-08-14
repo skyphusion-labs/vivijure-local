@@ -79,8 +79,20 @@ jobs:
           # "floating main" half. Class is not fully gone until the guard reads
           # MANIFEST as data rather than importing module entrypoints (see issue
           # analysis on #295 / vivijure-core) -- this is the local-side fix.
+          #
+          # `migrations` is a SEPARATE top-level cone entry, not a module import.
+          # vivijure-core's tests/helpers/d1-sqlite.ts (cfMigrationsDir()) reads
+          # vivijure/migrations/0001_init.sql at test time to build a real SQLite
+          # facade for the renders-db suite; it is a DATA FILE dependency of that
+          # test, never something any module's src imports. A checkout missing it
+          # fails with "vivijure-cf migrations not found (looked for 0001_init.sql
+          # in: ...)" thrown by cfMigrationsDir() itself, NOT ERR_MODULE_NOT_FOUND --
+          # a distinct signature worth recognising before assuming this list only
+          # has to track module import graphs. Before trimming this entry, grep
+          # vivijure-core for cfMigrationsDir() and confirm nothing still needs it.
           sparse-checkout: |
             modules
+            migrations
           sparse-checkout-cone-mode: true
       - name: Preflight quality-tier cf checkout (local#295)
         run: |

@@ -2,17 +2,21 @@
 # Fail when committed dev/manifests/*.json drift from vivijure-cf module MANIFESTs.
 #
 # Regenerates into a temp dir via scripts/sync-module-manifests.ts, then diffs against
-# the committed fixtures. Excludes:
-#   - bare-planner.json -- deliberate enum-less fixture for gate / e2e (not from sync)
-#   - plan-enhance.json -- local-only Ollama first-win catalog (Conrad 2026-07-28 / #265);
-#     cf keeps the Anthropic/AI Gateway MANIFEST; do not re-sync this file from cf.
+# the committed fixtures.
+#
+# Local-only / synthetic fixtures are discovered from a MARKER IN THE FILE itself
+# (local#313), not a hand list here that drifts from institutional memory:
+#   "_local_divergence": "do-not-sync"
+# plan-enhance.json (Ollama first-win, #265) and bare-planner.json (synthetic enum-less
+# fixture) carry that marker. The regenerator refuses to overwrite them too.
 #
 #   bash scripts/check-module-manifest-drift.sh [vivijure-cf-clone]
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-module-manifest-drift.sh
 #
-# Runs in the manifest-drift CI job, which checks out cf main for this script. That job was named
-# `upstream-parity` until local#263 retired the parity half it also carried; this check is
-# unchanged and was never part of that argument.
+# CI (manifest-drift.yml) checks out vivijure-cf at main ON PURPOSE. A parity guard that
+# pins its comparison selects a reference point at which drift is invisible, so it stops
+# being able to go red on the thing it exists for (local#403 closed local#362 on exactly
+# that argument). Tracking main is the posture; the marker below is the fix.
 
 set -euo pipefail
 
@@ -30,6 +34,14 @@ if [[ ! -d "$ROOT/dev/manifests" ]]; then
   exit 2
 fi
 
+# Surface which cf tree we are comparing against (pin or live clone), so a red
+# names cf as the source rather than reading as "your branch is broken".
+cf_ref="unknown"
+if [[ -d "$UP/.git" ]] || git -C "$UP" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  cf_ref="$(git -C "$UP" rev-parse HEAD 2>/dev/null || echo unknown)"
+fi
+echo "check-module-manifest-drift: comparing against vivijure-cf@$cf_ref"
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -41,25 +53,43 @@ else
   MANIFESTS_OUT="$TMP" VIVIJURE_SRC="$UP" npx --yes tsx "$ROOT/scripts/sync-module-manifests.ts"
 fi
 
-# Space-separated basenames excluded from both directions of the diff.
-EXCLUDE_RE='^(bare-planner\.json|plan-enhance\.json)$'
-drift=()
-
-excluded() {
-  [[ "$1" =~ $EXCLUDE_RE ]]
+# Discover deliberate divergences from markers in the committed fixtures (local#313).
+# A file is excluded when it carries "_local_divergence": "do-not-sync" (string or true).
+is_local_divergence() {
+  local f="$ROOT/dev/manifests/$1"
+  [[ -f "$f" ]] || return 1
+  # Prefer node (always present in CI after setup-node); fall back to a tiny grep.
+  if command -v node >/dev/null 2>&1; then
+    node -e '
+      const fs = require("fs");
+      let j;
+      try { j = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); }
+      catch { process.exit(1); }
+      const v = j && j._local_divergence;
+      process.exit(v === "do-not-sync" || v === true ? 0 : 1);
+    ' "$f"
+  else
+    grep -qE '"_local_divergence"[[:space:]]*:[[:space:]]*("do-not-sync"|true)' "$f"
+  fi
 }
+
+drift=()
+excluded_list=()
 
 # Committed fixtures (except deliberate local-only / test fixtures) must match regen.
 while IFS= read -r base; do
   [[ -z "$base" ]] && continue
-  excluded "$base" && continue
+  if is_local_divergence "$base"; then
+    excluded_list+=("$base")
+    continue
+  fi
   if [[ ! -f "$TMP/$base" ]]; then
     echo "check-module-manifest-drift: DRIFT committed $base has no regenerated counterpart (module removed from sync list?)" >&2
     drift+=("$base (orphan)")
     continue
   fi
   if ! diff -q "$ROOT/dev/manifests/$base" "$TMP/$base" >/dev/null 2>&1; then
-    echo "check-module-manifest-drift: DRIFT $base" >&2
+    echo "check-module-manifest-drift: DRIFT $base (committed vs vivijure-cf@$cf_ref)" >&2
     diff -u "$ROOT/dev/manifests/$base" "$TMP/$base" 2>&1 | head -80 >&2 || true
     drift+=("$base")
   fi
@@ -68,18 +98,34 @@ done < <(cd "$ROOT/dev/manifests" && find . -maxdepth 1 -name '*.json' -type f |
 # Regenerated modules must be committed (except excluded local-only forks).
 while IFS= read -r base; do
   [[ -z "$base" ]] && continue
-  excluded "$base" && continue
+  # If the committed file is a marked divergence, skip (regen may have produced a cf shape).
+  if is_local_divergence "$base"; then
+    continue
+  fi
   if [[ ! -f "$ROOT/dev/manifests/$base" ]]; then
     echo "check-module-manifest-drift: DRIFT regenerated $base missing from committed dev/manifests/" >&2
     drift+=("$base (missing)")
   fi
 done < <(cd "$TMP" && find . -maxdepth 1 -name '*.json' -type f | sed 's|^\./||' | sort)
 
+if [[ ${#excluded_list[@]} -gt 0 ]]; then
+  echo "check-module-manifest-drift: local-divergence (marker _local_divergence=do-not-sync): ${excluded_list[*]}"
+fi
+
 if [[ ${#drift[@]} -gt 0 ]]; then
   echo "check-module-manifest-drift: FAIL -- ${#drift[@]} drifting manifest(s): ${drift[*]}" >&2
-  echo "check-module-manifest-drift: fix with: VIVIJURE_SRC=$UP npm run module-manifests && git add dev/manifests && commit" >&2
-  echo "check-module-manifest-drift: note: plan-enhance.json is local-only (Ollama); do not overwrite from cf" >&2
+  echo "check-module-manifest-drift: compared against vivijure-cf@$cf_ref (not your local PR diff alone)." >&2
+  echo "check-module-manifest-drift: if this red appeared with no change on this repo, cf moved" >&2
+  echo "check-module-manifest-drift: and the drift is REAL -- absorb it, do not pin around it (local#403)." >&2
+  echo "check-module-manifest-drift: regenerate:" >&2
+  echo "check-module-manifest-drift:   1. VIVIJURE_SRC=/path/to/vivijure-cf npm run module-manifests" >&2
+  echo "check-module-manifest-drift:   2. git add dev/manifests && commit" >&2
+  echo "check-module-manifest-drift: files with \"_local_divergence\": \"do-not-sync\" are never overwritten." >&2
   exit 1
 fi
 
-echo "check-module-manifest-drift: PASS (dev/manifests match vivijure-cf; excluded bare-planner.json plan-enhance.json)"
+excl_msg="(none)"
+if [[ ${#excluded_list[@]} -gt 0 ]]; then
+  excl_msg="${excluded_list[*]}"
+fi
+echo "check-module-manifest-drift: PASS (dev/manifests match vivijure-cf@$cf_ref; local-divergence: $excl_msg)"
