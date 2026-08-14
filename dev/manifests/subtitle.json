@@ -1,6 +1,6 @@
 {
   "name": "subtitle",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "api": "vivijure-module/2",
   "hooks": [
     "film.finish"

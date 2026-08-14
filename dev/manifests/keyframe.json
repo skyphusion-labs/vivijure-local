@@ -1,6 +1,6 @@
 {
   "name": "keyframe",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "api": "vivijure-module/2",
   "hooks": [
     "keyframe"
@@ -55,6 +55,15 @@
       "default": -1,
       "min": -1,
       "label": "seed (-1 = random)"
+    },
+    "identity_method": {
+      "type": "enum",
+      "values": [
+        "ip_adapter",
+        "instantid"
+      ],
+      "default": "ip_adapter",
+      "label": "face identity method"
     }
   },
   "ui": {
