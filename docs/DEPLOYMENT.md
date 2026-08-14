@@ -32,7 +32,7 @@ docker compose (default homelab)
   |-- video-finish       ffmpeg assemble/mux (CPU film.finish path)
   |-- image-prep, audio-beat-sync, audio-mix, audio-master   CPU media VPC shims
   |-- module-plan-enhance, module-cast-image, module-image-generate
-  |-- module-keyframe, module-local-gpu
+  |-- module-keyframe (cloud profile only), module-local-gpu
   |-- module-audio-master, module-beat-sync, module-film-titles, module-subtitle
   |-- module-dialogue-gen, module-music-gen, module-notify-email
   `-- optional profiles: cloud, satellites (see install-profiles.md)
@@ -111,10 +111,10 @@ the studio container.
 | Variable | Default (compose) | Purpose |
 |----------|-------------------|---------|
 | `STUDIO_API_TOKEN` | `change-me-local-dev-only` | Operator login; **change this** |
-| `AUTH_MODE` | `token` | Only supported mode in v1 |
+| `AUTH_MODE` | `token` | `token` or `demo`; `access` is refused by name (see docs/SECURITY.md) |
 | `PORT` | `8790` | HTTP listen port |
 | `PUBLIC_BASE_URL` | `http://127.0.0.1:8790` | Presign + artifact URLs for host clients |
-| `DATABASE_PATH` | `/app/data/studio.db` | SQLite file (persisted volume) |
+| `DATABASE_PATH` | `/app/vivijure-local/data/studio.db` | SQLite file (persisted volume) |
 | `PLANNER_AI_MOCK` | `false` | Set `true` for offline/CI without Ollama model pull |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Homelab plan.enhance provider |
 | `OLLAMA_PLAN_MODEL` | `qwen3:14b` | Default open-weight planner (~9.3GB Q4; 16GB headroom) |

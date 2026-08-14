@@ -135,9 +135,9 @@ export function parsePlanStoryboard(raw: unknown): PlanEnhanceStoryboard | null 
 export function mockEnhanced(prompts: string[], intensity: Intensity): string[] {
   const suffix =
     intensity === "bold"
-      ? " — vivid cinematic framing and lighting."
+      ? " -- vivid cinematic framing and lighting."
       : intensity === "light"
         ? " (subtle direction)"
-        : " — directed.";
+        : " -- directed.";
   return prompts.map((p) => (p.trim() ? p.trim() + suffix : p));
 }
