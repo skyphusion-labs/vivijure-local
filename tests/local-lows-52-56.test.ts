@@ -95,3 +95,23 @@ describe("#55 HttpFetcher forwards the AbortSignal", () => {
     expect(seen[0]?.signal).toBe(req.signal); // the request's signal is forwarded (pre-fix it was dropped -> undefined)
   });
 });
+
+describe("local#307 parseFinishOutput threads a soft-degrade through instead of dropping it", () => {
+  it("carries `degraded` when the RunPod worker reported one", () => {
+    const out = parseFinishOutput(
+      "s1",
+      { clip_key: "renders/p/clips/s1.mp4", degraded: "interpolation-model-unavailable" },
+      24,
+      96,
+    );
+    expect(out?.degraded).toBe("interpolation-model-unavailable"); // pre-fix: silently dropped
+  });
+  it("stays absent (never invented) when the worker reported none", () => {
+    const out = parseFinishOutput("s1", { clip_key: "renders/p/clips/s1.mp4" }, 24, 96);
+    expect(out?.degraded).toBeUndefined();
+  });
+  it("ignores a non-string degraded rather than propagating a malformed value", () => {
+    const out = parseFinishOutput("s1", { clip_key: "renders/p/clips/s1.mp4", degraded: true as unknown }, 24, 96);
+    expect(out?.degraded).toBeUndefined();
+  });
+});
