@@ -5,11 +5,130 @@
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
 
+## Unreleased
+
+## v1.9.0 -- 2026-08-07
+
+MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).
+
+### feat(speech): route speech-upscale to an on-box door (#383, #384)
+
+`LOCAL_FINISH_SPEECH_URL` sends speech to a local door instead of the RunPod
+`vivijure-audio-upscale` endpoint. The generic half of the #378 door pool moved to
+`src/modules/door-pool.ts` and is now genuinely SHARED rather than copied -- one parser, one
+selector, with `finish-backend.ts` re-exporting the old names as aliases so `normalizeFinishBaseUrl`
+keeps its exact contract by being the same function object.
+
+**`LOCAL_FINISH_SPEECH_URL` wins on PRESENCE, not usability**, deliberately unlike
+`localFinishConfigured`. Writing a value into it IS the operator saying keep speech off RunPod, and
+the fall-through here is a CLOUD CALL rather than a refusal -- so a typo read as "unset" would
+silently restore the exact traffic the variable exists to remove, arriving as success. Failures
+degrade honestly instead: `ok: true`, the INPUT audio passed through, `applied: []` with no invented
+tag, and a named reason. None reaches RunPod.
+
+**This release is what makes the key settable at all.** #384 merged after the v1.8.0 cut, so a studio
+on 1.8.0 does not know the key exists -- and `PATCH /api/settings/secrets` answers `ok: true` with
+`applied: []` for an unrecognised key rather than refusing. An operator would get a success response
+and a studio still sending every speech job to RunPod.
+
+### docs(finish): retract an overstated local#380 note (#385)
+
+An earlier note claimed the #378 door pool "cannot be exercised from a compose deployment" -- a wrong
+inference from a correct measurement, and wrong in the alarming direction, making a merged working
+feature read as broken. These modules resolve settings from the platform runtime store, not container
+env (#379). The narrower true trap remains: `.env` alone will not configure the two finish sidecars.
+
+## v1.8.0 -- 2026-08-07
+
+MINOR. The finish backend accepts a POOL of local doors instead of exactly one, so a second GPU box
+is capacity rather than a warm spare (#378).
+
+### feat(finish): a comma-separated door list, with poll affinity (#378)
+
+`LOCAL_FINISH_*_URL` now accepts a comma-separated list. **A single value is bit-for-bit unaffected**
+and takes no health probe at all. That is the compatibility guarantee rather than an optimisation: an
+existing deployment keeps today's exact round-trip count, and a door whose `/health` is unimplemented
+cannot be turned into a refusal by this change.
+
+With several doors: probe, keep the ones that answer, and rotate the starting point so consecutive
+jobs do not both land on the same card. An invalid entry is **dropped and counted** rather than
+failing the whole list, because a silently shortened pool is a capacity halving nobody sees. An
+all-invalid list reads as NOT configured, identical to unset.
+
+**Poll affinity, which is why a load balancer could not have done this.** The door is async with
+per-container in-memory job state: `POST /run` returns an id and `GET /status/<id>` must reach the
+box that ran it. Rotation alone would have sent the poll to a door that never heard of the job, and
+`runpodJobGone` would have read a healthy job as MISSING, a silent wrong answer in the flattering
+direction. The poll token now records the serving door. **Rotation applies to submit; polls have
+affinity.** Pre-existing tokens fall back to the pool head, exactly the single-door behaviour they
+were minted under.
+
+**Deployment note:** these keys live in the platform runtime store, NOT `.env` (#379). Setting the
+list in `.env` alone has no effect.
+
+**Dual-panel note:** local-only by construction. `vivijure-cf` has no local-finish path at all
+(vivijure-cf#480), so there is no cf half to pair this wave with.
+
+### fix(docs): repair a duplicated v1.7.0 section in this file
+
+The v1.7.0 cut left the section duplicated -- a truncated copy above a stray `## v1.6.1` heading and
+a second `## Unreleased`, with the complete copy below. **Verified the short copy was a strict subset
+before removing it (zero lines absent from the full copy), and the stranded v1.6.1 entry is preserved
+in its correct position** rather than deleted with the duplicate around it.
+
+## v1.7.0 -- 2026-08-07
+
+MINOR. Homelab SDXL cast train on the local door (no RunPod required for cast identity).
+
+### feat: SDXL cast train on the local door (no RunPod)
+
+Homelab `POST /api/cast/:id/train-lora` submits `action:train_lora` to `LOCAL_BACKEND_URL`
+when the door is wired (vivijure-core 1.9.0+). Door images (local-12gb / 16gb 1.1.0+) fit SDXL
+UNet LoRAs on the card; Wan train stays CF-prod only. Injects `LOCAL_BACKEND_URL` /
+`LOCAL_BACKEND_TOKEN` into platform vars so the cast route can see them.
+
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.9.0
+
+Requires published core 1.9.0 (local-door train submit/poll). Prior pin notes for 1.8.1 schema
+migrations still apply.
+
+### chore(deps): pin @skyphusion-labs/vivijure-core ^1.8.1
+
+Dual-panel of vivijure-cf core pin. Brings PollResponse failure fields (`outcome`,
+`runpodStatus`, `errorType`), keyframe provenance `bundle_key`, render
+`motion_backend` / `keyframe_backend`, scatter D1-empty dialogue fallback, plus
+everything already in 1.8.0 (finish_elapsed_ms, FilmSummary duration fields, cast
+family readiness, install-patch dropped keys, untrained-LoRA voice copy).
+
+**Schema (required before any process loads 1.8.1):**
+- `migrations/0018_render_output_ms.sql` -- `renders.output_ms` (core 1.7.1+ read path)
+- `migrations/0019_finish_elapsed_ms.sql` -- `renders.finish_elapsed_ms` (core 1.8.0)
+- `migrations/0020_render_motion_backend.sql` -- `renders.motion_backend` + `keyframe_backend` (core 1.8.1 / cf#393)
+
+Local migration numbers already used 0016-0019 for runpod_job_log + output/finish;
+0020 is the dual of cf 0018. Studio applies on boot via `migrateDatabase`. Pin
+without 0020 = `no such column` on every render read/insert.
+
+### Fixed: module poll carries structured `outcome` (local#304)
+
+Module poll already classified gone / backend-error / failed / cancelled, then
+flattened them into `{ok:false, error: prose}` so `runpod_job_log.outcome` could
+only reach three of five values on this door. Additive `outcome` on the poll
+envelope (closed set); studio transport records that field and never parses the
+English `error` string. Render-path verdict stays `ok: false`. Needs core 1.8.1
+for the `PollResponse` failure-arm types.
+
+- **docs: named API tokens are operator-equivalent (local#238).** No scope column; ARCHITECTURE + mint script state the honest blast radius.
+
+- **docs: 12GB LTX vs 16GB CogVideoX engine asymmetry (local#235).** Documented in `docs/DEPLOYMENT.md` so a door swap is not read as a pin-only change.
+
+- **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
+
+
 ## v1.6.1
 
-PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
-## Unreleased
+PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
 - **Docs audit 2026-08-05:** SECURITY demo + named tokens; AUTH_MODE; compose profile honesty; dash strip.
 

@@ -10,7 +10,7 @@ Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/15
 `containers/finish-rife-serve`, no `vivijure-local-finish-rife` GHCR image, and no
 `LOCAL_FINISH_RIFE_URL` path.
 
-History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28**  -- 
+History: local#204 briefly adopted an opt-in serve overlay (2026-07-24). **Retired 2026-07-28** --
 Conrad: do not ship finish-rife in vivijure-local. Closed paths (do not revive): fleet-chezmoi
 #1009, PR #185, local#204 overlay, local#260 CI bake.
 
@@ -79,7 +79,8 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 | `FINISH_BACKEND` | `local` (**the default**, local#229) or `runpod` (explicit opt-in) |
 | `LOCAL_FINISH_LIPSYNC_URL` | HTTP base for MuseTalk / `lipsync_clip` |
 | `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip` |
-| `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`) |
+| `LOCAL_FINISH_SPEECH_URL` | HTTP base for `speech-upscale` (local#383). Not governed by `FINISH_BACKEND` -- see below |
+| `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`); covers the speech door too |
 | `FINISH_LIPSYNC_BACKEND` | Optional per-module override (`local` \| `runpod`) |
 | `FINISH_UPSCALE_BACKEND` | Optional per-module override |
 
@@ -171,12 +172,80 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 | Backend (render) | 3 (keyframe + own-gpu pressure) | RIFE already off local path; keyframe off local path after #153 |
 | MuseTalk | 2 | Full endpoint idle for local panel |
 | Video upscale | 2 | Full endpoint idle for local panel |
-| Audio upscale | 2 | Optional: move to local or keep for speech-upscale only |
+| Audio upscale | 2 | **Moved to local** (local#383): set `LOCAL_FINISH_SPEECH_URL` and no speech audio reaches it |
 
 Conservative estimate: **4-7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
 Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
-`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on the render endpoint.
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on `LOCAL_BACKEND_URL`
+(the door) when wired, else the optional cloud render endpoint.
+
+## `speech-upscale` on an on-box door (local#383)
+
+**`speech-upscale` is NOT a finish module in this codebase, and that is the whole reason this
+section exists.** It is a CHAIN module (`src/modules/chain/`): a different env type, a different
+typed I/O (`audio_key`, not `clip_key`), its own poll token, and its own backend switch. Nothing on
+its path calls `resolveFinishBackend` or `localFinishUrlsFor`, so adding it to `MODULE_LOCAL_URL_KEY`
+in `finish-backend.ts` would be **dead code** -- it would route nothing. Do not try it.
+
+What it DOES share is the door-pool logic, which now lives in `src/modules/door-pool.ts` and is used
+by both paths so there is exactly one parser and one selector: comma-separated lists, invalid
+entries dropped AND counted, no health probe when there is a single door, health-probe plus rotation
+across several, and poll affinity to the door that accepted the job.
+
+### Where speech work goes
+
+| Condition | Backend |
+|-----------|---------|
+| `LOCAL_FINISH_SPEECH_URL` non-empty | **on-box door** -- always, and it never falls back to RunPod |
+| else RunPod configured (`RUNPOD_API_KEY` + `AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID`, or the generic `RUNPOD_ENDPOINT_ID`) | RunPod `vivijure-audio-upscale` |
+| else | the pre-existing byte-copy mock, tagged `speech-upscale:local-mock` |
+
+**Presence wins, not usability.** This is deliberately laxer than `localFinishConfigured`, where a
+list resolving to zero doors reads as unset. Writing a value into `LOCAL_FINISH_SPEECH_URL` IS the
+operator saying *keep speech off RunPod*; if a typo were read as "unset" the fall-through would be a
+cloud call to the exact endpoint the variable exists to avoid, arriving silently and looking like
+success. The finish sidecars can be laxer because their fall-through is a refusal, not a cloud call.
+
+### Failure is an honest degrade, never a cloud fallback
+
+`speech-upscale` is a POLISH step, so a miss must not fail the shot (local#249/#77). Every local-door
+failure returns `ok: true` with the **input** audio passed through, `applied: []` (no invented tag)
+and a named `degraded` reason:
+
+| `degraded` | Means |
+|---|---|
+| `local-door-unusable: ...` | the variable is set but resolved to zero usable doors |
+| `local-door-unreachable: N configured, 0 reachable` | doors configured, none answered `/health` |
+| `local-door-submit-failed: ...` | doors answered health, none accepted `/run` |
+| `local-door-unconfigured-mid-job` | the door was unset while a job was in flight |
+
+None of these reaches RunPod. Only malformed input (`shot_id` / `audio_key` missing) fails loud.
+
+### Compose
+
+`module-speech-upscale` now carries `profiles: [cloud, satellites]` -- unchanged for the cloud lane,
+and startable in the `satellites` lane where the on-box doors run. It reads `LOCAL_FINISH_SPEECH_URL`
+and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
+
+> **Known trap, NOT fixed here (local#380).** `module-finish-lipsync` and `module-finish-upscale`
+> declare their own `environment: { RUNPOD_WORKERS_MAX }`, and an explicit `environment:` REPLACES a
+> `<<:` anchor's mapping wholesale -- so those two sidecars receive **exactly one** environment
+> variable, not the twenty-two the anchor lists. Measured on `compose.yaml` at this commit.
+> `module-speech-upscale` is unaffected because its `environment:` block is written out in full.
+>
+> **It is NOT blocking, and an earlier version of this note said it was.** That claim ("the
+> local#378 door pool cannot be exercised from a compose deployment") was a wrong INFERENCE from a
+> correct measurement, and it was wrong in the alarming direction, which is the direction that gets
+> acted on: it made a merged, working feature read as broken. These modules resolve settings from
+> the **platform runtime store**, not from container env (local#379), so a value set through the
+> store reaches them whatever compose injects. local#378's door pool was measured live at a 3/3
+> distribution across two doors on the day this was written.
+>
+> The trap that remains is real and narrower: **`.env` alone will not configure these two
+> sidecars**, because the compose path that would carry it is severed. Set them through the store
+> (`npm run sync:secrets`), and treat the `environment:` block as unreliable for them until #380
+> lands.
 
 ## Rollout order (post-musetalk smoke)
 

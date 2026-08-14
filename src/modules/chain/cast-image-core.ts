@@ -1,7 +1,17 @@
 /**
  * cast.image pure logic (ported from vivijure/modules/cast-image/cast-image.ts).
+ *
+ * LICENSING (local#277): the default model is a `@cf/` id on purpose. FLUX.2 klein-9B
+ * and flux-2-dev weights are non-commercial on Hugging Face; commercial use is lawful
+ * only through Cloudflare's BFL partner channel. Do not "fix" this default to a HF
+ * self-host of those weights. Apache-2.0 Klein 4B is the only FLUX member allowed to
+ * self-host -- see cast-image-model-policy.ts and THIRD_PARTY_MODELS.md.
  */
 import type { CastImageOutput } from "@skyphusion-labs/vivijure-core/modules/types";
+import {
+  CLOUD_CAST_MODELS,
+  DEFAULT_CLOUD_CAST_MODEL,
+} from "./cast-image-model-policy.js";
 
 export const TRAINING_PROMPTS: readonly string[] = [
   "close-up portrait, neutral expression, eye level, soft studio lighting, clean grey background",
@@ -24,12 +34,14 @@ export function isFlaggedError(msg: unknown): boolean {
   return s.includes("3030") || s.includes("has been flagged") || s.includes("choose another prompt");
 }
 
-export const MODELS = [
-  "@cf/black-forest-labs/flux-2-klein-9b",
-  "google/nano-banana-pro",
-  "@cf/black-forest-labs/flux-2-klein-4b",
-  "@cf/black-forest-labs/flux-2-dev",
-] as const;
+/**
+ * Cloud cast.image catalog. Default (MODELS[0]) is CF BFL klein-9b -- lawful commercial
+ * inference, not a self-host of non-commercial weights (local#277).
+ */
+export const MODELS = CLOUD_CAST_MODELS;
+
+/** Explicit alias so call sites do not re-derive "first enum entry" without the why. */
+export const DEFAULT_CAST_MODEL = DEFAULT_CLOUD_CAST_MODEL;
 
 export function composeTrainingPrompt(template: string, bible?: string, style?: string): string {
   const safeStyle = String(style || "").trim();

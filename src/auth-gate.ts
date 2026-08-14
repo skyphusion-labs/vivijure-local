@@ -90,6 +90,7 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
   if (await constantTimeEqual(presented, secret)) {
     return { ok: true, sub: "studio-api-token", email: null };
   }
+  // Named tokens: attribution only (local#238). Same full /api reach as STUDIO_API_TOKEN; no scope column.
   const consumer = await namedTokenConsumer(presented, env);
   if (consumer !== null) {
     return { ok: true, sub: `api-token:${consumer}`, email: null };

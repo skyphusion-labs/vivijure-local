@@ -46,6 +46,11 @@ the FLUX.2 klein **4B** line is Apache-2.0, while the klein **9B** line and FLUX
 the FLUX Non-Commercial License. That is exactly why the local path builds on the 4B, and why
 the larger klein is consumed only as licensed inference via Workers AI, never self-hosted.
 
+**Code + inventory (local#277):** the full third-party model table, the FLUX commercial rule,
+and the self-host allowlist live in [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md). The
+enforceable guard is `src/modules/chain/cast-image-model-policy.ts` (Apache-only HF ids for
+self-host; `@cf/` defaults stay on the CF BFL channel).
+
 ## What this means in practice
 
 - **Homelab, personal, research, community use: every path above is fine.** Nothing to
