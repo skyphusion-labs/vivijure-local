@@ -5,6 +5,12 @@
  *
  * Tries dynamic import when MANIFEST is exported; otherwise parses the source literal.
  * Skips modules whose entry graph requires cloudflare: or other Node-unsupported imports.
+ *
+ * Local-only divergences (local#313): a committed fixture with
+ *   "_local_divergence": "do-not-sync"
+ * is never overwritten when writing into the real dev/manifests/ tree. (CI regen into a
+ * temp dir via MANIFESTS_OUT still produces the cf shape so the drift checker can exclude
+ * by the same marker on the committed file.)
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -14,7 +20,11 @@ const ROOT = join(import.meta.dirname, "..");
 const VIV = process.env.VIVIJURE_SRC ?? join(ROOT, "..", "vivijure-cf");
 // MANIFESTS_OUT lets CI / check-module-manifest-drift.sh regenerate into a temp dir
 // without touching the committed fixtures.
-const OUT = process.env.MANIFESTS_OUT ?? join(ROOT, "dev", "manifests");
+// Truthiness, not `??`. An operator writing `MANIFESTS_OUT= npm run module-manifests` sets
+// it to the EMPTY STRING, which is not nullish, so `??` would take "" as the output path and
+// the run dies on mkdirSync(""). Empty means unset here.
+const MANIFESTS_OUT_ENV = process.env.MANIFESTS_OUT?.trim();
+const OUT = MANIFESTS_OUT_ENV ? MANIFESTS_OUT_ENV : join(ROOT, "dev", "manifests");
 
 const MODULES = [
   "keyframe",
@@ -193,13 +203,40 @@ async function loadManifest(name: string, modPath: string): Promise<unknown | nu
   return extractManifestFromSource(modPath);
 }
 
+/** True when a committed fixture is a deliberate local divergence (local#313). */
+function isLocalDivergenceFile(path: string): boolean {
+  if (!existsSync(path)) return false;
+  try {
+    const j = JSON.parse(readFileSync(path, "utf8")) as { _local_divergence?: unknown };
+    return j._local_divergence === "do-not-sync" || j._local_divergence === true;
+  } catch {
+    return false;
+  }
+}
+
+// Writing into the real dev/manifests tree (no MANIFESTS_OUT) must preserve marked files.
+// CI / check-module-manifest-drift.sh sets MANIFESTS_OUT to a temp dir and always wants the
+// cf shape there so the checker can exclude by marker on the committed side only.
+const protectLocalDivergence = !MANIFESTS_OUT_ENV;
+
 mkdirSync(OUT, { recursive: true });
 
 let failed = 0;
+let skippedLocal = 0;
 for (const name of MODULES) {
-  const mod = join(VIV, "modules", name, "src", "index.ts");
+  const outPath = join(OUT, `${name}.json`);
+  // Prefer leaf manifest.ts (cf#285) when present; fall back to entrypoint index.ts.
+  const leaf = join(VIV, "modules", name, "src", "manifest.ts");
+  const mod = existsSync(leaf) ? leaf : join(VIV, "modules", name, "src", "index.ts");
   if (!existsSync(mod)) {
     console.log(`skip (missing): ${name}`);
+    continue;
+  }
+  if (protectLocalDivergence && isLocalDivergenceFile(outPath)) {
+    console.log(
+      `skip (local divergence marker _local_divergence=do-not-sync): ${name}.json -- will not overwrite`,
+    );
+    skippedLocal++;
     continue;
   }
   try {
@@ -209,7 +246,7 @@ for (const name of MODULES) {
       failed++;
       continue;
     }
-    writeFileSync(join(OUT, `${name}.json`), JSON.stringify(manifest, null, 2) + "\n");
+    writeFileSync(outPath, JSON.stringify(manifest, null, 2) + "\n");
     console.log(`wrote ${name}.json`);
   } catch (e) {
     console.error(`failed ${name}:`, e instanceof Error ? e.message : e);
@@ -217,4 +254,9 @@ for (const name of MODULES) {
   }
 }
 
+if (skippedLocal > 0) {
+  console.log(
+    `preserved ${skippedLocal} local-divergence fixture(s); remove "_local_divergence" to allow overwrite`,
+  );
+}
 if (failed > 0) process.exitCode = 1;
