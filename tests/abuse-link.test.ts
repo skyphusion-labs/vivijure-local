@@ -16,8 +16,8 @@
 // hosted side that guard asserts a promise about someone else. Here it asserts a property of the
 // artifact a stranger actually downloads, which is the stronger place to assert it.
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../src/app.js";
@@ -32,8 +32,13 @@ import { _resetModuleDiscoveryCache } from "@skyphusion-labs/vivijure-core";
 const SECRET = "a".repeat(32) + "b".repeat(32);
 const PUBLIC_DIR = join(import.meta.dirname, "..", "public");
 
+/** Temp dirs from testPlatform this test; reaped in afterEach (local#308). */
+const liveTempDirs: string[] = [];
+
 function testPlatform(vars: Record<string, string> = {}): Platform {
-  const dir = mkdtempSync(join(tmpdir(), "vj-abuse-"));
+  // Pid in the prefix so concurrent leftovers are attributable (local#308).
+  const dir = mkdtempSync(join(tmpdir(), `vj-abuse-${process.pid}-`));
+  liveTempDirs.push(dir);
   const dbPath = join(dir, "studio.db");
   migrateDatabase(dbPath, join(import.meta.dirname, "..", "migrations"));
   const store = new FilesystemObjectStore(join(dir, "renders"));
@@ -57,6 +62,18 @@ async function hostOf(vars: Record<string, string> = {}): Promise<Record<string,
 
 beforeEach(() => {
   _resetModuleDiscoveryCache();
+});
+
+afterEach(() => {
+  // local#308: reap every testPlatform temp dir when the test ends.
+  // VJ_KEEP_TEST_DB=1 leaves dirs for debugging.
+  if (process.env.VJ_KEEP_TEST_DB) {
+    liveTempDirs.length = 0;
+    return;
+  }
+  while (liveTempDirs.length > 0) {
+    rmSync(liveTempDirs.pop()!, { recursive: true, force: true });
+  }
 });
 
 describe("abuseReportUrl (the host side: what this studio advertises about itself)", () => {

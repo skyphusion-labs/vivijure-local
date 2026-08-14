@@ -19,21 +19,17 @@
 -- blindness it closes, so the STUDIO writes the row, at the one seam every module call passes through
 -- (createModuleTransport). A missing module-side write on this door is by design, not a bug.
 --
--- WHAT THIS COLUMN CANNOT SAY ON THIS DOOR, stated in the schema and not only in a runbook, because an
--- absence that is not documented reads as an observation:
+-- OUTCOME VOCABULARY (updated local#304): the closed set is submitted|completed|backend-error|failed|
+-- gone|cancelled, matching cf. The module poll carries a structured `outcome` on the envelope
+-- (alongside jobId / errorType / runpodStatus); the studio transport records that field.
 --
---   outcome can hold submitted, completed and failed here. It CANNOT hold backend-error or gone.
+-- HISTORICAL (pre-#304): gone and backend-error were collapsed into {ok:false, error: prose} at the
+-- module poll, so those two values were unreachable on this door even though the column could hold
+-- them. That destroy-at-the-envelope defect is what #304 fixed. Rows written before the fix may still
+-- show undifferentiated `failed` for what would now be gone or backend-error.
 --
--- Not because those never happen: because this doors module poll collapses every failure into
--- {ok:false, error: <prose>} before it reaches the studio, so the distinction is destroyed at the
--- transport and no column downstream can recover it. Separating them studio-side would mean matching
--- English error sentences, which is a parser only as fresh as its sample. Tracked as its own issue,
--- separate from cf#286: cf TRUNCATES a structured error, this door DESTROYS it, and they need
--- different fixes.
---
--- READ THIS BEFORE COMPUTING A RATE: the absence of backend-error and gone rows on this door means
--- CANNOT EXPRESS, never DID NOT HAPPEN. A failure rate computed from these rows is a rate of
--- everything-that-went-wrong, undifferentiated.
+-- READ THIS BEFORE COMPUTING A RATE on mixed-age data: pre-#304 absence of backend-error/gone means
+-- CANNOT EXPRESS for that era, never DID NOT HAPPEN.
 --
 -- CONTENT-FREE by construction: a vendor job id, a module label derived from the binding name, an
 -- outcome from a closed set, a bounded error string, two timestamps. No prompts, no filenames, no user

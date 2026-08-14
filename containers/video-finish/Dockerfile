@@ -1,5 +1,14 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14-slim-bookworm
+# PINNED TO 3.11 FOR DUAL-PANEL INTERPRETER PARITY WITH vivijure-cf (local#316).
+#
+# Trace (local#316): a 2026-07 precaution for OTHER finish containers (lipsync/upscale)
+# rolled video-finish back to 3.11 on both doors; dependabot later bumped THIS door to
+# 3.14 twice with clean real builds (no numba / no hardcoded site-packages path). cf never
+# revisited and stayed on 3.11. Measured that 3.14 builds here is not a reason to *prefer*
+# 3.14: nothing in requirements.txt or app.py needs it, and the /frames path must run the
+# same interpreter family on both doors (cf#278 phase 1). Align with cf until a measured
+# reason requires otherwise. Enforced by dependabot ignore + tests/video-finish-python-316.test.ts.
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
