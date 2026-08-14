@@ -92,6 +92,7 @@ x-runpod-module: &runpod-module
     FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
     LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
     LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
+    LOCAL_FINISH_SPEECH_URL: ${LOCAL_FINISH_SPEECH_URL:-}
     LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
     # Sequential VRAM (local#265): finish sidecars unload Ollama before local GPU /run.
     OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -572,7 +573,12 @@ services:
       S3_FORCE_PATH_STYLE: "true"
 
   module-speech-upscale:
-    <<: [*module-sidecar, *profile-cloud]
+    <<: *module-sidecar
+    # local#383: `cloud` OR `satellites`. This sidecar used to be cloud-only because RunPod was its
+    # only backend; it now also serves an on-box door, so it has to be startable in the lane where
+    # the on-box doors run. Compose starts a service when ANY of its profiles is enabled, so the
+    # cloud lane is unchanged and the default (no profile) still does not start it.
+    profiles: [cloud, satellites]
     volumes:
       - studio-data:/app/vivijure-local/data:ro
     command: ["npx", "tsx", "scripts/chain-module-server.ts", "9143", "speech-upscale"]
@@ -584,6 +590,8 @@ services:
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
       RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
       AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+      LOCAL_FINISH_SPEECH_URL: ${LOCAL_FINISH_SPEECH_URL:-}
+      LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
       RUNPOD_WORKERS_MAX: "2"
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
