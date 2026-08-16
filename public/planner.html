@@ -357,20 +357,17 @@
         <input id="planner-keyframes-only" type="checkbox" />
         <span>render keyframes only (preview before generating motion)</span>
       </label>
-      <!-- v0.162.0: scatter/gather distributed render. Enabled only when
-           the storyboard has >= 2 shots AND at least one character slot is
-           bound (scatter requires castLoras to be non-empty -- the server
-           hard-400s otherwise). updateScatterGate() enforces this dynamically
-           and shows a short reason when disabled. The shard-count input is
-           hidden until the checkbox is checked. -->
+      <!-- Scatter checkbox still forces the named scatter door. Parallelism
+           (shards) is the width knob for BOTH film and scatter; always visible.
+           n>=2 on the main render door starts a scatter. -->
       <label class="planner-field-check" id="planner-scatter-wrap">
         <input id="planner-scatter" type="checkbox" />
         <span>distributed render (scatter/gather)</span>
       </label>
       <span id="planner-scatter-reason" class="planner-status planner-scatter-reason" hidden></span>
-      <div class="planner-scatter-shard-row" id="planner-scatter-shard-wrap" hidden>
-        <label class="planner-field-check" for="planner-scatter-shards">shards</label>
-        <input id="planner-scatter-shards" type="number" min="2" value="2" inputmode="numeric" />
+      <div class="planner-scatter-shard-row" id="planner-scatter-shard-wrap">
+        <label class="planner-field-check" for="planner-scatter-shards">parallelism (shards)</label>
+        <input id="planner-scatter-shards" type="number" min="1" inputmode="numeric" />
       </div>
       </div>
       <!-- Module render config: projected from GET /api/modules. The hook set comes from the live

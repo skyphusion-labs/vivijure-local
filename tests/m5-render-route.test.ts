@@ -107,3 +107,20 @@ describe("GET /api/storyboard/render/:jobId", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /api/storyboard/render/scatter", () => {
+  it("refuses shard_count 1 instead of silently aliasing a film", async () => {
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
+    const res = await authJson(app, "/api/storyboard/render/scatter", {
+      method: "POST",
+      body: JSON.stringify({
+        bundleKey: "bundles/demo.tar.gz",
+        shotIds: ["s1", "s2"],
+        shardCount: 1,
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toMatch(/shard_count 1 is a normal film/);
+  });
+});

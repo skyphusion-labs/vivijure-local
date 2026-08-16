@@ -197,6 +197,7 @@ async function submitRender() {
   // to card), mirroring audioKey.
   const filmTitles = collectFilmTitles();
   if (filmTitles && !keyframesOnly) reqBody.film_titles = filmTitles;
+  reqBody.shardCount = readPlannerShardCount(filmScenes.length);
   // v0.55.0: pin the render row to the active project so the history
   // list can filter by project. Skipped on transient (no-project)
   // submits, which matches the pre-0.55 behavior.
@@ -289,10 +290,27 @@ async function submitRender() {
   savePersistedState();
 }
 
-// v0.162.0: enable/disable the scatter checkbox based on current state.
+// omitted/invalid -> min(shots, 20). explicit N -> clamp [1, shots].
+function resolvePlannerShardCount(raw, shotCount) {
+  const shots = Math.max(0, Math.floor(Number(shotCount)) || 0);
+  if (shots === 0) return 1;
+  const implicit = Math.min(shots, 20);
+  if (raw == null || raw === "") return implicit;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return implicit;
+  return Math.max(1, Math.min(Math.floor(n), shots));
+}
+
+function readPlannerShardCount(shotCount) {
+  const el = $("#planner-scatter-shards");
+  const raw = el ? el.value : "";
+  return resolvePlannerShardCount(raw === "" ? undefined : raw, shotCount);
+}
+
+// Enable/disable the scatter checkbox based on current state.
 // Conditions: >= 2 shots in the storyboard AND castLoras non-empty (the
-// server hard-400s a scatter with no castLoras; shards would diverge
-// without a shared pre-trained LoRA). Shows a short reason when disabled.
+// named scatter door still wants a shared LoRA). The shard input stays
+// visible; it is the parallelism knob for the main render too.
 function updateScatterGate() {
   const checkbox = $("#planner-scatter");
   const reasonEl = $("#planner-scatter-reason");
@@ -317,15 +335,13 @@ function updateScatterGate() {
     reasonEl.textContent = reason;
     reasonEl.hidden = !reason;
   }
-  if (shardWrap) {
-    shardWrap.hidden = !(checkbox.checked && !checkbox.disabled);
-  }
+  if (shardWrap) shardWrap.hidden = false;
 
   const shardInput = $("#planner-scatter-shards");
-  if (shardInput && scenes.length >= 2) {
+  if (shardInput && scenes.length >= 1) {
     shardInput.max = String(scenes.length);
     const cur = parseInt(shardInput.value, 10);
-    if (!Number.isInteger(cur) || cur < 2) shardInput.value = "2";
+    if (!Number.isInteger(cur) || cur < 1) shardInput.value = String(Math.min(scenes.length, 20));
     else if (cur > scenes.length) shardInput.value = String(scenes.length);
   }
 }
@@ -394,10 +410,7 @@ async function submitScatterRender() {
   // without an active project -- and dialogue needs a saved project for its projectId anyway.
   if (planState.activeProjectId) await saveStoryboardToProject();
 
-  const shardInput = $("#planner-scatter-shards");
-  let shardCount = shardInput ? parseInt(shardInput.value, 10) : 2;
-  if (!Number.isInteger(shardCount) || shardCount < 2) shardCount = 2;
-  if (shardCount > shotIds.length) shardCount = shotIds.length;
+  const shardCount = readPlannerShardCount(shotIds.length);
 
   let renderOverrides;
   try {

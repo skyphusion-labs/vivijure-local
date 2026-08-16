@@ -339,12 +339,12 @@ document.addEventListener("DOMContentLoaded", () => {
       submitRender();
     }
   });
-  // Scatter checkbox: toggle the shard-count row visibility + re-gate.
+  // Scatter checkbox: re-gate only. The shard row is the parallelism knob
+  // for film and scatter, so it stays visible.
   const scatterChk = $("#planner-scatter");
   if (scatterChk) {
     scatterChk.addEventListener("change", () => {
-      const wrap = $("#planner-scatter-shard-wrap");
-      if (wrap) wrap.hidden = !scatterChk.checked || scatterChk.disabled;
+      updateScatterGate();
     });
   }
   $("#planner-render-cancel").addEventListener("click", cancelRender);
