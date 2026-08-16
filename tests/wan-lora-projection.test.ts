@@ -124,6 +124,10 @@ vi.mock("@skyphusion-labs/vivijure-core/cast-db", async (orig) => {
 
 const SECRET = "a".repeat(32) + "b".repeat(32);
 const SCENES = [{ shot_id: "shot_01", prompt: "a shot", seconds: 4 }];
+const TWO_SCENES = [
+  { shot_id: "shot_01", prompt: "a shot", seconds: 4 },
+  { shot_id: "shot_02", prompt: "another", seconds: 4 },
+];
 const WAN_LORA_SCHEMA = {
   high_noise_loras: { type: "string", default: "[]", label: "high" },
   low_noise_loras: { type: "string", default: "[]", label: "low" },
@@ -230,6 +234,50 @@ describe("cross-wire control at ALL THREE render paths", () => {
     });
     expect(res.status).toBe(201);
     expect(cap.film[0].pretrained_loras).toEqual({ A: SDXL_KEY });
+  });
+
+  it("RENDER: omitted shardCount with 2+ shots starts a scatter", async () => {
+    const app = createApp(testSettingsHost(makePlatform()));
+    const res = await authJson(app, "/api/storyboard/render", {
+      bundleKey: "bundles/x.tar.gz",
+      scenes: TWO_SCENES,
+      motion_backend: WAN_LORA_BACKEND,
+    });
+    expect(res.status).toBe(201);
+    expect(cap.film).toHaveLength(0);
+    expect(cap.scatter[0].shard_count).toBe(2);
+    expect(cap.scatter[0].shot_ids).toEqual(["shot_01", "shot_02"]);
+    const body = (await res.json()) as { jobId?: string };
+    expect(body.jobId).toBe("scatter-wan-test");
+  });
+
+  it("RENDER: explicit shardCount 1 stays a film", async () => {
+    const app = createApp(testSettingsHost(makePlatform()));
+    const res = await authJson(app, "/api/storyboard/render", {
+      bundleKey: "bundles/x.tar.gz",
+      scenes: TWO_SCENES,
+      motion_backend: WAN_LORA_BACKEND,
+      shardCount: 1,
+    });
+    expect(res.status).toBe(201);
+    expect(cap.scatter).toHaveLength(0);
+    expect(cap.film).toHaveLength(1);
+  });
+
+  it("FILM: omitted shard_count with 2+ scenes starts a scatter", async () => {
+    const app = createApp(testSettingsHost(makePlatform()));
+    const res = await authJson(app, "/api/render/film", {
+      bundle_key: "bundles/x.tar.gz",
+      scenes: TWO_SCENES,
+      motion_backend: WAN_LORA_BACKEND,
+    });
+    expect(res.status).toBe(201);
+    expect(cap.film).toHaveLength(0);
+    expect(cap.scatter[0].shard_count).toBe(2);
+    const body = (await res.json()) as { ok?: boolean; film_id?: string; phase?: string };
+    expect(body.ok).toBe(true);
+    expect(body.film_id).toBe("scatter-wan-test");
+    expect(body.phase).toBe("shards");
   });
 
   it("SCATTER: Wan cast injects render_overrides.config", async () => {

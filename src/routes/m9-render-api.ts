@@ -16,6 +16,13 @@ import {
   isFilmJobId,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import { advanceFilmJob, startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
+import {
+  advanceScatterJob,
+  isScatterJobId,
+  scatterJobToPollView,
+  startScatterRender,
+} from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
+import { resolveShardCount, scatterViewAsFilmSummary, shardMaxFromEnv } from "../shard-count.js";
 import { summarizeJob } from "@skyphusion-labs/vivijure-core/clip-job-model";
 import {
   advanceClipJob,
@@ -216,6 +223,8 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         dialogue_lines?: DialogueLine[];
         cast_loras?: Record<string, string>;
         qualityTier?: string;
+        shard_count?: number;
+        shardCount?: number;
       }>(c.req.raw);
       if (!a.bundle_key) throw badRequest("bundle_key required");
       if (!isSafeBundleKey(a.bundle_key)) {
@@ -278,6 +287,44 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         a.motion_config = filmMotionConfig;
       }
       await unloadOllamaBeforeRender(oenv);
+      const filmShards = resolveShardCount(
+        a.shard_count ?? a.shardCount,
+        a.scenes.length,
+        shardMaxFromEnv(process.env.RENDER_SHARD_MAX),
+      );
+      if (filmShards >= 2 && a.scenes.length >= 2) {
+        const bagConfig: Record<string, Record<string, unknown>> = {
+          ...(a.finish_config ?? {}),
+          ...(a.speech_config ?? {}),
+          ...(a.film_finish_config ?? {}),
+          ...(a.master_config ?? {}),
+        };
+        if (a.keyframe_backend && a.keyframe_config) bagConfig[a.keyframe_backend] = a.keyframe_config;
+        if (a.motion_backend && a.motion_config && !Array.isArray(a.motion_config)) {
+          bagConfig[a.motion_backend] = a.motion_config as Record<string, unknown>;
+        }
+        const scatterJob = await startScatterRender(oenv, {
+          project,
+          bundle_key: a.bundle_key,
+          quality_tier: coerceQualityTier(a.qualityTier) ?? "final",
+          shot_ids: a.scenes.map((s) => s.shot_id),
+          shard_count: filmShards,
+          cast_loras: a.cast_loras ?? {},
+          render_overrides: {
+            motion_backend: a.motion_backend,
+            keyframe_backend: a.keyframe_backend,
+            config: bagConfig,
+          },
+          motion_backend: a.motion_backend,
+          audio_key: a.audio_key,
+          film_titles: a.film_titles,
+        });
+        const summary = scatterViewAsFilmSummary(scatterJobToPollView(scatterJob));
+        return json(
+          { ok: true, ...(await withFilmDownloadUrlBestEffort(oenv, summary as FilmSummary)) },
+          201,
+        );
+      }
       const job = await startFilmJob(
         oenv,
         {
@@ -322,8 +369,14 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       // browser request so a malicious page can't drive it via CSRF.
       if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const jobId = c.req.param("id");
-      if (!isFilmJobId(jobId)) throw notFound("film job");
       const oenv = env();
+      if (isScatterJobId(jobId)) {
+        const view = await advanceScatterJob(oenv, jobId, noopExecutionContext);
+        if (!view) throw notFound("film job");
+        const summary = scatterViewAsFilmSummary(view);
+        return json({ ok: true, ...(await withFilmDownloadUrl(oenv, summary as FilmSummary)) });
+      }
+      if (!isFilmJobId(jobId)) throw notFound("film job");
       const r = await advanceFilmJob(oenv, jobId);
       if (!r) throw notFound("film job");
       await insertRender(oenv, filmRowFromJob(r.job));

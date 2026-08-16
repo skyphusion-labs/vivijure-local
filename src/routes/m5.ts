@@ -61,6 +61,7 @@ import {
   WAN_LORA_BACKEND,
 } from "../wan-lora-projection.js";
 import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
+import { resolveShardCount, shardMaxFromEnv } from "../shard-count.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -116,6 +117,8 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         motion_backend?: string;
         castLoras?: Record<string, unknown>;
         film_titles?: { title?: { text: string; subtitle?: string }; credits?: { lines: string[] } };
+        shardCount?: number;
+        shard_count?: number;
       }>(c.req.raw);
 
       if (!body.bundleKey) throw badRequest("bundleKey required");
@@ -164,6 +167,33 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
       await unloadOllamaBeforeRender(oenv);
+      const panelShots = scenes.map((s) => s.shot_id).filter((id) => typeof id === "string" && id.length > 0);
+      const panelShards = resolveShardCount(
+        body.shardCount ?? body.shard_count,
+        panelShots.length,
+        shardMaxFromEnv(process.env.RENDER_SHARD_MAX),
+      );
+      if (!body.keyframesOnly && panelShards >= 2 && panelShots.length >= 2) {
+        if (shouldProjectWanLoras(motionBackend, wanPretrained)) {
+          const injected = ensureModuleOverrideConfig(body.renderOverrides, WAN_LORA_BACKEND);
+          body.renderOverrides = injected.overrides;
+          await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, injected.config);
+        }
+        const scatterJob = await startScatterRender(oenv, {
+          project,
+          bundle_key: body.bundleKey,
+          quality_tier: tier,
+          shot_ids: panelShots,
+          shard_count: panelShards,
+          cast_loras: body.castLoras ?? {},
+          render_overrides: body.renderOverrides,
+          motion_backend: motionBackend,
+          audio_key: body.audioKey,
+          film_titles: body.film_titles,
+          project_id: await resolveProjectRef(platform, body.projectId),
+        });
+        return c.json(scatterJobToPollView(scatterJob), 201);
+      }
       const job = await startFilmJob(
         oenv,
         {
@@ -255,6 +285,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         qualityTier?: string;
         shotIds?: string[];
         shardCount?: number;
+        shard_count?: number;
         castLoras?: Record<string, unknown>;
         renderOverrides?: Record<string, unknown>;
         audioKey?: string;
@@ -270,7 +301,16 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       if (!Array.isArray(b.shotIds) || b.shotIds.length < 2) {
         throw badRequest("shotIds[] required (>= 2)");
       }
-      const shardCount = typeof b.shardCount === "number" ? b.shardCount : 2;
+      const shardCount = resolveShardCount(
+        b.shardCount ?? b.shard_count,
+        b.shotIds.length,
+        shardMaxFromEnv(process.env.RENDER_SHARD_MAX),
+      );
+      if (shardCount < 2) {
+        throw badRequest(
+          "shard_count 1 is a normal film; use POST /api/render/film or POST /api/storyboard/render",
+        );
+      }
       const project = b.project ?? deriveProjectFromBundleKey(b.bundleKey);
       const tier = coerceQualityTier(b.qualityTier) ?? "final";
       const oenv = env();
