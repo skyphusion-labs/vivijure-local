@@ -7,6 +7,11 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): pin vivijure-core 1.22.0
+
+Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
+on one film. Not scatter-*.
+
 ### feat(render): retire scatter; films are always one job
 
 Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`

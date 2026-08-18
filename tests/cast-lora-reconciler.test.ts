@@ -105,6 +105,7 @@ const cast = (over: Partial<CastMember> = {}): CastMember => ({
   wan_lora_key_high: null,
   wan_lora_key_low: null,
   ...over,
+  voice_ref_key: over.voice_ref_key ?? null,
 });
 
 beforeEach(() => polled.mockReset());
