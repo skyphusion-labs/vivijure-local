@@ -303,27 +303,24 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#planner-plan").addEventListener("click", plan);
   $("#planner-reprompt").addEventListener("click", repromptWithErrors);
   $("#planner-bundle-btn").addEventListener("click", bundleNow);
-  // v0.162.0: dispatch to submitScatterRender when the scatter checkbox is
-  // checked; fall through to submitRender for all other cases.
   $("#planner-render-btn").addEventListener("click", async () => {
-    // v0.221.0: LoRA training preflight runs first for BOTH the normal and the
-    // scatter submit paths (each reuses buildCastLoraSubmit, so each can trip
-    // the inline-retrain fail-safe). The gate fetches fresh cast state, so
+    // v0.221.0: LoRA training preflight runs first (buildCastLoraSubmit can
+    // trip the inline-retrain fail-safe). The gate fetches fresh cast state, so
     // disable the button while it runs to avoid a double-submit.
     const btn = $("#planner-render-btn");
     btn.disabled = true;
     // vivijure#552: mark the whole submit sequence in-flight so updateRenderGate
     // cannot re-enable the button if a form control (e.g. keyframes-only) is
     // toggled during the preflight or the pre-jobId fetch window. The submit
-    // paths clear it on jobId handoff or on any error; the pause path below
+    // path clears it on jobId handoff or on any error; the pause path below
     // clears it and re-gates.
     renderState.submitting = true;
     let proceed = false;
     try {
       proceed = await loraPreflightGate();
     } finally {
-      // submitRender / submitScatterRender re-take ownership of the disabled
-      // state from here; on a pause (proceed === false) the button stays usable.
+      // submitRender re-takes ownership of the disabled state from here; on a
+      // pause (proceed === false) the button stays usable.
       btn.disabled = false;
     }
     if (!proceed) {
@@ -332,21 +329,8 @@ document.addEventListener("DOMContentLoaded", () => {
       updateRenderGate();
       return;
     }
-    const scatter = $("#planner-scatter");
-    if (scatter && scatter.checked && !scatter.disabled) {
-      submitScatterRender();
-    } else {
-      submitRender();
-    }
+    submitRender();
   });
-  // Scatter checkbox: re-gate only. The shard row is the parallelism knob
-  // for film and scatter, so it stays visible.
-  const scatterChk = $("#planner-scatter");
-  if (scatterChk) {
-    scatterChk.addEventListener("change", () => {
-      updateScatterGate();
-    });
-  }
   $("#planner-render-cancel").addEventListener("click", cancelRender);
   const dismissBtn = $("#planner-render-dismiss");
   if (dismissBtn) dismissBtn.addEventListener("click", dismissRenderResult);
@@ -411,9 +395,6 @@ document.addEventListener("DOMContentLoaded", () => {
     plan();
   });
 
-  // v0.162.0: gate the scatter checkbox on page load (no storyboard yet,
-  // so it starts disabled with a reason).
-  updateScatterGate();
 });
 
 // ---------- Screenwriter's Assistant dock (v0.164.0) ----------

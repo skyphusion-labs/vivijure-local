@@ -71,7 +71,6 @@ vi.mock("@skyphusion-labs/vivijure-core/cast-loras", async (orig) => {
 
 const cap = vi.hoisted(() => ({
   film: [] as Array<Record<string, unknown>>,
-  scatter: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@skyphusion-labs/vivijure-core/film-orchestrator", async (orig) => {
@@ -82,18 +81,6 @@ vi.mock("@skyphusion-labs/vivijure-core/film-orchestrator", async (orig) => {
       cap.film.push(args);
       return { film_id: "film-wan-test", phase: "keyframe", scenes: args.scenes, project: "p", created_at: 0 };
     }),
-  };
-});
-
-vi.mock("@skyphusion-labs/vivijure-core/scatter-orchestrator", async (orig) => {
-  const actual = await orig<typeof import("@skyphusion-labs/vivijure-core/scatter-orchestrator")>();
-  return {
-    ...actual,
-    startScatterRender: vi.fn(async (_env: unknown, args: Record<string, unknown>) => {
-      cap.scatter.push(args);
-      return { scatter_id: "scatter-wan-test", phase: "shards" };
-    }),
-    scatterJobToPollView: vi.fn(() => ({ jobId: "scatter-wan-test", status: "in_progress" })),
   };
 });
 
@@ -187,7 +174,6 @@ const anyEnv = orch({}) as OrchestratorEnv;
 
 beforeEach(() => {
   cap.film = [];
-  cap.scatter = [];
   _resetModuleDiscoveryCache();
 });
 
@@ -236,7 +222,7 @@ describe("cross-wire control at ALL THREE render paths", () => {
     expect(cap.film[0].pretrained_loras).toEqual({ A: SDXL_KEY });
   });
 
-  it("RENDER: omitted shardCount with 2+ shots starts a scatter", async () => {
+  it("RENDER: 2+ shots stay a single film even when shardCount is omitted", async () => {
     const app = createApp(testSettingsHost(makePlatform()));
     const res = await authJson(app, "/api/storyboard/render", {
       bundleKey: "bundles/x.tar.gz",
@@ -244,27 +230,28 @@ describe("cross-wire control at ALL THREE render paths", () => {
       motion_backend: WAN_LORA_BACKEND,
     });
     expect(res.status).toBe(201);
-    expect(cap.film).toHaveLength(0);
-    expect(cap.scatter[0].shard_count).toBe(2);
-    expect(cap.scatter[0].shot_ids).toEqual(["shot_01", "shot_02"]);
+    expect(cap.film).toHaveLength(1);
+    expect((cap.film[0].scenes as typeof TWO_SCENES).map((s) => s.shot_id)).toEqual([
+      "shot_01",
+      "shot_02",
+    ]);
     const body = (await res.json()) as { jobId?: string };
-    expect(body.jobId).toBe("scatter-wan-test");
+    expect(body.jobId).toBe("film-wan-test");
   });
 
-  it("RENDER: explicit shardCount 1 stays a film", async () => {
+  it("RENDER: explicit shardCount 2 still stays a film", async () => {
     const app = createApp(testSettingsHost(makePlatform()));
     const res = await authJson(app, "/api/storyboard/render", {
       bundleKey: "bundles/x.tar.gz",
       scenes: TWO_SCENES,
       motion_backend: WAN_LORA_BACKEND,
-      shardCount: 1,
+      shardCount: 2,
     });
     expect(res.status).toBe(201);
-    expect(cap.scatter).toHaveLength(0);
     expect(cap.film).toHaveLength(1);
   });
 
-  it("FILM: omitted shard_count with 2+ scenes starts a scatter", async () => {
+  it("FILM: 2+ scenes stay a single film even when shard_count is omitted", async () => {
     const app = createApp(testSettingsHost(makePlatform()));
     const res = await authJson(app, "/api/render/film", {
       bundle_key: "bundles/x.tar.gz",
@@ -272,15 +259,13 @@ describe("cross-wire control at ALL THREE render paths", () => {
       motion_backend: WAN_LORA_BACKEND,
     });
     expect(res.status).toBe(201);
-    expect(cap.film).toHaveLength(0);
-    expect(cap.scatter[0].shard_count).toBe(2);
-    const body = (await res.json()) as { ok?: boolean; film_id?: string; phase?: string };
+    expect(cap.film).toHaveLength(1);
+    const body = (await res.json()) as { ok?: boolean; film_id?: string };
     expect(body.ok).toBe(true);
-    expect(body.film_id).toBe("scatter-wan-test");
-    expect(body.phase).toBe("shards");
+    expect(body.film_id).toBe("film-wan-test");
   });
 
-  it("SCATTER: Wan cast injects render_overrides.config", async () => {
+  it("SCATTER door is gone", async () => {
     const app = createApp(testSettingsHost(makePlatform()));
     const res = await authJson(app, "/api/storyboard/render/scatter", {
       bundleKey: "bundles/x.tar.gz",
@@ -288,9 +273,7 @@ describe("cross-wire control at ALL THREE render paths", () => {
       motion_backend: WAN_LORA_BACKEND,
       castLoras: { A: "wan" },
     });
-    expect(res.status).toBe(201);
-    const ro = cap.scatter[0].render_overrides as { config?: Record<string, Record<string, unknown>> };
-    expect(parseLoras(ro.config?.[WAN_LORA_BACKEND]?.high_noise_loras)[0].path).toContain(WAN_HIGH);
+    expect(res.status).toBe(404);
   });
 });
 

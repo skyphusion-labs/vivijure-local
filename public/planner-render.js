@@ -17,7 +17,6 @@ function showRenderStage() {
   // the next render click re-checks against fresh cast state.
   hideLoraPreflightWarning();
   loraPreflightAck = null;
-  updateScatterGate();
   updateRenderGate();
 }
 
@@ -175,8 +174,8 @@ async function submitRender() {
     bundleKey: bundleState.bundleKey,
     scenes: filmScenes,
   };
-  // cf#62: omit rather than invent when the projection gave us no tiers (the scatter
-  // path below already gates the same way); the core applies its own default.
+  // cf#62: omit rather than invent when the projection gave us no tiers; the
+  // core applies its own default.
   if (qualityTier) reqBody.qualityTier = qualityTier;
   // v0.43.0: buildRenderOverrides returns {} when nothing is set, so
   // gate on key count rather than truthiness; an empty object would
@@ -197,7 +196,6 @@ async function submitRender() {
   // to card), mirroring audioKey.
   const filmTitles = collectFilmTitles();
   if (filmTitles && !keyframesOnly) reqBody.film_titles = filmTitles;
-  reqBody.shardCount = readPlannerShardCount(filmScenes.length);
   // v0.55.0: pin the render row to the active project so the history
   // list can filter by project. Skipped on transient (no-project)
   // submits, which matches the pre-0.55 behavior.
@@ -290,67 +288,11 @@ async function submitRender() {
   savePersistedState();
 }
 
-// omitted/invalid -> min(shots, 20). explicit N -> clamp [1, shots].
-function resolvePlannerShardCount(raw, shotCount) {
-  const shots = Math.max(0, Math.floor(Number(shotCount)) || 0);
-  if (shots === 0) return 1;
-  const implicit = Math.min(shots, 20);
-  if (raw == null || raw === "") return implicit;
-  const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(n)) return implicit;
-  return Math.max(1, Math.min(Math.floor(n), shots));
-}
-
-function readPlannerShardCount(shotCount) {
-  const el = $("#planner-scatter-shards");
-  const raw = el ? el.value : "";
-  return resolvePlannerShardCount(raw === "" ? undefined : raw, shotCount);
-}
-
-// Enable/disable the scatter checkbox based on current state.
-// Conditions: >= 2 shots in the storyboard AND castLoras non-empty (the
-// named scatter door still wants a shared LoRA). The shard input stays
-// visible; it is the parallelism knob for the main render too.
-function updateScatterGate() {
-  const checkbox = $("#planner-scatter");
-  const reasonEl = $("#planner-scatter-reason");
-  const shardWrap = $("#planner-scatter-shard-wrap");
-  if (!checkbox) return;
-
-  const scenes =
-    planState.storyboard && Array.isArray(planState.storyboard.scenes)
-      ? planState.storyboard.scenes
-      : [];
-  const castLoras = buildCastLoraSubmit();
-  const hasLoras = Object.keys(castLoras).length > 0;
-
-  let reason = "";
-  if (scenes.length < 2) reason = "needs >= 2 shots";
-  else if (!hasLoras) reason = "every character needs a trained LoRA first";
-
-  checkbox.disabled = !!reason;
-  if (reason) checkbox.checked = false;
-
-  if (reasonEl) {
-    reasonEl.textContent = reason;
-    reasonEl.hidden = !reason;
-  }
-  if (shardWrap) shardWrap.hidden = false;
-
-  const shardInput = $("#planner-scatter-shards");
-  if (shardInput && scenes.length >= 1) {
-    shardInput.max = String(scenes.length);
-    const cur = parseInt(shardInput.value, 10);
-    if (!Number.isInteger(cur) || cur < 1) shardInput.value = String(Math.min(scenes.length, 20));
-    else if (cur > scenes.length) shardInput.value = String(scenes.length);
-  }
-}
-
 // vivijure#546: gate the primary render button on a REQUIRED-but-unmade motion-backend
-// choice so the obligation is a visible disabled affordance (mirroring the distributed-
-// render checkbox), not a click-time-only block. Keyframes-only previews run no motion
-// leg and are exempt. Presentation only; the collectForSubmit throw stays the hard
-// backstop. Never fights the in-flight/streaming disable owned by the submit paths.
+// choice so the obligation is a visible disabled affordance, not a click-time-only
+// block. Keyframes-only previews run no motion leg and are exempt. Presentation
+// only; the collectForSubmit throw stays the hard backstop. Never fights the
+// in-flight/streaming disable owned by the submit path.
 function updateRenderGate() {
   const btn = $("#planner-render-btn");
   if (!btn) return;
@@ -370,137 +312,6 @@ function updateRenderGate() {
     reasonEl.textContent = reason;
     reasonEl.hidden = !reason;
   }
-}
-
-// v0.162.0: POST to /api/storyboard/render/scatter and drive the existing
-// renderState poll loop with the returned scatter-<uuid> jobId. Modeled on
-// submitRender() -- reuses buildRenderOverrides, qualityTier, audioKey,
-// projectId exactly. shotIds are derived via sceneIdAt (the canonical id
-// source that matches the GPU's per-shot clip filenames).
-async function submitScatterRender() {
-  // vivijure#552: see submitRender.
-  renderState.submitting = true;
-  if (!bundleState.bundleKey) {
-    setRenderStatus("no bundleKey; run 'bundle' first", "error");
-    renderState.submitting = false;
-    return;
-  }
-  const scenes =
-    planState.storyboard && Array.isArray(planState.storyboard.scenes)
-      ? planState.storyboard.scenes
-      : [];
-  const shotIds = scenes.map((s, i) => sceneIdAt(s, i));
-  if (shotIds.length < 2) {
-    setRenderStatus("scatter requires >= 2 shots", "error");
-    renderState.submitting = false;
-    return;
-  }
-  const castLoras = buildCastLoraSubmit();
-  if (Object.keys(castLoras).length === 0) {
-    setRenderStatus(
-      "scatter requires at least one character with a trained LoRA bound",
-      "error",
-    );
-    renderState.submitting = false;
-    return;
-  }
-
-  // Talking characters: the scatter render reads per-shot dialogue from the SAVED storyboard in D1
-  // (last_storyboard), so flush any unsaved edits (incl. dialogue lines) before submitting. No-ops
-  // without an active project -- and dialogue needs a saved project for its projectId anyway.
-  if (planState.activeProjectId) await saveStoryboardToProject();
-
-  const shardCount = readPlannerShardCount(shotIds.length);
-
-  let renderOverrides;
-  try {
-    renderOverrides = collectRenderOverrides();
-  } catch (err) {
-    setRenderStatus(err.message, "error");
-    const ta = $("#planner-render-overrides");
-    if (ta) ta.focus();
-    renderState.submitting = false;
-    return;
-  }
-
-  if (renderState.pollTimer) {
-    clearTimeout(renderState.pollTimer);
-    renderState.pollTimer = null;
-  }
-
-  const qualityTier = $("#planner-quality-tier").value;
-  setRenderStatus(
-    "submitting scatter render (" + shardCount + " shards)...",
-    "loading",
-  );
-  $("#planner-render-btn").disabled = true;
-
-  const reqBody = {
-    bundleKey: bundleState.bundleKey,
-    shotIds,
-    shardCount,
-    castLoras,
-  };
-  if (qualityTier) reqBody.qualityTier = qualityTier;
-  if (renderOverrides) reqBody.renderOverrides = renderOverrides;
-  if (planState.audioKey) reqBody.audioKey = planState.audioKey;
-  if (planState.activeProjectId) reqBody.projectId = planState.activeProjectId;
-
-  let resp = null;
-  let data = null;
-  try {
-    resp = await fetch("/api/storyboard/render/scatter", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(reqBody),
-    });
-    data = await resp.json();
-  } catch (err) {
-    setRenderStatus("network error: " + err.message, "error");
-    renderState.submitting = false;
-    $("#planner-render-btn").disabled = false;
-    return;
-  }
-
-  if (!resp.ok || (data && data.ok === false)) {
-    const errs =
-      (data && data.errors) || [(data && data.error) || "HTTP " + resp.status];
-    setRenderStatus("scatter submit failed: " + errs.join("; "), "error");
-    renderState.submitting = false;
-    $("#planner-render-btn").disabled = false;
-    return;
-  }
-
-  if (!data || !data.jobId) {
-    setRenderStatus("scatter submit returned no jobId", "error");
-    renderState.submitting = false;
-    $("#planner-render-btn").disabled = false;
-    return;
-  }
-
-  renderState.jobId = data.jobId;
-  // vivijure#552: jobId set; the jobId/pollTimer guard now owns the button.
-  renderState.submitting = false;
-  renderState.startedAt = null;
-  if (renderState.tickTimer !== null) {
-    clearInterval(renderState.tickTimer);
-    renderState.tickTimer = null;
-  }
-  renderState.currentProject = deriveProjectFromKey(bundleState.bundleKey || "");
-  renderState.currentLabel = null;
-  if (notifyState.permission === "default") {
-    requestNotificationPermission();
-  }
-  $("#planner-render-result").hidden = false;
-  $("#planner-render-job-id").textContent = data.jobId;
-  setJobStatusBadge(data.status || "IN_QUEUE");
-  setRenderStatus(
-    "scatter submitted -- " + shardCount + " shards gathering...",
-    "loading",
-  );
-  startStream();
-  loadHistory();
-  savePersistedState();
 }
 
 // Render progress tracking. Polls GET /api/storyboard/render/<jobId> on an
@@ -541,6 +352,14 @@ async function pollRender() {
   } catch (err) {
     setRenderStatus("poll network error: " + err.message + " (retrying)", "error");
     renderState.pollTimer = setTimeout(pollRender, POLL_INTERVAL_MS);
+    return;
+  }
+
+  if (resp.status === 410) {
+    const msg = (data && data.error) || "Scatter is retired. Start a single film.";
+    setRenderStatus(msg, "error");
+    renderState.submitting = false;
+    $("#planner-render-btn").disabled = false;
     return;
   }
 
@@ -929,6 +748,15 @@ async function cancelRender() {
     cancelBtn.disabled = false;
     // Resume polling so the UI keeps reflecting reality.
     renderState.pollTimer = setTimeout(pollRender, POLL_INTERVAL_MS);
+    return;
+  }
+
+  if (resp.status === 410) {
+    const msg = (data && data.error) || "Scatter is retired. Start a single film.";
+    setRenderStatus(msg, "error");
+    cancelBtn.disabled = false;
+    renderState.submitting = false;
+    $("#planner-render-btn").disabled = false;
     return;
   }
 

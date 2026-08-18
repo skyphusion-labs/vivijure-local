@@ -357,18 +357,6 @@
         <input id="planner-keyframes-only" type="checkbox" />
         <span>render keyframes only (preview before generating motion)</span>
       </label>
-      <!-- Scatter checkbox still forces the named scatter door. Parallelism
-           (shards) is the width knob for BOTH film and scatter; always visible.
-           n>=2 on the main render door starts a scatter. -->
-      <label class="planner-field-check" id="planner-scatter-wrap">
-        <input id="planner-scatter" type="checkbox" />
-        <span>distributed render (scatter/gather)</span>
-      </label>
-      <span id="planner-scatter-reason" class="planner-status planner-scatter-reason" hidden></span>
-      <div class="planner-scatter-shard-row" id="planner-scatter-shard-wrap">
-        <label class="planner-field-check" for="planner-scatter-shards">parallelism (shards)</label>
-        <input id="planner-scatter-shards" type="number" min="1" inputmode="numeric" />
-      </div>
       </div>
       <!-- Module render config: projected from GET /api/modules. The hook set comes from the live
            `catalog` (keyframe, motion.backend, speech, finish, master, film.finish render here;

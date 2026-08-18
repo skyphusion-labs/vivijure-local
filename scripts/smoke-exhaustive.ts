@@ -557,37 +557,38 @@ async function probeFullFilm(
   record("full-film", `${motionBackend}/${keyframeBackend} ffprobe`, verified.ok ? "pass" : "fail", verified.detail);
 }
 
-async function probeScatter(bundleKey: string): Promise<void> {
+async function probeScatterRetired(): Promise<void> {
   const res = await api("/api/storyboard/render/scatter", {
     method: "POST",
     body: JSON.stringify({
-      bundleKey,
+      bundleKey: "bundles/exhaustive.tar.gz",
       project: "exhaustive_scatter",
       shotIds: ["shot_01", "shot_02"],
       motion_backend: "seedance",
       qualityTier: "draft",
-      renderOverrides: { motion_backend: "seedance", config: { seedance: moduleConfigFor("seedance") } },
     }),
   });
-  const body = (await res.json()) as { jobId?: string; error?: string };
-  if (!res.ok || !body.jobId) {
-    record("scatter", "submit", "fail", body.error ?? String(res.status));
-    return;
+  if (res.status === 404) {
+    record("scatter", "submit retired", "pass", "door gone");
+  } else {
+    record("scatter", "submit retired", "fail", `expected 404, got ${res.status}`);
   }
-  const polled = await pollStoryboardRender(body.jobId);
-  if (!polled.ok || !polled.outputKey) {
-    record("scatter", "poll + verify", "fail", polled.error);
-    return;
+
+  const poll = await api("/api/storyboard/render/scatter-dead");
+  const pollBody = (await poll.json()) as { error?: string };
+  if (poll.status === 410 && pollBody.error === "Scatter is retired. Start a single film.") {
+    record("scatter", "poll retired", "pass", "410");
+  } else {
+    record("scatter", "poll retired", "fail", `expected 410, got ${poll.status}`);
   }
-  const verified = await verifyVideoArtifact(BASE, TOKEN, polled.outputKey, {
-    label: "film/scatter",
-    minDurationSec: 6,
-    minWidth: 320,
-    minHeight: 240,
-    expectAudio: false,
-    minBytes: 20_000,
-  });
-  record("scatter", "ffprobe", verified.ok ? "pass" : "fail", verified.detail);
+
+  const cancel = await api("/api/storyboard/render/scatter-dead", { method: "DELETE" });
+  const cancelBody = (await cancel.json()) as { error?: string };
+  if (cancel.status === 410 && cancelBody.error === "Scatter is retired. Start a single film.") {
+    record("scatter", "cancel retired", "pass", "410");
+  } else {
+    record("scatter", "cancel retired", "fail", `expected 410, got ${cancel.status}`);
+  }
 }
 
 async function probePlanEnhanceAndHelpers(
@@ -725,7 +726,7 @@ async function main(): Promise<void> {
   await probeCloudI2v(keyframeKey, keyframePublicUrl);
   await probeOwnGpuClip(keyframeKey, keyframeArtifactUrl);
 
-  const bundleKey = await probePlanEnhanceAndHelpers(characterRefs);
+  await probePlanEnhanceAndHelpers(characterRefs);
 
   if (!SKIP_FULL_FILM && musicKey) {
     await probeFullFilm(musicKey, "seedance", "cloud-keyframe", characterRefs);
@@ -734,7 +735,7 @@ async function main(): Promise<void> {
     record("full-film", "all", "skip", "SMOKE_SKIP_FULL_FILM=1");
   }
 
-  if (bundleKey) await probeScatter(bundleKey);
+  await probeScatterRetired();
 
   const rendersRes = await api("/api/storyboard/renders?limit=3");
   const rendersBody = (await rendersRes.json()) as { renders?: Array<{ id?: string; status?: string; output_key?: string }> };
