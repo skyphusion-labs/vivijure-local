@@ -106,12 +106,7 @@ test.describe("planner control panel", () => {
     await expect(keyframesOnly).toBeChecked();
     await keyframesOnly.uncheck();
 
-    const scatter = page.locator("#planner-scatter");
-    if (await scatter.isEnabled()) {
-      await scatter.check();
-      await expect(scatter).toBeChecked();
-      await scatter.uncheck();
-    }
+    await expect(page.locator("#planner-scatter")).toHaveCount(0);
 
     await expect(page.locator("#planner-quality-tier")).toBeVisible();
     await page.locator("#planner-quality-tier").selectOption({ index: 0 }).catch(() => undefined);

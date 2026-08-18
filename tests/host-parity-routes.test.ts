@@ -97,13 +97,13 @@ describe("host parity routes", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/storyboard/render/scatter requires shotIds", async () => {
+  it("POST /api/storyboard/render/scatter is retired", async () => {
     const res = await app.request("/api/storyboard/render/scatter", {
       method: "POST",
       headers: { ...auth(), "content-type": "application/json" },
       body: JSON.stringify({ bundleKey: "bundles/demo.tar.gz", shotIds: ["only-one"] }),
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it("POST /api/cast/:id/generate-refs fails without portrait or sources", async () => {

@@ -34,13 +34,7 @@ import {
   normalizeFilmScenes,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import type { Platform } from "../platform/types.js";
-import {
-  advanceScatterJob,
-  cancelScatterJob,
-  isScatterJobId,
-  scatterJobToPollView,
-  startScatterRender,
-} from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
+import { isScatterJobId } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import { stageBundleInjectedKeyframes } from "../bundle-keyframes.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
@@ -54,14 +48,8 @@ import {
 } from "@skyphusion-labs/vivijure-core/renders-db";
 import { getProjectIdByPublicId } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { isSafeBundleKey } from "@skyphusion-labs/vivijure-core/key-safety";
-import {
-  ensureModuleOverrideConfig,
-  projectWanLorasIntoModuleConfig,
-  shouldProjectWanLoras,
-  WAN_LORA_BACKEND,
-} from "../wan-lora-projection.js";
+import { projectWanLorasIntoModuleConfig } from "../wan-lora-projection.js";
 import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
-import { resolveShardCount, shardMaxFromEnv } from "../shard-count.js";
 
 function assertConfigMapShape(label: string, value: unknown): void {
   if (value === undefined) return;
@@ -117,8 +105,6 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         motion_backend?: string;
         castLoras?: Record<string, unknown>;
         film_titles?: { title?: { text: string; subtitle?: string }; credits?: { lines: string[] } };
-        shardCount?: number;
-        shard_count?: number;
       }>(c.req.raw);
 
       if (!body.bundleKey) throw badRequest("bundleKey required");
@@ -167,33 +153,6 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
       await unloadOllamaBeforeRender(oenv);
-      const panelShots = scenes.map((s) => s.shot_id).filter((id) => typeof id === "string" && id.length > 0);
-      const panelShards = resolveShardCount(
-        body.shardCount ?? body.shard_count,
-        panelShots.length,
-        shardMaxFromEnv(process.env.RENDER_SHARD_MAX),
-      );
-      if (!body.keyframesOnly && panelShards >= 2 && panelShots.length >= 2) {
-        if (shouldProjectWanLoras(motionBackend, wanPretrained)) {
-          const injected = ensureModuleOverrideConfig(body.renderOverrides, WAN_LORA_BACKEND);
-          body.renderOverrides = injected.overrides;
-          await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, injected.config);
-        }
-        const scatterJob = await startScatterRender(oenv, {
-          project,
-          bundle_key: body.bundleKey,
-          quality_tier: tier,
-          shot_ids: panelShots,
-          shard_count: panelShards,
-          cast_loras: body.castLoras ?? {},
-          render_overrides: body.renderOverrides,
-          motion_backend: motionBackend,
-          audio_key: body.audioKey,
-          film_titles: body.film_titles,
-          project_id: await resolveProjectRef(platform, body.projectId),
-        });
-        return c.json(scatterJobToPollView(scatterJob), 201);
-      }
       const job = await startFilmJob(
         oenv,
         {
@@ -239,22 +198,19 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/storyboard/render/:jobId", async (c) => {
     try {
-      // #46: this GET ADVANCES the render job (scatter/film) with the ambient vivijure_token cookie;
+      // #46: this GET ADVANCES the render job with the ambient vivijure_token cookie;
       // reject a cross-site browser request so a malicious page can't drive it via CSRF.
       if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const jobId = c.req.param("jobId");
       const oenv = env();
 
       if (isScatterJobId(jobId)) {
-        const view = await advanceScatterJob(oenv, jobId, noopExecutionContext);
-        if (!view) return c.json({ error: "render job not found" }, 404);
-        await updateRenderFromView(oenv, view, noopExecutionContext);
-        return c.json(view);
+        return c.json({ error: "Scatter is retired. Start a single film.", jobId }, 410);
       }
 
       if (!isFilmJobId(jobId)) {
         return c.json(
-          { error: "unknown or legacy render job id (film-* or scatter-* only)", jobId },
+          { error: "unknown or legacy render job id (film-* only)", jobId },
           404,
         );
       }
@@ -277,113 +233,16 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
     }
   });
 
-  app.post("/api/storyboard/render/scatter", async (c) => {
-    try {
-      const b = await readBody<{
-        project?: string;
-        bundleKey?: string;
-        qualityTier?: string;
-        shotIds?: string[];
-        shardCount?: number;
-        shard_count?: number;
-        castLoras?: Record<string, unknown>;
-        renderOverrides?: Record<string, unknown>;
-        audioKey?: string;
-        projectId?: unknown;
-        motion_backend?: string;
-        film_titles?: { title?: { text: string; subtitle?: string }; credits?: { lines: string[] } };
-      }>(c.req.raw);
-
-      if (!b.bundleKey) throw badRequest("bundleKey required");
-      if (!isSafeBundleKey(b.bundleKey)) {
-        throw badRequest("bundleKey must be a plain relative key under bundles/");
-      }
-      if (!Array.isArray(b.shotIds) || b.shotIds.length < 2) {
-        throw badRequest("shotIds[] required (>= 2)");
-      }
-      const shardCount = resolveShardCount(
-        b.shardCount ?? b.shard_count,
-        b.shotIds.length,
-        shardMaxFromEnv(process.env.RENDER_SHARD_MAX),
-      );
-      if (shardCount < 2) {
-        throw badRequest(
-          "shard_count 1 is a normal film; use POST /api/render/film or POST /api/storyboard/render",
-        );
-      }
-      const project = b.project ?? deriveProjectFromBundleKey(b.bundleKey);
-      const tier = coerceQualityTier(b.qualityTier) ?? "final";
-      const oenv = env();
-
-      const scatterModules = await discoverConfiguredModules(oenv, { cacheTtlMs: 60_000 });
-      const scatterOverrides = parseModuleRenderOverrides(b.renderOverrides);
-      const scatterBackend = b.motion_backend ?? scatterOverrides.motion_backend;
-      const scatterMotionErr = motionBackendPreflightError(scatterModules, scatterBackend);
-      if (scatterMotionErr) throw badRequest(scatterMotionErr);
-      const scatterCfgErr = motionConfigPreflightError(
-        scatterModules,
-        scatterBackend,
-        scatterOverrides.config?.[(scatterBackend ?? "").trim()],
-      );
-      if (scatterCfgErr) throw badRequest(scatterCfgErr);
-      const scatterMapped = mapRenderOverridesToModuleConfigs(b.renderOverrides, tier, scatterModules);
-      const scatterKfErr = localGpuKeyframePreflightError(
-        scatterModules,
-        scatterBackend,
-        scatterMapped.keyframe_backend,
-      );
-      if (scatterKfErr) throw badRequest(scatterKfErr);
-
-      const scatterCast = await resolveCastLoras(oenv, b.castLoras ?? {});
-      if (scatterCast.skipped.length) throw badRequest(untrainedCastMessage(scatterCast.skippedDetail));
-
-      if (shouldProjectWanLoras(scatterBackend, scatterCast.wanPretrained)) {
-        const injected = ensureModuleOverrideConfig(b.renderOverrides, WAN_LORA_BACKEND);
-        b.renderOverrides = injected.overrides;
-        await projectWanLorasIntoModuleConfig(oenv, scatterBackend, scatterCast.wanPretrained, injected.config);
-      }
-
-      try {
-        await unloadOllamaBeforeRender(oenv);
-        const job = await startScatterRender(oenv, {
-          project,
-          bundle_key: b.bundleKey,
-          quality_tier: tier,
-          shot_ids: b.shotIds,
-          shard_count: shardCount,
-          cast_loras: b.castLoras ?? {},
-          render_overrides: b.renderOverrides,
-          motion_backend: b.motion_backend,
-          audio_key: b.audioKey,
-          film_titles: b.film_titles,
-          project_id: await resolveProjectRef(platform, b.projectId),
-        });
-        const view = scatterJobToPollView(job);
-        return c.json({ ok: true, jobId: view.jobId, status: view.status }, 201);
-      } catch (e) {
-        const msg = (e as Error).message || "scatter submit failed";
-        return c.json({ ok: false, error: msg }, 422);
-      }
-    } catch (e) {
-      const res = httpErrorResponse(e);
-      if (res) return res;
-      throw e;
-    }
-  });
-
   app.delete("/api/storyboard/render/:jobId", async (c) => {
     try {
       const jobId = c.req.param("jobId");
       const oenv = env();
       if (isScatterJobId(jobId)) {
-        const view = await cancelScatterJob(oenv, jobId);
-        if (!view) return c.json({ error: "render job not found" }, 404);
-        await updateRenderFromView(oenv, view, noopExecutionContext);
-        return c.json(view);
+        return c.json({ error: "Scatter is retired. Start a single film.", jobId }, 410);
       }
       if (!isFilmJobId(jobId)) {
         return c.json(
-          { error: "unknown or legacy render job id (film-* or scatter-* only)", jobId },
+          { error: "unknown or legacy render job id (film-* only)", jobId },
           404,
         );
       }

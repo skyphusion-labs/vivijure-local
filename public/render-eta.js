@@ -102,7 +102,7 @@
   // envelope, or null when no signal at all is available (the caller then shows
   // "?%" / an indeterminate bar). Phase-aware first (the film pipeline), with a
   // graceful fallback to the raw progress / scene-count / log signals for non-
-  // film envelopes (e.g. scatter or a bare RunPod view).
+  // film envelopes (e.g. a bare RunPod view).
   function progressFraction(out) {
     if (!out || typeof out !== "object") return null;
     const phase = typeof out.phase === "string" ? out.phase.toLowerCase() : null;

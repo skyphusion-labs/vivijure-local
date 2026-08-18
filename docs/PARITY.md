@@ -64,14 +64,14 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Render (storyboard aliases)
 
-- [x] `POST /api/storyboard/render`
-- [x] `GET /api/storyboard/render/:jobId` (film-* and scatter-*)
-- [x] `POST /api/storyboard/render/scatter`
+- [x] `POST /api/storyboard/render` (always a single film)
+- [x] `GET /api/storyboard/render/:jobId` (film-* only; scatter-* is 410 retired)
+- [x] `POST /api/storyboard/render/scatter` (retired; route removed)
 
 ## Render (explicit)
 
 - [x] `POST /api/render/film`
-- [x] `GET /api/render/film/:id`
+- [x] `GET /api/render/film/:id` (film-* only; scatter-* is 410 retired)
 - [x] `POST /api/render/clips`
 - [x] `GET /api/render/clips/:id`
 

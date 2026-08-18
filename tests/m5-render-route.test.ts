@@ -108,19 +108,42 @@ describe("GET /api/storyboard/render/:jobId", () => {
   });
 });
 
-describe("POST /api/storyboard/render/scatter", () => {
-  it("refuses shard_count 1 instead of silently aliasing a film", async () => {
+describe("retired scatter ids", () => {
+  it("GET poll of scatter-* returns 410 and does not advance", async () => {
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
+    const res = await authJson(app, "/api/storyboard/render/scatter-dead");
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { error?: string; jobId?: string };
+    expect(body.error).toBe("Scatter is retired. Start a single film.");
+    expect(body.jobId).toBe("scatter-dead");
+  });
+
+  it("DELETE cancel of scatter-* returns 410", async () => {
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
+    const res = await authJson(app, "/api/storyboard/render/scatter-dead", { method: "DELETE" });
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe("Scatter is retired. Start a single film.");
+  });
+
+  it("GET /api/render/film/scatter-* returns 410", async () => {
+    const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
+    const res = await authJson(app, "/api/render/film/scatter-dead");
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe("Scatter is retired. Start a single film.");
+  });
+
+  it("POST /api/storyboard/render/scatter is gone", async () => {
     const app = createApp(testSettingsHost(testPlatform(new EmptyModuleTransport())));
     const res = await authJson(app, "/api/storyboard/render/scatter", {
       method: "POST",
       body: JSON.stringify({
         bundleKey: "bundles/demo.tar.gz",
         shotIds: ["s1", "s2"],
-        shardCount: 1,
+        shardCount: 2,
       }),
     });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error?: string };
-    expect(body.error).toMatch(/shard_count 1 is a normal film/);
+    expect(res.status).toBe(404);
   });
 });
