@@ -1,10 +1,11 @@
 {
   "name": "finish-lipsync",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"
   ],
+  "max_invocation_seconds": 900,
   "provides": [
     {
       "id": "lipsync",
@@ -34,6 +35,7 @@
     "icon": "mic",
     "order": 15
   },
+  "participation": "opt_in",
   "finish_artifacts": {
     "output_key": {
       "kind": "append_suffix",
