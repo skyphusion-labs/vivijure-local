@@ -1,10 +1,11 @@
 {
   "name": "finish-upscale",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"
   ],
+  "max_invocation_seconds": 900,
   "provides": [
     {
       "id": "upscale",
@@ -17,7 +18,7 @@
       "default": 2,
       "min": 2,
       "max": 4,
-      "label": "upscale factor",
+      "label": "upscale factor (explicit; omit to send delivery height)",
       "enum_labels": {
         "2": "2x",
         "4": "4x"
@@ -38,6 +39,7 @@
     "icon": "expand",
     "order": 20
   },
+  "participation": "default",
   "finish_artifacts": {
     "output_key": {
       "kind": "append_suffix",

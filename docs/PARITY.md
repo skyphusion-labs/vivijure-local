@@ -118,6 +118,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 Verify poll responses advance through phases identically to upstream (`tests/film-poll-phases.test.ts`):
 
 - [x] keyframe
+- [x] pre_clip_dialogue (core 1.22.4; driving-audio doors only)
+- [x] pre_clip_speech (core 1.22.4; driving-audio + speech hook)
 - [x] clips (poll `phase: i2v`)
 - [x] dialogue
 - [x] speech
@@ -148,7 +150,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^1.5.0` (lock resolves `1.5.0`; see `package.json` -- may lag `vivijure-cf`'s core pin)
+- [x] `@skyphusion-labs/vivijure-core` `1.22.4` (see `package.json` -- may lag `vivijure-cf`'s core pin)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 

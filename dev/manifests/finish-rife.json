@@ -1,10 +1,11 @@
 {
   "name": "finish-rife",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"
   ],
+  "max_invocation_seconds": 900,
   "provides": [
     {
       "id": "interpolate",
@@ -62,6 +63,7 @@
     "icon": "wand",
     "order": 10
   },
+  "participation": "default",
   "finish_artifacts": {
     "output_key": {
       "kind": "shot_named",
