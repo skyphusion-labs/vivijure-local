@@ -1,6 +1,6 @@
 {
   "name": "alibaba-wan",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "i2v-cloud",
-      "label": "Wan 2.6 (cloud i2v)"
+      "label": "Talking (Wan 2.6)"
     }
   ],
   "config_schema": {
@@ -16,6 +16,11 @@
       "type": "bool",
       "default": false,
       "label": "expand prompt (off by default)"
+    },
+    "enable_safety_checker": {
+      "type": "bool",
+      "default": false,
+      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
@@ -23,6 +28,26 @@
     "order": 70,
     "locality": "cloud",
     "cost": "Pay per render",
-    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+    "blurb": "Wan 2.6 stills-to-clip. Talks. Mouth follows the storyboard line when we have a Cast voice. Without a line, invents speech.",
+    "limits": [
+      "5, 10, or 15 second clips",
+      "Mouth follows the storyboard line in the Cast voice.",
+      "Without a line, invents speech from the prompt.",
+      "Cannot lock the sample you kept.",
+      "One film, no scatter"
+    ]
+  },
+  "usage": {
+    "native_audio": true,
+    "voice": "cast_tts",
+    "scatter_native_audio": false,
+    "driving_audio": true,
+    "min_seconds": 5,
+    "max_seconds": 15,
+    "duration_steps": [
+      5,
+      10,
+      15
+    ]
   }
 }

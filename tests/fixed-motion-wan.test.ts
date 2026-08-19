@@ -42,4 +42,18 @@ describe("alibaba-wan fixed-motion buildBody", () => {
   it("uses _wan clip suffix for stored clip keys", () => {
     expect(wan.clipSuffix).toBe("_wan");
   });
+
+  it("sends the shot LINE as audio, never the Cast sample", () => {
+    const withLine = wan.buildBody(
+      { ...input, audio_url: "https://studio.example/api/artifact/dialogue%2Fshot_01.wav?token=t" },
+      {},
+    );
+    expect(withLine.audio).toBe("https://studio.example/api/artifact/dialogue%2Fshot_01.wav?token=t");
+    const withSample = wan.buildBody(
+      { ...input, voice_ref_url: "https://studio.example/api/artifact/casts%2Fsample.mp4?token=t" },
+      {},
+    );
+    expect(withSample).not.toHaveProperty("audio");
+    expect(JSON.stringify(withSample)).not.toContain("voice_ref");
+  });
 });

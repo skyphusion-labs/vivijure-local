@@ -17,7 +17,7 @@ host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivi
 Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
 **Dependency pins (this repo, see `package.json` / lock):** `@skyphusion-labs/vivijure-core`
-`^1.5.0` (lock `1.5.0`), `@skyphusion-labs/vivijure-mcp` `^1.1.0` (lock `1.1.0`). Product
+`1.22.4`, `@skyphusion-labs/vivijure-mcp` `^1.2.1`. Product
 capability parity with `vivijure-cf` is the dual-panel release-wave gate; package floors can lag
 the CF host.
 

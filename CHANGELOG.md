@@ -7,6 +7,13 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): pin vivijure-core 1.22.4
+
+Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
+`pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
+Wan, InfiniteTalk, cloud-keyframe, and keyframe manifests. Does not cut a
+studio tag.
+
 ### chore(deps): pin vivijure-core 1.22.0
 
 Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)

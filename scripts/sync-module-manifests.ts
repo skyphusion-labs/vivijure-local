@@ -64,6 +64,10 @@ const MODULES = [
   "vidu-q3",
   "alibaba-wan",
   "alibaba-wan-lora",
+  // Cloud talking door (hosted InfiniteTalk). Fixture only: local compose has no
+  // infinitetalk sidecar. Operators bind MODULE_INFINITETALK_URL to the hosted
+  // worker or a RunPod module the same way they bind other cloud i2v doors.
+  "infinitetalk",
 ];
 
 function extractObjectLiteral(src: string, startIdx: number): string | null {
