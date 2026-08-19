@@ -13,7 +13,7 @@ describe("local-gpu cost honesty (local#278)", () => {
     const d = JSON.parse(raw) as { ui?: { cost?: string; blurb?: string; limits?: string[] } };
     expect(d.ui?.cost ?? "").toMatch(/non-commercial|hobby|licence|license/i);
     expect(d.ui?.blurb ?? "").toMatch(/hobby|non-commercial/i);
-    expect(d.ui?.blurb ?? "").toMatch(/vivijure-cf|Cloudflare/i);
+    expect(d.ui?.blurb ?? "").toMatch(/hosted studio/i);
     expect(d.ui?.blurb ?? "").toMatch(/not this door|self-host only/i);
     const limits = (d.ui?.limits ?? []).join(" ");
     expect(limits).toMatch(/non-commercial|hobby/i);
