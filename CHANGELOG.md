@@ -7,6 +7,13 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): pin vivijure-core 1.22.5
+
+Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
+the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
+pin of the published package already on cf v1.33.9. Does not cut a
+studio tag.
+
 ### chore(deps): pin vivijure-core 1.22.4
 
 Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /

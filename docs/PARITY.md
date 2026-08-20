@@ -150,7 +150,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `1.22.4` (see `package.json` -- may lag `vivijure-cf`'s core pin)
+- [x] `@skyphusion-labs/vivijure-core` `1.22.5` (see `package.json` -- may lag `vivijure-cf`'s core pin)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 
