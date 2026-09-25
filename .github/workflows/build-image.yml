@@ -8,7 +8,25 @@ name: build-image
 # default (VJ_IMAGE_TAG) and only moves when a release tag is cut.
 #
 # Studio image installs @skyphusion-labs/vivijure-core and vivijure-mcp from npm.
-# Tag bakes sync the org GPU allowlist on ubuntu-latest before scheduling here.
+#
+# RUNNER PLANE (2026-09-25): every build job runs on GitHub-hosted `ubuntu-latest`,
+# unconditionally. Until now the three build jobs carried a ternary that picked
+# `ubuntu-latest` on a pull_request and `[self-hosted, bake-capable]` on anything else.
+# The self-hosted fleet was decommissioned 2026-09-24 (cost), so the non-PR branch of that
+# ternary resolved to a label set with no runners: the job did not fail, it QUEUED forever
+# with no error anywhere, and only on main and on tags, which is the publish path. The PR
+# branch kept passing, so a grep for `runs-on: [self-hosted` never saw it and every PR
+# check stayed green. The ternary is collapsed to the plain label rather than kept, because
+# the alternative it selected between no longer exists.
+#
+# This is safe to collapse and it is measured, not assumed: the PR branch has been building
+# these same images from the same Dockerfiles on `ubuntu-latest` all along (run 35505840247,
+# 2026-09-20: studio 75s, caddy 180s, and all five cpu-* matrix legs 60-128s, all success).
+# A tag build differs only by `push: true`.
+#
+# The `sync-gpu-allowlist` job below still syncs the `vivijure-gpu-builds` org runner group,
+# which now has no members. It is a no-op, not a queueing defect, so it is left alone here
+# and flagged for a separate decision rather than removed in a runner-label change.
 
 on:
   push:
@@ -123,7 +141,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: studio
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -177,7 +195,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: caddy
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -234,7 +252,7 @@ jobs:
     # down the chain (it happened here via sync-gpu-allowlist on PRs); state success explicitly.
     if: always() && needs.assert-on-main.result == 'success'
     name: cpu-${{ matrix.image }}
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted", "bake-capable"]') }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
