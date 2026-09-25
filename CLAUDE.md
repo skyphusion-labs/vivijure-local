@@ -12,15 +12,18 @@ core sources.
 
 Version: see root `package.json` / latest `v*` tag / `CHANGELOG.md` / `RELEASES.md`.
 
-Fleet reference install: **propagandhi** (local studio door). Operator pins; do not freeze hostnames
-or endpoint IDs as eternal truth here.
+The Hetzner fleet, including this section's old named reference installs, was decommissioned
+2026-09-24; there is currently no Skyphusion-operated reference install of either panel
+(verified 2026-09-25: the old production hostname for this panel is NXDOMAIN). Operator pins;
+do not freeze hostnames or endpoint IDs as eternal truth here -- that already happened once and
+the doc rotted under it.
 
 ## TWO panels (honesty)
 
 | Panel | Repo | Notes |
 |-------|------|-------|
-| CF | `vivijure-cf` | Workers / D1 / R2; fatmike CF door in fleet ops |
-| LOCAL (this) | `vivijure-local` | Node host; propagandhi |
+| CF | `vivijure-cf` | Workers / D1 / R2 |
+| LOCAL (this) | `vivijure-local` | Node host, self-hosted by the operator |
 
 **Product parity** (same-time feature releases, no community edition) is required. **Semver pins of
 core / MCP / compose images may lag cf** -- check each lockfile. Lag is not automatic defect; dual-panel
