@@ -7,6 +7,19 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(plan.enhance): chat fails closed on an empty provider reply
+
+An empty provider reply returned `ok:true` with the note "chat skipped: empty
+reply", which `planner.ts` joined into `output` and `POST /api/chat` returned as
+HTTP 200. The skip notice reached the user AS THE ASSISTANT'S ANSWER, and the
+guard meant to catch it could never fire because the diagnostic prose made the
+joined string non-empty. Chat now returns `ok:false`, so the route answers 422.
+Ollama already failed closed here (it throws); Workers AI returned "" without
+throwing, so the two providers disagreed about one failure class. They no longer
+do. Machine-readable reasons on the failure arm need a vivijure-core contract
+change and are tracked separately; the reason rides a stable exported constant
+until then.
+
 ### fix(containers): emit the cf#268 finish wall-clock, so `finish_elapsed_ms` stops being NULL
 
 Migration 0019 added `renders.finish_elapsed_ms` here without the producers, so the column
