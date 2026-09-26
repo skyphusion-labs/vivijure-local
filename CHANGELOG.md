@@ -9,6 +9,7 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ### fix(plan.enhance): chat fails closed on an empty provider reply
 
+
 An empty provider reply returned `ok:true` with the note "chat skipped: empty
 reply", which `planner.ts` joined into `output` and `POST /api/chat` returned as
 HTTP 200. The skip notice reached the user AS THE ASSISTANT'S ANSWER, and the
@@ -20,7 +21,24 @@ do. Machine-readable reasons on the failure arm need a vivijure-core contract
 change and are tracked separately; the reason rides a stable exported constant
 until then.
 
+### fix(containers): emit the cf#268 finish wall-clock, so `finish_elapsed_ms` stops being NULL
+
+
+Migration 0019 added `renders.finish_elapsed_ms` here without the producers, so the column
+was permanently NULL on this host while `vivijure-cf` populated it from all five CPU
+containers. The write path already existed in shared core (`accumulateFinishElapsed` ->
+`markFinishDone`); nothing ever fed it a value, because no vivijure-local container put
+`elapsedMs` on its completion body. All seven finish stages (`video-finish` `/finish`,
+`/film-titles`, `/subtitle`; `image-prep`, `audio-beat-sync`, `audio-mix`, `audio-master`)
+now measure their OWN wall clock with `time.monotonic` and report it, line-for-line identical
+to the cf emitters. Additive: one extra numeric field on each success body, no wire contract changed.
+
+Absent stays NULL and a reported zero stays `0` (both directions asserted).
+`tests/finish-elapsed-ms-401.test.ts` reads the shipped container sources and goes red if an
+emitter is deleted. Documented in `docs/observability.md`. Closes local#401.
+
 ### chore(deps): pin vivijure-core 1.22.5
+
 
 Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
 the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
@@ -29,6 +47,7 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.4
 
+
 Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
 `pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
 Wan, InfiniteTalk, cloud-keyframe, and keyframe manifests. Does not cut a
@@ -36,10 +55,12 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.0
 
+
 Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
 on one film. Not scatter-*.
 
 ### feat(render): retire scatter; films are always one job
+
 
 Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`
 always start a single film, even when `shardCount` / `shard_count` is 2+.
