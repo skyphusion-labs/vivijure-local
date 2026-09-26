@@ -7,6 +7,40 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(runpod): the job log points at core; detail no longer truncates at 160
+
+This door held the estate's last private copy of the RunPod job log, and it had
+drifted. Re-measured 2026-09-26 against `@skyphusion-labs/vivijure-core@1.22.5`:
+`DETAIL_MAX` was 160 here where cf#320 raised it to 480, and there was no
+`unknown` outcome, no `RESOLVED_RUNPOD_OUTCOMES`, no `boundDetail` /
+`DETAIL_TRUNCATION_MARKER`, no `timingFromStatus`, no reconciler and no readiness
+probe. `src/runpod-job-log.ts` is now a re-export of
+`@skyphusion-labs/vivijure-core/runpod-job-log`, the same move cf made in cf#475 /
+cf#610.
+
+OPERATOR-VISIBLE: a RunPod validation refusal keeps its actionable tail. At 160
+chars the diagnosis (the path prefix that was wrong, the project that was
+expected) was exactly what got cut, and recovering it meant an out-of-band RunPod
+`/status` lookup that may already have aged out. Truncation past 480 is now
+visible (`...`) instead of silent.
+
+`migrations/0022_runpod_job_log_timing.sql` adds `execution_ms` and `delay_ms`,
+matching cf `0019`. It is a hard prerequisite, not a bonus: core's upsert binds
+nine columns and this table had seven, and the recorder swallows a failed write by
+design, so pointing at core first would have produced an empty table and a studio
+that looked healthy. NOTHING ON THIS DOOR POPULATES THE TIMING COLUMNS YET; the
+studio writes the row at the transport seam and RunPod's own timings have to be
+carried out on the module envelope first, so they read honestly NULL here until
+that lands. No existing row changes meaning and nothing is backfilled.
+
+`runpodJobRecorder` stays local, moved to `src/runpod-job-recorder.ts`: measured
+across the org, it and `createModuleTransport` appear only in vivijure-local (0
+files in cf, 0 in core), because cf's module workers hold their own binding and
+call the recorder directly. Guarded by
+`tests/runpod-job-log-reexport-local415.test.ts`, which asserts IDENTITY against
+core rather than shape, asserts the pointer declares nothing of its own, and
+proves the pre-0022 schema loses the write silently.
+
 ### chore(deps): pin vivijure-core 1.22.5
 
 Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
