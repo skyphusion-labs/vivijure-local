@@ -12,6 +12,21 @@ import { OllamaError } from "./ollama.js";
 /** Why plan/enhance/refine skipped while still returning ok:true. */
 export type PlanDegradeReason = "provider_unreachable" | "invalid_reply" | "no_reply";
 
+/** local#406: chat mode FAILS CLOSED on an empty provider reply, and this is the stable token
+ *  that failure carries.
+ *
+ *  WHY IT IS A STRING AND NOT A FIELD. `InvokeResponse`'s failure arm is `{ ok: false; error:
+ *  string }`, so `degraded` / `degrade_reason` cannot ride an `ok: false` (measured: planting
+ *  them gives TS2353). A machine-readable reason on the failure path is a vivijure-core contract
+ *  change affecting every module, and it is filed separately. A correctness fix does not wait on
+ *  a cross-module refactor.
+ *
+ *  So the reason rides the error string, and this constant exists so that the one thing asserted
+ *  on is a CONSTANT rather than a sentence somebody will later reword. Read it, do not retype it.
+ *  Deriving a fault class from free English `error` text stays banned. */
+export const CHAT_NO_REPLY_ERROR =
+  "plan.enhance chat: the provider returned an empty reply [no_reply]";
+
 /** Additive fields on PlanEnhanceOutput when the director pass soft-degraded. */
 export interface PlanEnhanceDegradeFields {
   degraded: true;
