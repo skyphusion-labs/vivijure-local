@@ -9,6 +9,7 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ### fix(runpod): the job log points at core; detail no longer truncates at 160
 
+
 This door held the estate's last private copy of the RunPod job log, and it had
 drifted. Re-measured 2026-09-26 against `@skyphusion-labs/vivijure-core@1.22.5`:
 `DETAIL_MAX` was 160 here where cf#320 raised it to 480, and there was no
@@ -41,7 +42,22 @@ call the recorder directly. Guarded by
 core rather than shape, asserts the pointer declares nothing of its own, and
 proves the pre-0022 schema loses the write silently.
 
+### fix(plan.enhance): chat fails closed on an empty provider reply
+
+
+An empty provider reply returned `ok:true` with the note "chat skipped: empty
+reply", which `planner.ts` joined into `output` and `POST /api/chat` returned as
+HTTP 200. The skip notice reached the user AS THE ASSISTANT'S ANSWER, and the
+guard meant to catch it could never fire because the diagnostic prose made the
+joined string non-empty. Chat now returns `ok:false`, so the route answers 422.
+Ollama already failed closed here (it throws); Workers AI returned "" without
+throwing, so the two providers disagreed about one failure class. They no longer
+do. Machine-readable reasons on the failure arm need a vivijure-core contract
+change and are tracked separately; the reason rides a stable exported constant
+until then.
+
 ### chore(deps): pin vivijure-core 1.22.5
+
 
 Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
 the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
@@ -50,6 +66,7 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.4
 
+
 Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
 `pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
 Wan, InfiniteTalk, cloud-keyframe, and keyframe manifests. Does not cut a
@@ -57,10 +74,12 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.0
 
+
 Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
 on one film. Not scatter-*.
 
 ### feat(render): retire scatter; films are always one job
+
 
 Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`
 always start a single film, even when `shardCount` / `shard_count` is 2+.

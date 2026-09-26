@@ -3,7 +3,17 @@
  */
 import type { SpeechInput, SpeechOutput } from "@skyphusion-labs/vivijure-core/modules/types";
 import type { ArtifactStore } from "../../platform/create-storage.js";
+import { formatDegrade } from "../../degrade-reason.js";
 
+/**
+ * The honest soft-degrade output: the INPUT key passed through, `applied` empty (never a fake tag),
+ * and the reason named in `degraded` -- so a degrade is never silent (local#249/#77).
+ *
+ * `reason` is a closed-set machine literal from the caller; the `degraded` STRING is built by
+ * formatDegrade, which is also the only thing that reads it back (src/degrade-reason.ts). local#307:
+ * the studio transport maps three of the poll reasons onto a RunPod fault outcome in
+ * runpod_job_log, so this string is a machine channel now and not only an operator note.
+ */
 export function passthroughOutput(
   input: { shot_id: string; audio_key: string },
   reason: string,
@@ -13,7 +23,7 @@ export function passthroughOutput(
     shot_id: input.shot_id,
     audio_key: input.audio_key,
     applied: [],
-    degraded: detail ? `${reason}: ${detail}` : reason,
+    degraded: formatDegrade(reason, detail),
   };
 }
 

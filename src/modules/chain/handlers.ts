@@ -65,7 +65,11 @@ import {
 } from "./plan-enhance-core.js";
 import { augmentSystemForOllama } from "./ollama-prompts.js";
 import { ollamaConfigured } from "./ollama.js";
-import { degradeReasonFromError, planFailOpenOutput } from "./plan-enhance-degrade.js";
+import {
+  CHAT_NO_REPLY_ERROR,
+  degradeReasonFromError,
+  planFailOpenOutput,
+} from "./plan-enhance-degrade.js";
 import { direct as directPlanEnhance, pickProvider } from "./plan-enhance-provider.js";
 import { coerceConfig as coerceSpeechConfig, processSpeechLocal } from "./speech-upscale-core.js";
 import {
@@ -228,15 +232,31 @@ export async function invokePlanEnhance(
       const { reply } = await directPlanEnhance(env, messages, modelId, { think: true });
       const text = Array.isArray(reply) ? reply.join("\n") : String(reply ?? "");
       if (!text.trim()) {
-        // The provider answered with nothing. Ollama THROWS on an empty reply and lands in
-        // the catch below as ok:false, but Workers AI callLocal RETURNS an empty string, so
-        // without this tag the identical failure is machine-visible on one provider only.
-        return {
-          ok: true,
-          output: planFailOpenOutput({ scenes: [] }, "chat skipped: empty reply", "no_reply", {
-            ollamaSelected,
-          }),
-        };
+        // local#406, ruled 2026-09-26. The provider answered with nothing, and chat now FAILS
+        // CLOSED on it.
+        //
+        // WHAT THE OLD ok:true DID, traced end to end: the skip NOTE was joined into `output`
+        // by planner.ts, which only fails when that joined string is EMPTY. The note itself
+        // made it non-empty, so the guard that existed to catch this case could never fire,
+        // and `POST /api/chat` answered HTTP 200 with the string "chat skipped: empty reply"
+        // in the `output` field. The skip notice was rendered to the user AS THE ASSISTANT'S
+        // ANSWER. The prose that was supposed to be the diagnostic is what defeated the guard.
+        // A fabricated answer presented as real is the worst outcome available here.
+        //
+        // WHY A DEGRADE IS THE WRONG SHAPE, not merely a weaker one: chat has no storyboard to
+        // pass through. `scenes: []` is the ABSENCE of a result, not a partial one, so there is
+        // nothing to protect and the honest-degrade discipline (local#249/#77, never fail a
+        // chain on a POLISH miss) does not apply. This is not a polish step.
+        //
+        // WHY BOTH PROVIDERS NOW AGREE: Ollama THROWS on an empty reply and already landed in
+        // the catch below as ok:false; Workers AI `callLocal` RETURNS "" or undefined without
+        // throwing and landed here. Two sibling paths for one failure class fell opposite ways
+        // inside one function. They no longer do.
+        //
+        // The reason rides the error STRING because InvokeResponse's failure arm cannot carry
+        // `degraded` / `degrade_reason`. That is a vivijure-core contract change, filed
+        // separately; it does not gate this fix.
+        return { ok: false, error: CHAT_NO_REPLY_ERROR };
       }
       return { ok: true, output: { storyboard: { scenes: [] }, notes: [text] } };
     } catch (e) {
