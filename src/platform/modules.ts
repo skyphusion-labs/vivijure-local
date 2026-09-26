@@ -11,6 +11,7 @@
 import type { FetcherLike, ModuleTransport } from "./types.js";
 import { HttpFetcher } from "./http-fetcher.js";
 import { DETAIL_MAX, type RunpodJobOutcome } from "../runpod-job-log.js";
+import { degradeReasonOf } from "../degrade-reason.js";
 
 /** Parse MODULE_FOO_URL env vars into binding -> base URL. */
 export function moduleUrlsFromEnv(env: NodeJS.ProcessEnv): Map<string, string> {
@@ -60,6 +61,59 @@ export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJo
   // cf#298 legacy path: markers without outcome still distinguish CANCELLED.
   if (body.runpodStatus === "CANCELLED") return "cancelled";
   return "failed";
+}
+
+/** local#307: degrade reasons that name a RUNPOD FAULT, and the outcome each one IS.
+ *
+ * THE DEFECT THIS CLOSES. An honest soft-degrade returns `ok: true` -- correctly, because
+ * speech-upscale is a polish step and a polish miss must not fail the chain (local#249/#77). The
+ * CHAIN did complete. The runpod_job_log ROW is about the RUNPOD JOB, and on these three branches that
+ * job did NOT complete: it was GC-ed, it reported FAILED, or it stalled with a terminal error in its
+ * output. Recording them as `completed` made a failure rate computed off this table undercount by
+ * exactly the degrade population, which is the population an operator most wants to count, and it did
+ * so in the REASSURING direction.
+ *
+ * WHAT IS DELIBERATELY ABSENT FROM THIS MAP, because absence here is a claim too:
+ *
+ *   - `no-output-key` -- RunPod reported COMPLETED and named no output key. The job finished; the
+ *     shortfall is OURS. Recording it as a backend failure would be the same class of lie pointing the
+ *     other way, so it stays `completed`. tests/runpod-degrade-outcome-307.test.ts asserts that
+ *     explicitly rather than leaving it to the fallthrough.
+ *   - `local-door-unconfigured-mid-job` -- the operator unset LOCAL_FINISH_SPEECH_URL while the job was
+ *     in flight, so the studio stopped being able to OBSERVE the job; the door never reported a fault.
+ *     It is neither a RunPod fault nor an honest completion, and naming it correctly needs a value the
+ *     closed outcome set does not have. Left at `completed` (unchanged behaviour) and filed rather than
+ *     guessed; a new value goes to BOTH doors together (cf#286), never to one.
+ *
+ * PARITY: these are cf's outcomes for the same three events, so a cross-door query cannot need two
+ * vocabularies. */
+const DEGRADE_FAULT_OUTCOMES = new Map<string, RunpodJobOutcome>([
+  ["endpoint-gone", "gone"],
+  ["endpoint-failed", "failed"],
+  ["endpoint-error", "backend-error"],
+]);
+
+/** Read a RunPod-fault degrade off an `ok: true` poll envelope, or return null.
+ *
+ * STRUCTURED, not prose: the reason token comes from degradeReasonOf, whose only counterpart is the
+ * formatDegrade that WROTE the string (src/degrade-reason.ts). `error` is never consulted here.
+ *
+ * Returns null for a genuine success (no `degraded` at all) AND for a degrade that is not a RunPod
+ * fault. Both keep `completed`, which is the honest answer for both. */
+export function degradeFaultFromEnvelope(
+  body: Record<string, unknown>,
+): { outcome: RunpodJobOutcome; detail: string } | null {
+  const output = body.output;
+  if (!output || typeof output !== "object") return null;
+  const degraded = (output as Record<string, unknown>).degraded;
+  const reason = degradeReasonOf(degraded);
+  if (!reason) return null;
+  const outcome = DEGRADE_FAULT_OUTCOMES.get(reason);
+  if (!outcome) return null;
+  // The whole `degraded` value is the detail: reason plus whatever the handler could say about it,
+  // bounded exactly as an error detail is. No errorType -- a degrade carries no structured fault
+  // class, and NULL means "not told", which must stay distinguishable from "told, and not a refusal".
+  return { outcome, detail: String(degraded).slice(0, DETAIL_MAX) };
 }
 
 /** How many in-flight poll tokens to remember. A submit is correlated to its terminal outcome through
@@ -151,6 +205,15 @@ export class HttpModuleTransport implements ModuleTransport {
       if (!job) return; // submit happened in a previous process (see MAX_TRACKED_JOBS)
       this.tracked.delete(sentToken);
       if (ok) {
+        // local#307: `ok: true` is not the same as "the RunPod job completed". An honest soft-degrade
+        // is ok:true by design, and three of its reasons ARE RunPod faults. Read the structured reason
+        // off the degrade envelope; anything else (a real success, or a degrade that is not a backend
+        // fault) still records completed.
+        const fault = degradeFaultFromEnvelope(body);
+        if (fault) {
+          this.recorder({ ...job, outcome: fault.outcome, detail: fault.detail });
+          return;
+        }
         this.recorder({ ...job, outcome: "completed" });
         return;
       }
