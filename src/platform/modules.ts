@@ -48,18 +48,31 @@ export function moduleLabelFromBinding(binding: string): string {
   return binding.replace(/^MODULE_/, "").toLowerCase().replace(/_/g, "-");
 }
 
-/** Closed terminal outcomes the module poll may declare (local#304). Anything else falls back. */
+/** Closed-set fault outcomes a module poll may declare on the envelope (local#304 hard fail;
+ *  local#307 soft-degrade). ONE set, read by both callers below, so the vocabulary cannot drift
+ *  between the two paths. Anything else is ignored so a hostile value cannot widen it. */
 const POLL_OUTCOMES = new Set<RunpodJobOutcome>(["backend-error", "failed", "gone", "cancelled"]);
 
-/** Read structured outcome off a poll envelope. Never parse `error` prose. */
-export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJobOutcome {
+/**
+ * Explicit closed-set fault outcome on a poll envelope, or undefined when absent/hostile.
+ * Never invents from `error` prose. Used on BOTH ok:true soft-degrades (local#307) and ok:false
+ * hard fails: the chain may still complete while the RunPod job failed. The ok:true path NEEDS the
+ * undefined case, because "no marker" there means completed, not failed.
+ */
+export function declaredPollOutcome(body: Record<string, unknown>): RunpodJobOutcome | undefined {
   const declared = body.outcome;
   if (typeof declared === "string" && POLL_OUTCOMES.has(declared as RunpodJobOutcome)) {
     return declared as RunpodJobOutcome;
   }
+  return undefined;
+}
+
+/** Read structured outcome off a poll envelope on the HARD-FAIL (ok:false) path. Never parse
+ *  `error` prose. Always resolves: an absent marker falls back to the cf#298 legacy runpodStatus
+ *  read, and otherwise `failed` (local#304). */
+export function pollOutcomeFromEnvelope(body: Record<string, unknown>): RunpodJobOutcome {
   // cf#298 legacy path: markers without outcome still distinguish CANCELLED.
-  if (body.runpodStatus === "CANCELLED") return "cancelled";
-  return "failed";
+  return declaredPollOutcome(body) ?? (body.runpodStatus === "CANCELLED" ? "cancelled" : "failed");
 }
 
 /** How many in-flight poll tokens to remember. A submit is correlated to its terminal outcome through
@@ -150,15 +163,31 @@ export class HttpModuleTransport implements ModuleTransport {
       const job = this.tracked.get(sentToken);
       if (!job) return; // submit happened in a previous process (see MAX_TRACKED_JOBS)
       this.tracked.delete(sentToken);
-      if (ok) {
-        this.recorder({ ...job, outcome: "completed" });
-        return;
-      }
-      const detail = typeof body.error === "string" ? body.error.slice(0, DETAIL_MAX) : undefined;
       // cf#288: the fault CLASS, read from the STRUCTURED marker the module poll now carries. Never
       // derived from `error`, which is prose. Absent stays absent: the recorder writes NULL, and NULL
       // means "the endpoint did not tell us", never "this was not a refusal".
       const errorType = typeof body.errorType === "string" && body.errorType ? body.errorType : undefined;
+      // detail: prefer the additive `detail` marker (soft-degrade, local#307); fall back to `error`
+      // prose on hard fails. Never invent from output.degraded (that is studio-facing copy).
+      const detail =
+        typeof body.detail === "string"
+          ? body.detail.slice(0, DETAIL_MAX)
+          : typeof body.error === "string"
+            ? body.error.slice(0, DETAIL_MAX)
+            : undefined;
+
+      if (ok) {
+        // local#307: an honest soft-degrade returns ok:true so the chain keeps the original audio,
+        // but the RunPod job itself failed/gone/backend-errored. Record THAT fact, not completed.
+        // no-output-key and other non-RunPod shortfalls omit `outcome` and stay completed.
+        const softFault = declaredPollOutcome(body);
+        if (softFault) {
+          this.recorder({ ...job, outcome: softFault, detail, errorType });
+          return;
+        }
+        this.recorder({ ...job, outcome: "completed" });
+        return;
+      }
       // local#304: prefer the closed-set `outcome` the module poll already computed (gone /
       // backend-error / failed / cancelled). Fall back to runpodStatus for CANCELLED (cf#298) and
       // otherwise `failed`. Never derive outcome from the English `error` string.
