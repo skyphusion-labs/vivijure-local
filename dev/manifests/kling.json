@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "i2v-cloud",
-      "label": "Kling V2.1 Pro (cloud i2v)"
+      "label": "Silent cinematic (Kling)"
     }
   ],
   "config_schema": {
@@ -26,8 +26,8 @@
     },
     "enable_safety_checker": {
       "type": "bool",
-      "default": true,
-      "label": "safety checker"
+      "default": false,
+      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
@@ -35,6 +35,22 @@
     "order": 20,
     "locality": "cloud",
     "cost": "Pay per render",
-    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+    "blurb": "Cinematic camera, silent clips. 5 or 10 seconds. Cast voice + MuseTalk if they speak.",
+    "limits": [
+      "5 or 10 second clips",
+      "Silent motion",
+      "Speaking is Cast voice plus MuseTalk"
+    ]
+  },
+  "usage": {
+    "native_audio": false,
+    "voice": "cast_tts",
+    "scatter_native_audio": true,
+    "min_seconds": 5,
+    "max_seconds": 10,
+    "duration_steps": [
+      5,
+      10
+    ]
   }
 }

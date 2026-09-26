@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "librosa-beat-sync",
-      "label": "Beat sync (librosa, fleet VPC)"
+      "label": "Beat sync (librosa)"
     }
   ],
   "config_schema": {

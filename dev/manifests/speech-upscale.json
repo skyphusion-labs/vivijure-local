@@ -5,6 +5,7 @@
   "hooks": [
     "speech"
   ],
+  "max_invocation_seconds": 300,
   "provides": [
     {
       "id": "speech-upscale",

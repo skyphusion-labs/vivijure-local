@@ -1,7 +1,7 @@
 /**
  * Studio-side sequential VRAM handoff (local#265 / local#325).
  *
- * Call before startFilmJob / startFilmFromKeyframes / startScatterRender so Ollama
+ * Call before startFilmJob / startFilmFromKeyframes so Ollama
  * is unloaded even if plan.enhance ran recently (keep_alive window) and before the
  * local-gpu module receives /invoke. Module sidecars also unload again at /run.
  *

@@ -45,6 +45,8 @@
   // assemble / mux).
   const PIPELINE_PHASES = [
     { key: "keyframe", start: 0.0, span: 0.35 },
+    { key: "pre_clip_dialogue", start: 0.30, span: 0.05 },
+    { key: "pre_clip_speech", start: 0.33, span: 0.02 },
     { key: "i2v", start: 0.35, span: 0.5 },
     { key: "finish", start: 0.85, span: 0.08 },
     { key: "assemble", start: 0.93, span: 0.05 },
@@ -102,7 +104,7 @@
   // envelope, or null when no signal at all is available (the caller then shows
   // "?%" / an indeterminate bar). Phase-aware first (the film pipeline), with a
   // graceful fallback to the raw progress / scene-count / log signals for non-
-  // film envelopes (e.g. scatter or a bare RunPod view).
+  // film envelopes (e.g. a bare RunPod view).
   function progressFraction(out) {
     if (!out || typeof out !== "object") return null;
     const phase = typeof out.phase === "string" ? out.phase.toLowerCase() : null;

@@ -73,8 +73,7 @@
 // exactly what a VPC-less host delivers -- the clips carry their own finish and speech output. A
 // panel that greyed those out would be lying in the other direction.
 //
-// Scope note: this describes the FILM path. A clips-only render is unaffected by construction, and
-// the scatter path degrades through its own gates in the same family.
+// Scope note: this describes the FILM path. A clips-only render is unaffected by construction.
 
 /**
  * The reason string, printed VERBATIM by the panel (cf#98 does not rewrite or soften it).

@@ -7,6 +7,45 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): pin vivijure-core 1.22.5
+
+Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
+the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
+pin of the published package already on cf v1.33.9. Does not cut a
+studio tag.
+
+### chore(deps): pin vivijure-core 1.22.4
+
+Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
+`pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
+Wan, InfiniteTalk, cloud-keyframe, and keyframe manifests. Does not cut a
+studio tag.
+
+### chore(deps): pin vivijure-core 1.22.0
+
+Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
+on one film. Not scatter-*.
+
+### feat(render): retire scatter; films are always one job
+
+Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`
+always start a single film, even when `shardCount` / `shard_count` is 2+.
+`POST /api/storyboard/render/scatter` is removed. Poll or cancel of a
+`scatter-*` id returns 410 `{ error: "Scatter is retired. Start a single film." }`
+and does not advance the old orchestrator. Planner checkbox and shard UI are
+gone. History still labels old scatter rows as retired.
+
+## v1.10.0 -- 2026-08-16
+
+MINOR. Render parallelism is a knob. Omitted `shardCount` uses the worker pool, not 2.
+
+### feat(render): parallelism is a knob, default is the worker pool, not 2
+
+`shardCount` / `shard_count` on the panel render, film, and scatter doors.
+Omitted means `min(shots, RENDER_SHARD_MAX or 20)`. Explicit 1 is one job.
+The leftover `?? 2` is gone. Film/MCP poll accepts `scatter-*` ids on
+`GET /api/render/film/:id` so one submit/poll pair can use the pool.
+
 ## v1.9.0 -- 2026-08-07
 
 MINOR. `speech-upscale` can route to an on-box door, so no local speech audio reaches RunPod (#383).

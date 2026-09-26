@@ -16,6 +16,7 @@ import {
   isFilmJobId,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import { advanceFilmJob, startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
+import { isScatterJobId } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { summarizeJob } from "@skyphusion-labs/vivijure-core/clip-job-model";
 import {
   advanceClipJob,
@@ -322,8 +323,11 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       // browser request so a malicious page can't drive it via CSRF.
       if (isCrossSiteRequest(c.req.raw)) throw forbidden(CSRF_ADVANCE_MSG);
       const jobId = c.req.param("id");
-      if (!isFilmJobId(jobId)) throw notFound("film job");
       const oenv = env();
+      if (isScatterJobId(jobId)) {
+        return json({ error: "Scatter is retired. Start a single film.", jobId }, 410);
+      }
+      if (!isFilmJobId(jobId)) throw notFound("film job");
       const r = await advanceFilmJob(oenv, jobId);
       if (!r) throw notFound("film job");
       await insertRender(oenv, filmRowFromJob(r.job));
