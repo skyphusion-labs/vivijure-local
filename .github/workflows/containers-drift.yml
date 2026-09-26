@@ -1,0 +1,40 @@
+name: containers-drift
+
+# Fail when containers/{video-finish,image-prep,audio-beat-sync,audio-mix,audio-master}
+# drift from vivijure-cf without an intentional, documented delta (local#314).
+#
+# Sibling of manifest-drift.yml: that job guards dev/manifests/*.json; this one guards
+# the CPU media build contexts. scripts/sync-containers.sh is the repair path; this is
+# the CI hook that makes a silent rsync-skip fail the PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: containers-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  containers-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: vivijure-local
+
+      - uses: actions/checkout@v7
+        with:
+          repository: skyphusion-labs/vivijure-cf
+          ref: main
+          path: vivijure-local/.upstream/vivijure
+
+      - name: Diff containers/ against vivijure-cf (allowlisted deltas pin-tested)
+        working-directory: vivijure-local
+        run: bash scripts/check-containers-drift.sh .upstream/vivijure
