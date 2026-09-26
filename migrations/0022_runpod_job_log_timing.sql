@@ -1,0 +1,82 @@
+-- runpod_job_log: RunPod's OWN timing for a job (local#415).
+--
+-- PARITY: this is the vivijure-cf twin of migrations/0019_runpod_job_log_timing.sql. Same two
+-- columns, same types, same NULL-not-zero meaning. The number differs (0022 here, 0019 there)
+-- because the two doors number their own migration sequences; the SCHEMA is what has to match, and
+-- it does.
+--
+-- WHY IT LANDS HERE, AND WHY IT LANDS FIRST. This door is retiring its private copy of the RunPod
+-- job log in favour of the shared implementation in @skyphusion-labs/vivijure-core (local#415, the
+-- same move cf#475 made). Core's upsert binds NINE columns; this table had SEVEN. Pointing the host
+-- at core WITHOUT this migration would make every write fail, and fail SILENTLY BY DESIGN: the
+-- recorder warns and returns rather than failing a render, so the symptom would be an empty table
+-- and a studio that looks perfectly healthy. That is the exact shape cf#475 was about, so the column
+-- add is a hard prerequisite of the re-export and not a nice-to-have shipped alongside it.
+--
+-- WHY. Measured 2026-08-07 against live billing (cp#274): the only per-job duration the estate holds
+-- is wall-clock, terminal_at - submitted_at, and it is not a bound in either direction. It INCLUDES
+-- queue wait, cold start and our own poll latency; it EXCLUDES idle-timeout, which RunPod bills. The
+-- implied per-second rate derived from it swung 1.39x to 1.69x WITHIN a single endpoint across three
+-- consecutive days, and 2.55x once endpoints were pooled. RunPod reports both missing numbers in the
+-- same /status envelope the poll path already parses to decide terminality.
+--
+-- NULL, NEVER ZERO, AND THAT IS THE WHOLE POINT. A CANCELLED job's payload carries neither field at
+-- all. A 0 written here would read as a real measurement of a job that took no time, and would
+-- under-count every total silently. Enforced once, in core's writer (timingFromStatus plus a second
+-- non-negative guard at the bind boundary) so no caller can reintroduce a zero. Same posture
+-- error_type takes in 0017: absent means "not told", never "told, and it was zero".
+--
+-- NOTHING ON THIS DOOR POPULATES THESE COLUMNS YET, AND SAYING SO IS PART OF SHIPPING IT. On cf each
+-- module worker holds the /status envelope and writes its own row. Here the STUDIO writes the row at
+-- the transport seam (see 0016) and sees only what a module RETURNS, so RunPod's executionTime and
+-- delayTime have to be carried out on the module envelope before they can reach this table, exactly
+-- as jobId (local#301) and error_type (local#304) had to be. That envelope work is NOT in local#415:
+-- these columns exist so the shared writer can bind them, and they will read honestly NULL on this
+-- door until the producer lands. A NULL here therefore means "not told" for two different reasons on
+-- this door, and neither of them is "the job took no time".
+--
+-- WHAT THESE COLUMNS DO NOT CAPTURE. Read this before treating them as a cost record.
+--
+--   1. IDLE-TIMEOUT TIME IS BILLED AND IS NOT HERE. RunPod bills a worker across start time,
+--      execution time, and the idle window a worker stays running AFTER a request completes.
+--      execution_ms is the middle phase only. The idle window belongs to the WORKER's lifecycle, not
+--      to any job, and on a pooled endpoint the worker kept warm by one job serves the next. It is
+--      unattributable by construction, not a probe anyone forgot.
+--   2. delay_ms IS NOT THE BILLED START PHASE. It mixes queue wait, which is not billed to us as
+--      compute, with cold start, which is. Using it as a proxy for the start phase over-charges;
+--      dropping it under-charges every cold start. It is recorded because it is the only visibility
+--      into that split, not because it resolves it.
+--   3. NEITHER SAYS WHICH GPU RAN THE JOB. The backend endpoint declares two GPU classes and RunPod
+--      picks by availability; published per-second rates for those classes differ by roughly 1.5x.
+--      /status never reports the choice, so execution_ms alone cannot be priced.
+--
+-- So these columns are an INPUT to a cost model and are not themselves a cost. Anything multiplying
+-- execution_ms by a rate and calling the result spend is wrong in at least three named ways.
+--
+-- FOUR STATES, AND ONLY THREE ARE VISIBLE FROM THIS TABLE. The invisible one is why a total here can
+-- be quietly low.
+--
+--   terminal_at  execution_ms   what it means
+--   -----------  ------------   -------------------------------------------------------------------
+--   NULL         NULL           Recorded at submit, terminal state NEVER OBSERVED. The losable
+--                               terminal write. The job may well have run and cost money.
+--   NOT NULL     NULL           Terminal state observed, and no timing was reported for it (a
+--                               CANCELLED job carries neither field; the 404 gone path has no
+--                               envelope at all; and on this door, see the producer note above).
+--   NOT NULL     NOT NULL       Terminal state observed WITH timing. The only fully known row.
+--   (no row)     (no row)       NEVER RECORDED. STRUCTURALLY INVISIBLE HERE.
+--
+-- The invariant that keeps the first two apart is enforced in the writer: any outcome other than
+-- submitted sets terminal_at, so a NULL here NEVER means "we did not record this job", it means "we
+-- recorded it and were not told".
+--
+-- HISTORICAL ROWS ARE NOT BACKFILLED AND NOT REINTERPRETED. RunPod deletes async results roughly 30
+-- minutes after completion and has no job-history API, so the timing for every row written before
+-- this migration is already gone from the vendor and cannot be recovered by any later query. Old
+-- rows stay honestly NULL rather than being reconstructed from wall-clock, which would manufacture
+-- exactly the confidence this migration exists to stop. No existing row changes meaning: the seven
+-- columns 0016 and 0017 defined are untouched.
+--
+-- Additive (ADD COLUMN only, no default, no rewrite), so it rides the normal auto-apply.
+ALTER TABLE runpod_job_log ADD COLUMN execution_ms INTEGER;
+ALTER TABLE runpod_job_log ADD COLUMN delay_ms INTEGER;
