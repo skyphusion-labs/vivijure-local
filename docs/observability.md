@@ -39,6 +39,47 @@ Implementation: `@skyphusion-labs/vivijure-core` (`emitStructuredEvent`).
 | `d1.retry` / `d1.exhausted` | Transient SQLite retry on the render-advance path |
 | `render.bookkeeping_deferred` | D1 render row insert failed (non-fatal) |
 
+## Render-row telemetry columns (what is measured, and by whom)
+
+Not every observable is an `ev` line. Three duration columns on `renders` are separate
+measurements with separate producers, and **NULL in any of them means NOT MEASURED, never
+zero**. A reported zero is a real measurement (a sub-millisecond stage rounded down) and is
+stored as `0`; only an absent measurement is NULL. Do not `COALESCE(..., 0)` in a report:
+that turns "we never measured this" into "this took no time".
+
+| column | producer | NULL means |
+|---|---|---|
+| `execution_time_ms` | the GPU job envelope, written by core on the render-view update | the lane never reported a GPU time |
+| `output_ms` | the delivered film length (migration 0018) | no length was measured |
+| `finish_elapsed_ms` | the CPU finish containers, SUMMED per job (migration 0019, cf#268) | no finish stage reported its wall clock |
+
+`finish_elapsed_ms` is capacity planning for the CPU finish tier: **not** billing and **not**
+GPU time. Each container measures its OWN stage with `time.monotonic` and returns `elapsedMs`
+on its success body; the shared orchestrator sums those onto the job
+(`accumulateFinishElapsed`) and writes the total once, at `markFinishDone`. The column is
+exposed as `finish_elapsed_ms` on every `GET /api/storyboard/renders` and
+`GET /api/storyboard/renders/:id` response.
+
+The seven emitting stages, which are the whole producer set (local#401). The two async doors
+(\`POST /async/film-titles\`, \`POST /async/subtitle\`) share the synchronous stage measurement,
+because they run the same work function:
+
+| container | stages that report their own wall clock |
+|---|---|
+| `video-finish` | `POST /finish` (assemble or audio remux), `POST /film-titles`, `POST /subtitle` |
+| `image-prep` | `POST /portrait/prep` |
+| `audio-beat-sync` | `POST /analyze` |
+| `audio-mix` | `POST /mix` |
+| `audio-master` | `POST /master` |
+
+**A column whose producer can silently disappear is how local#401 happened**: migration 0019
+landed here without the cf#268 emitters, so the column was permanently NULL while looking
+like real telemetry. `tests/finish-elapsed-ms-401.test.ts` is the guard. It reads the shipped
+container sources (not a fixture), counts the emission sites against the table above, checks
+that the key the containers emit is the key the installed core consumes, and asserts the
+three end states apart: measured -> non-NULL, absent -> NULL, reported zero -> `0`. Delete an
+emitter and that file goes red.
+
 ## What this is NOT
 
 - **History UI text logs** (`src/render-log.ts`) are artifact objects for the studio History
