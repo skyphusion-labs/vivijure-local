@@ -77,10 +77,10 @@
   "devDependencies": {
     "@playwright/test": "^1.64.0",
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.4",
     "tsx": "^4.23.15",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.10",
+    "vitest": "^5.0.4",
     "wrangler": "^4.149.0"
   }
 }
