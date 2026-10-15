@@ -630,6 +630,16 @@ async function renderFromKeyframes(bundleKey, btn, status) {
   if (qualityTier) body.qualityTier = qualityTier;
   if (renderOverrides) body.renderOverrides = renderOverrides;
   if (planState.audioKey) body.audioKey = planState.audioKey;
+  // local#327: name the door this button is submitting to. The route reads snake_case
+  // motion_backend (a camelCase sibling is ignored and the render still succeeds on the
+  // door's own default). Omit the field when no gpu door resolves, so a host with none
+  // submits exactly as it does today.
+  const registry = window.plannerRegistry;
+  if (registry && typeof registry.load === "function") await registry.load();
+  const gpuDoor = registry && typeof registry.defaultGpuDoorModule === "function"
+    ? registry.defaultGpuDoorModule()
+    : null;
+  if (gpuDoor && gpuDoor.name) body.motion_backend = gpuDoor.name;
   btn.disabled = true;
   status.textContent = "submitting i2v render...";
   let resp = null;

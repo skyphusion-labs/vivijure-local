@@ -93,6 +93,25 @@
     return motionBackendModules().filter((m) => motionLocality(m) === "cloud");
   }
 
+  // The gpu-door set: motion backends on hardware the operator controls (byo or local),
+  // mirroring the core's gpuDoorMotionModules. Cloud backends are excluded.
+  function gpuDoorMotionModules() {
+    return motionBackendModules().filter((m) => {
+      const l = motionLocality(m);
+      return l === "byo" || l === "local";
+    });
+  }
+
+  // The door a render lands on when it names none, mirroring the core's defaultGpuDoorModule:
+  // the byo door if one is installed, otherwise the first gpu door in serving order. A local
+  // door ordered before the byo door still resolves to byo; a local door is the default only
+  // when it is the only gpu door. Null when none is installed, so the caller omits
+  // motion_backend instead of inventing a name (local#327).
+  function defaultGpuDoorModule() {
+    const doors = gpuDoorMotionModules();
+    return doors.find((m) => motionLocality(m) === "byo") || doors[0] || null;
+  }
+
   function planEnhanceInstalled() {
     return hookModules("plan.enhance").length > 0;
   }
@@ -135,6 +154,8 @@
     beatSyncScoreModules,
     motionBackendModules,
     ownGpuModule,
+    gpuDoorMotionModules,
+    defaultGpuDoorModule,
     cloudMotionModules,
     planEnhanceInstalled,
     cloudModelLabel,
