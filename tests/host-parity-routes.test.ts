@@ -138,11 +138,32 @@ describe("host parity routes", () => {
       body: JSON.stringify({ name: "Wren" }),
     });
     const { cast } = (await create.json()) as { cast: { id: string } };
+    // PNG signature. Upload sniff and bundle assembly both accept these bytes.
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const portrait = await app.request(`/api/cast/${cast.id}/portrait`, {
+      method: "POST",
+      headers: { ...auth(), "content-type": "image/png" },
+      body: png,
+    });
+    expect(portrait.status).toBe(200);
+    // executeCastTrain returns the missing-binding 501 only after a portrait,
+    // at least four training refs, and a successful bundle assembly.
+    for (let i = 0; i < 4; i++) {
+      const ref = await app.request(`/api/cast/${cast.id}/ref`, {
+        method: "POST",
+        headers: { ...auth(), "content-type": "image/png" },
+        body: png,
+      });
+      expect(ref.status).toBe(200);
+    }
     const res = await app.request(`/api/cast/${cast.id}/train-wan-lora`, {
       method: "POST",
       headers: auth(),
     });
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
+    expect(res.status).toBe(501);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBe(
+      "Wan cast LoRA training is not configured on this host (wire RUNPOD_WAN_TRAIN_ENDPOINT_ID)",
+    );
   });
 });
