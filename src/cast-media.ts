@@ -182,8 +182,14 @@ export async function handleCastPortraitUpload(
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
       const key = requireCastStagedKey(id, body.key);
+      // local#446: the staged object is already in the bucket. Write the row, and
+      // only then drop the superseded portrait. A null row leaves portrait_key
+      // unchanged, so the previous object must survive. deleteSupersededPortrait
+      // skips oldKey === newKey, so a re-register of the key the row already holds
+      // does not delete the live object.
       const row = await setPortrait(env, id, key, mime);
       if (!row) throw new HttpError(404, "cast not found");
+      await deleteSupersededPortrait(env, cur.portrait_key, key);
       return json({ cast: toPublicCast(row) });
     }
 
