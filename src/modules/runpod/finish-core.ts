@@ -150,5 +150,12 @@ export function parseFinishOutput(shotId: string, output: unknown, srcFps: numbe
     // positive `finish:applied` tag -- that masks a no-op as a real finish. Default to []; a backend that
     // genuinely applied steps returns them, and one that ran nothing honestly reports nothing.
     applied: Array.isArray(inner.applied) ? (inner.applied as string[]) : [],
+    // local#307: a RunPod finish worker can soft-degrade (ok:true + a passthrough) exactly like this
+    // door's own passthroughOutput() above -- FinishOutput's own `degraded?: string` field already
+    // carries that signal. This function used to drop it silently when re-parsing the worker's raw
+    // job output, so a genuine soft-degrade reaching the studio via RunPod was indistinguishable from
+    // a clean finish by the time platform/modules.ts recorded it. Thread it through unconditionally;
+    // absent stays absent (undefined), never invented.
+    ...(typeof inner.degraded === "string" && inner.degraded ? { degraded: inner.degraded } : {}),
   };
 }

@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "i2v-cloud",
-      "label": "MiniMax Hailuo 2.3 Fast (cloud i2v)"
+      "label": "Silent physical (Hailuo)"
     }
   ],
   "config_schema": {
@@ -28,6 +28,22 @@
     "order": 40,
     "locality": "cloud",
     "cost": "Pay per render",
-    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+    "blurb": "Physical motion, silent. 6 or 10 seconds. Cast voice + MuseTalk if they speak.",
+    "limits": [
+      "6 or 10 second clips",
+      "Silent motion",
+      "Speaking is Cast voice plus MuseTalk"
+    ]
+  },
+  "usage": {
+    "native_audio": false,
+    "voice": "cast_tts",
+    "scatter_native_audio": true,
+    "min_seconds": 6,
+    "max_seconds": 10,
+    "duration_steps": [
+      6,
+      10
+    ]
   }
 }

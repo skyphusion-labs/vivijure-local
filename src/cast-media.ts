@@ -14,6 +14,7 @@ import {
 import type { DbEnv } from "@skyphusion-labs/vivijure-core/db-env";
 import { HttpError } from "./errors.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
+import { isSafeRelKey } from "./shared.js";
 import { extFromMime } from "./utils.js";
 
 export const CAST_IMAGE_MIME_RE = /^image\/(png|jpe?g|webp)$/i;
@@ -66,6 +67,15 @@ function requireCastImageMime(claimed: string, bytes?: ArrayBuffer | Uint8Array)
   }
 }
 
+/** JSON upload path: key must be a safe path under this cast member (local#328 / cf f239532). */
+function requireCastStagedKey(castId: number, key: string): string {
+  const prefix = `cast/${castId}/`;
+  if (!isSafeRelKey(key) || !key.startsWith(prefix) || key.length <= prefix.length) {
+    throw new HttpError(400, "key must be a safe staged path under this cast member");
+  }
+  return key;
+}
+
 export interface CastMediaEnv extends DbEnv {
   R2_RENDERS: ArtifactStore;
   R2: ArtifactStore;
@@ -101,6 +111,38 @@ export async function copyChatArtifactToRenders(
   return { key, mime };
 }
 
+/** Delete the portrait object that a successful replacement has superseded (local#407).
+ *
+ *  ORDERING IS THE POINT. This runs only AFTER the replacement object is stored and
+ *  AFTER the row write returned a row, so anything that throws earlier leaves
+ *  `portrait_key` naming an object that still exists. The old code deleted first, so any
+ *  throw in between left the row internally consistent and pointing at nothing: a record
+ *  whose validity cannot be established from the record.
+ *
+ *  The window was never only a transient store fault. `copyChatArtifactToRenders` throws
+ *  404 on a missing source, 413 over 16 MB, and 400 on a mime the allowlist or the
+ *  magic-byte sniff rejects, all BEFORE it writes a byte. Those are ordinary client
+ *  errors on the request that just deleted the portrait, not a narrow race.
+ *
+ *  A failing delete stays best-effort and never fails the request: an orphan wastes
+ *  bytes, a dangling reference wastes an investigation.
+ *
+ *  SKIPS `oldKey === newKey`. A re-upload with the same mime resolves to the same
+ *  `cast/<id>/portrait.<ext>` key and the put already overwrote it in place, so there is
+ *  no superseded object; deleting it here would destroy the object just written. */
+async function deleteSupersededPortrait(
+  env: CastMediaEnv,
+  oldKey: string | null | undefined,
+  newKey: string,
+): Promise<void> {
+  if (!oldKey || oldKey === newKey) return;
+  try {
+    await env.R2_RENDERS.delete(oldKey);
+  } catch {
+    /* best-effort GC: an orphan is strictly better than a dangling portrait_key */
+  }
+}
+
 export async function handleCastPortraitUpload(
   request: Request,
   env: CastMediaEnv,
@@ -125,25 +167,22 @@ export async function handleCastPortraitUpload(
       }
 
       if (typeof body.from_chat_artifact === "string" && body.from_chat_artifact) {
-        if (cur.portrait_key) {
-          try {
-            await env.R2_RENDERS.delete(cur.portrait_key);
-          } catch {
-            /* ignore */
-          }
-        }
+        // local#407: copy, write the row, and only then drop the superseded object.
         const { key, mime } = await copyChatArtifactToRenders(
           env,
           body.from_chat_artifact,
           `cast/${id}/portrait`,
         );
         const row = await setPortrait(env, id, key, mime);
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        await deleteSupersededPortrait(env, cur.portrait_key, key);
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await setPortrait(env, id, body.key, mime);
+      const key = requireCastStagedKey(id, body.key);
+      const row = await setPortrait(env, id, key, mime);
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -152,19 +191,15 @@ export async function handleCastPortraitUpload(
     if (buf.byteLength === 0) throw new HttpError(400, "empty body");
     if (buf.byteLength > CAST_MAX_BYTES) throw new HttpError(413, "image too large (16 MB max)");
     const mime = requireCastImageMime(contentType, buf);
-    if (cur.portrait_key) {
-      try {
-        await env.R2_RENDERS.delete(cur.portrait_key);
-      } catch {
-        /* ignore */
-      }
-    }
     const key = `cast/${id}/portrait.${extFromMime(mime)}`;
+    // local#407: store, write the row, and only then drop the superseded object.
     await env.R2_RENDERS.put(key, new Uint8Array(buf), {
       httpMetadata: { contentType: mime },
     });
     const row = await setPortrait(env, id, key, mime);
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    await deleteSupersededPortrait(env, cur.portrait_key, key);
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -198,12 +233,14 @@ export async function handleCastRefAdd(
           `cast/${id}/refs/${crypto.randomUUID()}`,
         );
         const row = await addRef(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await addRef(env, id, { key: body.key, mime });
+      const key = requireCastStagedKey(id, body.key);
+      const row = await addRef(env, id, { key, mime });
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -217,7 +254,8 @@ export async function handleCastRefAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addRef(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 
@@ -267,12 +305,14 @@ export async function handleCastSourceAdd(
           `cast/${id}/sources/${crypto.randomUUID()}`,
         );
         const row = await addSource(env, id, { key, mime });
-        return json({ cast: row ? toPublicCast(row) : null });
+        if (!row) throw new HttpError(404, "cast not found");
+        return json({ cast: toPublicCast(row) });
       }
 
       if (!body.key || !body.mime) throw new HttpError(400, "key and mime required");
       const mime = requireCastImageMime(body.mime);
-      const row = await addSource(env, id, { key: body.key, mime });
+      const key = requireCastStagedKey(id, body.key);
+      const row = await addSource(env, id, { key, mime });
       if (!row) throw new HttpError(404, "cast not found");
       return json({ cast: toPublicCast(row) });
     }
@@ -286,7 +326,8 @@ export async function handleCastSourceAdd(
       httpMetadata: { contentType: mime },
     });
     const row = await addSource(env, id, { key, mime });
-    return json({ cast: row ? toPublicCast(row) : null });
+    if (!row) throw new HttpError(404, "cast not found");
+    return json({ cast: toPublicCast(row) });
   });
 }
 

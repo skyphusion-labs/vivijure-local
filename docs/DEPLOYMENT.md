@@ -32,7 +32,7 @@ docker compose (default homelab)
   |-- video-finish       ffmpeg assemble/mux (CPU film.finish path)
   |-- image-prep, audio-beat-sync, audio-mix, audio-master   CPU media VPC shims
   |-- module-plan-enhance, module-cast-image, module-image-generate
-  |-- module-keyframe, module-local-gpu
+  |-- module-keyframe (cloud profile only), module-local-gpu
   |-- module-audio-master, module-beat-sync, module-film-titles, module-subtitle
   |-- module-dialogue-gen, module-music-gen, module-notify-email
   `-- optional profiles: cloud, satellites (see install-profiles.md)
@@ -111,10 +111,10 @@ the studio container.
 | Variable | Default (compose) | Purpose |
 |----------|-------------------|---------|
 | `STUDIO_API_TOKEN` | `change-me-local-dev-only` | Operator login; **change this** |
-| `AUTH_MODE` | `token` | Only supported mode in v1 |
+| `AUTH_MODE` | `token` | `token` or `demo`; `access` is refused by name (see docs/SECURITY.md) |
 | `PORT` | `8790` | HTTP listen port |
 | `PUBLIC_BASE_URL` | `http://127.0.0.1:8790` | Presign + artifact URLs for host clients |
-| `DATABASE_PATH` | `/app/data/studio.db` | SQLite file (persisted volume) |
+| `DATABASE_PATH` | `/app/vivijure-local/data/studio.db` | SQLite file (persisted volume) |
 | `PLANNER_AI_MOCK` | `false` | Set `true` for offline/CI without Ollama model pull |
 | `OLLAMA_BASE_URL` | `http://ollama:11434` | Homelab plan.enhance provider |
 | `OLLAMA_PLAN_MODEL` | `qwen3:14b` | Default open-weight planner (~9.3GB Q4; 16GB headroom) |
@@ -172,6 +172,47 @@ npm run sync:secrets:compose
 
 Module sidecars re-read `platform_secrets` per invoke (`loadModuleRuntimeEnv`), so no second
 recreate is needed after the sync.
+
+#### Report the seed/store divergence (local#379)
+
+`.env` is a **seed**. `platform_secrets` is the **live value**, and it WINS. Editing the seed and
+restarting can therefore have no effect, with no error, which is indistinguishable from the edit being
+wrong. Three places now report it, by key NAME only (never a value):
+
+```bash
+npm run check:secret-drift     # exits 1 while any catalogued key differs between .env and the store
+```
+
+- studio **boot** warns and names the divergent keys;
+- **`npm run sync:secrets`** prints the divergence that SURVIVES the sync, on every run (it used to
+  print its `skipped` list only when nothing at all changed, so a key it refused to propagate was
+  invisible the moment any other key changed in the same run);
+- `check:secret-drift` is the on-demand report, and the only one with an exit status.
+
+Nothing here reconciles. Copying either side onto the other silently destroys a real change: seed onto
+store loses an intentional runtime edit, store onto seed loses the edit the operator just made.
+
+**What the seed can and cannot do, by key family.** This is a property of the FAMILY, not of the sync,
+and it is why deleting a line from `.env` sometimes does nothing at all:
+
+| family | `.env` sets a value | `.env` empty or line deleted |
+|---|---|---|
+| skip-on-empty (`PLATFORM_TUNNEL_SYNC_KEYS`, compose defaults) | upserted into the store | **SKIPPED: the store keeps the old value forever** |
+| purge-on-empty (optional `MODULE_*_URL`) | upserted into the store | store row deleted |
+| derived (`MODULE_LOCAL_GPU_URL`) | env is the only authority | store row purged unconditionally |
+| not-synced (catalogued, in no sync list) | never reaches the store; env is used only while no store row exists | no effect |
+
+**To unset a skip-on-empty key, clear the STORE first, then align the seed.** Seed-first accomplishes
+nothing: the next `sync:secrets` upserts the seed value straight back with nothing reporting why.
+
+```bash
+# 1. clear the store row (empty value). CHECK the response: `cleared` naming the key is the only
+#    proof it worked -- a 200 with an empty `cleared` array is a success response that means failure.
+curl -sS -X PATCH "$STUDIO/api/settings/secrets" -H "authorization: Bearer $STUDIO_API_TOKEN" \
+  -H 'content-type: application/json' -d '{"LOCAL_FINISH_LIPSYNC_URL":""}'
+# 2. THEN remove or change the line in .env, recreate, and re-check
+npm run check:secret-drift
+```
 
 **local-gpu (homelab):** set `LOCAL_BACKEND_URL` to the reachable GPU backend URL and
 `LOCAL_BACKEND_TOKEN` to the backend bearer token, then run the sync + recreate sequence above.

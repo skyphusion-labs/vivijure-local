@@ -1,4 +1,6 @@
 {
+  "_local_divergence": "do-not-sync",
+  "_local_divergence_why": "local-only Ollama first-win catalog (local#265 / #313); cf keeps Anthropic/AI Gateway MANIFEST. Regenerating from cf must not overwrite this file.",
   "name": "plan-enhance",
   "version": "0.3.1",
   "api": "vivijure-module/2",

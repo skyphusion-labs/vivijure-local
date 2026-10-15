@@ -64,14 +64,14 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 
 ## Render (storyboard aliases)
 
-- [x] `POST /api/storyboard/render`
-- [x] `GET /api/storyboard/render/:jobId` (film-* and scatter-*)
-- [x] `POST /api/storyboard/render/scatter`
+- [x] `POST /api/storyboard/render` (always a single film)
+- [x] `GET /api/storyboard/render/:jobId` (film-* only; scatter-* is 410 retired)
+- [x] `POST /api/storyboard/render/scatter` (retired; route removed)
 
 ## Render (explicit)
 
 - [x] `POST /api/render/film`
-- [x] `GET /api/render/film/:id`
+- [x] `GET /api/render/film/:id` (film-* only; scatter-* is 410 retired)
 - [x] `POST /api/render/clips`
 - [x] `GET /api/render/clips/:id`
 
@@ -118,6 +118,8 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 Verify poll responses advance through phases identically to upstream (`tests/film-poll-phases.test.ts`):
 
 - [x] keyframe
+- [x] pre_clip_dialogue (core 1.22.4; driving-audio doors only)
+- [x] pre_clip_speech (core 1.22.4; driving-audio + speech hook)
 - [x] clips (poll `phase: i2v`)
 - [x] dialogue
 - [x] speech
@@ -148,7 +150,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 ## Core dependency
 
-- [x] `@skyphusion-labs/vivijure-core` `^1.5.0` (lock resolves `1.5.0`; see `package.json` -- may lag `vivijure-cf`'s core pin)
+- [x] `@skyphusion-labs/vivijure-core` `1.22.5` (see `package.json` -- may lag `vivijure-cf`'s core pin)
 
 ## Ops hardening (compose / propagandhi; flatliners retired)
 

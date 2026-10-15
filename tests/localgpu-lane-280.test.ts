@@ -7,7 +7,7 @@
 // So the fence here is not "the doorless module refuses politely" -- it is that with no door there is
 // NO SERVICE IN THE STACK to refuse. The load-bearing assertions ask `docker compose config`, which is
 // the real resolver (profiles, anchors, interpolation, depends_on) rather than a regex guess about what
-// compose would do. It needs no daemon, only the compose CLI.
+// compose would do. It needs no daemon, only the compose CLI (plugin or standalone, resolved below).
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -33,14 +33,37 @@ const REPO = join(import.meta.dirname, "..");
  * `--env-file /dev/null` is deliberate: without it compose reads the developer's own .env, and a local
  * LOCAL_BACKEND_URL would decide the result instead of the fixture.
  */
+/**
+ * Compose ships two ways and a box may have either: as the `docker compose` CLI plugin (v2+), or as the
+ * standalone `docker-compose` binary (v5 still does). This repo's only remaining machine has the
+ * standalone one and no plugin, where `docker` does not recognise `compose` as a subcommand and reports
+ * the NEXT token as an unknown flag, which reads like a bad argument rather than a missing plugin
+ * (local#456: six tests in this file red on that, while CI stayed green because ubuntu-latest has the
+ * plugin). Resolve it once, prefer the plugin, and make the absence of BOTH a hard FAILURE: a skipped
+ * compose guard is a green that cannot go red.
+ */
+function composeArgv(): string[] {
+  for (const candidate of [["docker", "compose"], ["docker-compose"]]) {
+    try {
+      execFileSync(candidate[0], [...candidate.slice(1), "version"], { stdio: "ignore" });
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("no compose CLI found (tried `docker compose` and `docker-compose`); this test needs the real resolver");
+}
+
+const COMPOSE = composeArgv();
+
 const renders = new Map<string, string>();
 function compose(args: string[], env: Record<string, string>, profiles: string[]): string {
   const key = JSON.stringify([args, env, profiles]);
   const cached = renders.get(key);
   if (cached !== undefined) return cached;
-  const argv = ["compose", "--env-file", "/dev/null"];
+  const argv = [...COMPOSE.slice(1), "--env-file", "/dev/null"];
   for (const p of profiles) argv.push("--profile", p);
-  const out = execFileSync("docker", [...argv, ...args], {
+  const out = execFileSync(COMPOSE[0], [...argv, ...args], {
     cwd: REPO,
     encoding: "utf8",
     env: { ...process.env, LOCAL_BACKEND_URL: "", MODULE_LOCAL_GPU_URL: "", ...env },

@@ -8,7 +8,7 @@
   "provides": [
     {
       "id": "i2v-cloud-lora",
-      "label": "Wan 2.2 (cloud i2v + custom LoRA)"
+      "label": "Silent, your trained face (Wan)"
     }
   ],
   "config_schema": {
@@ -30,8 +30,8 @@
     },
     "enable_safety_checker": {
       "type": "bool",
-      "default": true,
-      "label": "safety checker"
+      "default": false,
+      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
@@ -39,6 +39,24 @@
     "order": 75,
     "locality": "cloud",
     "cost": "Pay per render",
-    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+    "blurb": "Detailed motion with your trained face. Silent.",
+    "limits": [
+      "5 or 8 second clips",
+      "Silent, with your trained face",
+      "One film, no scatter (face lock)",
+      "Speaking is Cast voice plus MuseTalk"
+    ]
+  },
+  "usage": {
+    "native_audio": false,
+    "voice": "cast_tts",
+    "scatter_native_audio": false,
+    "min_seconds": 5,
+    "max_seconds": 8,
+    "duration_steps": [
+      5,
+      8
+    ],
+    "seed": true
   }
 }

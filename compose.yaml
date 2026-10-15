@@ -76,35 +76,44 @@ x-cpu-module: &cpu-module
   environment:
     <<: *cpu-module-env
 
+# local#380: the runpod module environment lives in its OWN anchor so a service can EXTEND it.
+# A YAML merge key does not deep-merge mappings: a service-level `environment:` block REPLACES the
+# one an anchor supplies rather than adding to it, which silently dropped 21 of 22 vars from both
+# finish modules. A service that needs one override nests `<<: *runpod-module-env` INSIDE its own
+# `environment:` (the idiom x-cpu-module already uses for *cpu-module-env). Guarded by
+# tests/compose-anchor-env-380.test.ts, which asks the real compose resolver, not a regex.
+x-runpod-module-env: &runpod-module-env
+  DATABASE_PATH: /app/vivijure-local/data/studio.db
+  RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+  RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
+  VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+  MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
+  AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
+  FINISH_BACKEND: ${FINISH_BACKEND:-local}
+  FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
+  FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
+  LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
+  LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
+  LOCAL_FINISH_SPEECH_URL: ${LOCAL_FINISH_SPEECH_URL:-}
+  LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
+  # Sequential VRAM (local#265): finish sidecars unload Ollama before local GPU /run.
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+  OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
+  # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3, quota headroom on the backend render EP; id removed from tracked docs, scheduled for teardown per cf#215, see fleet-chezmoi runpod endpoints runbook; satellites override below)
+  RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+  S3_BUCKET: vivijure
+  S3_REGION: us-east-1
+  S3_FORCE_PATH_STYLE: "true"
+
 x-runpod-module: &runpod-module
   <<: *module-sidecar
   volumes:
     - studio-data:/app/vivijure-local/data:ro
   environment:
-    DATABASE_PATH: /app/vivijure-local/data/studio.db
-    RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
-    RUNPOD_ENDPOINT_ID: ${RUNPOD_ENDPOINT_ID:-}
-    VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID: ${VIDEO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
-    MUSETALK_RUNPOD_ENDPOINT_ID: ${MUSETALK_RUNPOD_ENDPOINT_ID:-}
-    AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID: ${AUDIO_UPSCALE_RUNPOD_ENDPOINT_ID:-}
-    FINISH_BACKEND: ${FINISH_BACKEND:-local}
-    FINISH_LIPSYNC_BACKEND: ${FINISH_LIPSYNC_BACKEND:-}
-    FINISH_UPSCALE_BACKEND: ${FINISH_UPSCALE_BACKEND:-}
-    LOCAL_FINISH_LIPSYNC_URL: ${LOCAL_FINISH_LIPSYNC_URL:-}
-    LOCAL_FINISH_UPSCALE_URL: ${LOCAL_FINISH_UPSCALE_URL:-}
-    LOCAL_FINISH_SPEECH_URL: ${LOCAL_FINISH_SPEECH_URL:-}
-    LOCAL_FINISH_TOKEN: ${LOCAL_FINISH_TOKEN:-}
-    # Sequential VRAM (local#265): finish sidecars unload Ollama before local GPU /run.
-    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-    OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
-    # cf#61: pre-submit idle workersMax reconcile (backend/keyframe default 3, quota headroom on the backend render EP; id removed from tracked docs, scheduled for teardown per cf#215, see fleet-chezmoi runpod endpoints runbook; satellites override below)
-    RUNPOD_WORKERS_MAX: ${RUNPOD_WORKERS_MAX:-3}
-    S3_ENDPOINT: http://minio:9000
-    S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
-    S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
-    S3_BUCKET: vivijure
-    S3_REGION: us-east-1
-    S3_FORCE_PATH_STYLE: "true"
+    <<: *runpod-module-env
 
 x-module-health-url: &module-health-url
   interval: 5s
@@ -305,6 +314,10 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9102/module.json"]
     environment:
+      # local#380: nest the anchor env, never replace it. Without this line the *cpu-module merge
+      # above contributes nothing and DATABASE_PATH never reaches the container; it was harmless
+      # only because the code default happens to equal the anchor value.
+      <<: *cpu-module-env
       # 16GB door first (local#265). Override to 12gb hostname or host URL as needed.
       # REQUIRED in this lane: the gate above refuses the stack if it is empty, and the sidecar exits
       # at startup rather than boot as a doorless stand-in.
@@ -330,6 +343,9 @@ services:
     <<: *runpod-module
     profiles: [satellites]
     environment:
+      # local#380: nest the anchor env, never replace it. A bare override here dropped the
+      # other 21 vars and the file read as though it injected them.
+      <<: *runpod-module-env
       RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/finish-module-server.ts", "9111", "finish-lipsync"]
     healthcheck:
@@ -340,6 +356,9 @@ services:
     <<: *runpod-module
     profiles: [satellites]
     environment:
+      # local#380: nest the anchor env, never replace it. A bare override here dropped the
+      # other 21 vars and the file read as though it injected them.
+      <<: *runpod-module-env
       RUNPOD_WORKERS_MAX: "2"
     command: ["npx", "tsx", "scripts/finish-module-server.ts", "9112", "finish-upscale"]
     healthcheck:

@@ -53,7 +53,7 @@ function get(
   return Promise.resolve(app.request(path, { headers: { authorization: `Bearer ${SECRET}`, ...extra } }));
 }
 
-/** Cookie-auth GET — the CSRF-vulnerable ambient path the #46 guard protects. */
+/** Cookie-auth GET -- the CSRF-vulnerable ambient path the #46 guard protects. */
 function getCookie(
   app: ReturnType<typeof createApp>,
   path: string,

@@ -8,6 +8,40 @@
 export interface OllamaEnv {
   OLLAMA_BASE_URL?: string;
   OLLAMA_PLAN_MODEL?: string;
+  /**
+   * Bound on the VRAM unload call, milliseconds. Default 5000, clamped to 120000.
+   * Exists because ten render entry points await the unload: without a bound a HUNG
+   * Ollama produces neither `unloaded` nor `failed`, it produces an unresolved promise,
+   * and fail-open only fails open if it RETURNS.
+   */
+  OLLAMA_UNLOAD_TIMEOUT_MS?: string;
+}
+
+/** Default bound on the unload call. Control-plane (keep_alive:0), not inference. */
+export const OLLAMA_UNLOAD_TIMEOUT_MS_DEFAULT = 5000;
+/** Upper clamp so a typo cannot restore the unbounded wait this exists to remove. */
+export const OLLAMA_UNLOAD_TIMEOUT_MS_MAX = 120000;
+
+export function ollamaUnloadTimeoutMs(env: OllamaEnv): number {
+  const raw = env.OLLAMA_UNLOAD_TIMEOUT_MS?.trim();
+  const n = raw ? Number(raw) : Number.NaN;
+  if (!Number.isFinite(n) || n <= 0) return OLLAMA_UNLOAD_TIMEOUT_MS_DEFAULT;
+  return Math.min(n, OLLAMA_UNLOAD_TIMEOUT_MS_MAX);
+}
+
+/** A bounded unload that ran out of time. Distinguishable without parsing the message. */
+export class OllamaUnloadTimeout extends Error {
+  readonly timedOut = true as const;
+  readonly ms: number;
+  constructor(ms: number, model: string) {
+    super(`ollama unload timed out after ${ms}ms (model=${model})`);
+    this.name = "OllamaUnloadTimeout";
+    this.ms = ms;
+  }
+}
+
+export function isUnloadTimeout(e: unknown): e is OllamaUnloadTimeout {
+  return e instanceof OllamaUnloadTimeout;
 }
 
 /**
@@ -59,6 +93,39 @@ function stripOllamaPrefix(id: string): string {
   return id.trim().replace(/^ollama\//, "");
 }
 
+/**
+ * Why an Ollama call failed. The distinction that matters is ANSWERED vs DID NOT ANSWER:
+ * a 404 "model not found, try pulling it first" means the server is UP and healthy, and
+ * reporting it as unreachable pages an operator into restarting a working container.
+ */
+export type OllamaFailureKind =
+  /** OLLAMA_BASE_URL missing, so we never asked. */
+  | "not_configured"
+  /** fetch itself rejected: dead process, connection refused, DNS. Genuinely unreachable. */
+  | "unreachable"
+  /** The server ANSWERED with a non-2xx (model not pulled, bad request). It is up. */
+  | "http_error"
+  /** The server ANSWERED 200 with no usable content. It is up. */
+  | "empty_reply";
+
+/** Typed failure so callers classify by KIND rather than by sniffing the message prose. */
+export class OllamaError extends Error {
+  readonly kind: OllamaFailureKind;
+  readonly status?: number;
+
+  constructor(kind: OllamaFailureKind, message: string, status?: number) {
+    super(message);
+    this.name = "OllamaError";
+    this.kind = kind;
+    if (status !== undefined) this.status = status;
+  }
+
+  /** True when Ollama replied at all. A non-2xx is an ANSWER, not a silence. */
+  get answered(): boolean {
+    return this.kind === "http_error" || this.kind === "empty_reply";
+  }
+}
+
 export interface OllamaChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -98,7 +165,7 @@ export async function callOllama(
   opts?: CallOllamaOptions,
 ): Promise<string> {
   const base = ollamaBaseUrl(env);
-  if (!base) throw new Error("ollama requires OLLAMA_BASE_URL");
+  if (!base) throw new OllamaError("not_configured", "ollama requires OLLAMA_BASE_URL");
   const model = ollamaPlanModel(env, modelOverride);
   const think = opts?.think === true;
   const temperature =
@@ -110,20 +177,28 @@ export async function callOllama(
   const num_ctx =
     typeof opts?.num_ctx === "number" && opts.num_ctx > 0 ? opts.num_ctx : OLLAMA_DEFAULT_NUM_CTX;
 
-  const resp = await fetch(`${base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: false,
-      // Top-level think (not options.think) -- required for qwen3 / r1 on native API.
-      think,
-      options: { temperature, num_ctx },
-      // Keep the model loaded only for this call; unloadOllamaModel frees VRAM after.
-      keep_alive: "5m",
-    }),
-  });
+  // Only a REJECTED fetch is unreachability. Everything below this point means the
+  // server answered, and the message is passed through verbatim so nothing that reads
+  // the prose changes.
+  let resp: Response;
+  try {
+    resp = await fetch(`${base}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        // Top-level think (not options.think) -- required for qwen3 / r1 on native API.
+        think,
+        options: { temperature, num_ctx },
+        // Keep the model loaded only for this call; unloadOllamaModel frees VRAM after.
+        keep_alive: "5m",
+      }),
+    });
+  } catch (e) {
+    throw new OllamaError("unreachable", (e as Error).message);
+  }
 
   if (!resp.ok) {
     const errText = await resp.text();
@@ -131,35 +206,51 @@ export async function callOllama(
       resp.status === 404 || /not found|pull/i.test(errText)
         ? ` (is ${model} pulled? run: docker compose run --rm ollama-pull)`
         : "";
-    throw new Error(`ollama ${resp.status}: ${errText.slice(0, 300)}${hint}`);
+    throw new OllamaError(
+      "http_error",
+      `ollama ${resp.status}: ${errText.slice(0, 300)}${hint}`,
+      resp.status,
+    );
   }
   const data = (await resp.json()) as {
     message?: { content?: string; thinking?: string };
   };
   const text = stripThinkingContent(data.message?.content ?? "");
-  if (!text) throw new Error("ollama returned no message content");
+  if (!text) throw new OllamaError("empty_reply", "ollama returned no message content");
   return text;
 }
 
 /**
- * Unload a model from Ollama VRAM (keep_alive: 0). Best-effort: logs via throw
- * only when the caller wants to surface failure; local-gpu swallows errors.
+ * Unload a model from Ollama VRAM (keep_alive: 0). Throws on HTTP/network failure
+ * when Ollama is configured; no-ops when OLLAMA_BASE_URL is unset.
  */
 export async function unloadOllamaModel(env: OllamaEnv, modelOverride?: string): Promise<void> {
   const base = ollamaBaseUrl(env);
   if (!base) return;
   const model = ollamaPlanModel(env, modelOverride);
 
-  const resp = await fetch(`${base}/api/generate`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt: "",
-      keep_alive: 0,
-      think: false,
-    }),
-  });
+  // Bounded: an unbounded unload is an unresolved promise on ten render entry points.
+  const timeoutMs = ollamaUnloadTimeoutMs(env);
+  const signal = AbortSignal.timeout(timeoutMs);
+  let resp: Response;
+  try {
+    resp = await fetch(`${base}/api/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model,
+        prompt: "",
+        keep_alive: 0,
+        think: false,
+      }),
+      signal,
+    });
+  } catch (e) {
+    // Read the SIGNAL, not the error name: the abort reason is spelled TimeoutError by
+    // undici and AbortError elsewhere, and `signal.aborted` is true in both.
+    if (signal.aborted) throw new OllamaUnloadTimeout(timeoutMs, model);
+    throw e;
+  }
   if (!resp.ok) {
     const errText = await resp.text();
     throw new Error(`ollama unload ${resp.status}: ${errText.slice(0, 200)}`);
@@ -168,18 +259,52 @@ export async function unloadOllamaModel(env: OllamaEnv, modelOverride?: string):
   await resp.text().catch(() => undefined);
 }
 
-/** Best-effort unload for handoff into local-gpu; never throws. */
+/**
+ * Structured VRAM handoff result (local#325).
+ *
+ * Pre-#325 both "Ollama not configured" and "unload threw" returned `false`, so a
+ * monitor could not tell them apart and the render path discarded the boolean.
+ * Three statuses, content-free machine fields:
+ *   skipped  -- OLLAMA_BASE_URL unset; nothing to free
+ *   unloaded -- keep_alive:0 accepted
+ *   failed   -- configured, attempted, could not free VRAM
+ */
+export type OllamaUnloadResult =
+  | { status: "skipped"; reason: "not-configured" }
+  | { status: "unloaded"; model: string }
+  | { status: "failed"; model: string; error: string; timed_out?: true };
+
+/** Best-effort unload for handoff into local-gpu; never throws. Distinguishes skip from fail. */
 export async function unloadOllamaModelBestEffort(
   env: OllamaEnv,
   modelOverride?: string,
-): Promise<boolean> {
-  if (!ollamaConfigured(env)) return false;
+): Promise<OllamaUnloadResult> {
+  if (!ollamaConfigured(env)) {
+    return { status: "skipped", reason: "not-configured" };
+  }
+  const model = ollamaPlanModel(env, modelOverride);
   try {
     await unloadOllamaModel(env, modelOverride);
-    return true;
+    return { status: "unloaded", model };
   } catch (e) {
-    console.warn(`ollama unload failed (continuing): ${(e as Error).message}`);
-    return false;
+    const error = e instanceof Error && e.message ? e.message : String(e);
+    // A timeout stays status:"failed" ON PURPOSE. Every consumer switches on "failed", so a
+    // fourth status would make a monitor stop seeing the WORST case; `timed_out` is the
+    // extra machine-readable bit rather than a replacement band.
+    const timedOut = isUnloadTimeout(e);
+    // Layer 1 signal: failed unload is a WARN with a stable prefix a monitor can grep.
+    console.warn(
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "failed",
+        model,
+        error: error.slice(0, 200),
+        ...(timedOut ? { timed_out: true } : {}),
+      }),
+    );
+    return timedOut
+      ? { status: "failed", model, error, timed_out: true }
+      : { status: "failed", model, error };
   }
 }
 
@@ -194,26 +319,52 @@ export function ollamaEnvFromRecord(
   return {
     OLLAMA_BASE_URL: get("OLLAMA_BASE_URL"),
     OLLAMA_PLAN_MODEL: get("OLLAMA_PLAN_MODEL"),
+    // Must be copied here too, or the render path (which goes through this projection)
+    // silently gets the default while the operator's setting reads as configured.
+    OLLAMA_UNLOAD_TIMEOUT_MS: get("OLLAMA_UNLOAD_TIMEOUT_MS"),
   };
 }
 
 /**
- * Canonical sequential-VRAM handoff (local#265): free Ollama before any local door
- * GPU job (keyframe, motion, local finish). Fail-open with a warn when Ollama is
- * configured but unload fails; no-op when OLLAMA_BASE_URL is unset.
+ * Canonical sequential-VRAM handoff (local#265 / local#325): free Ollama before any
+ * local door GPU job (keyframe, motion, local finish).
+ *
+ * Fail-open for the render (a stuck LLM is worse than a blocked film), but the result
+ * is ALWAYS structured so a caller/monitor can see unload failed vs not configured.
  * Never skip the unload attempt when OLLAMA_BASE_URL is configured.
  */
 export async function ensureOllamaUnloadedForGpu(
   env: OllamaEnv | NodeJS.ProcessEnv | Record<string, unknown>,
   modelOverride?: string,
-): Promise<boolean> {
+): Promise<OllamaUnloadResult> {
   const ollama = ollamaEnvFromRecord(env);
-  if (!ollamaConfigured(ollama)) return false;
-  const ok = await unloadOllamaModelBestEffort(ollama, modelOverride);
-  if (ok) {
+  if (!ollamaConfigured(ollama)) {
+    return { status: "skipped", reason: "not-configured" };
+  }
+  const result = await unloadOllamaModelBestEffort(ollama, modelOverride);
+  if (result.status === "unloaded") {
     console.info(
-      `ollama unload ok (model=${ollamaPlanModel(ollama, modelOverride)}) before local GPU claim`,
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "unloaded",
+        model: result.model,
+        note: "before local GPU claim",
+      }),
+    );
+  } else if (result.status === "failed") {
+    // Layer 2 signal: success used to be the only log line at this layer; failure was silent
+    // here and only a lower-level warn. Emit the same shape so a monitor watching ollama_unload
+    // sees both.
+    console.warn(
+      JSON.stringify({
+        event: "ollama_unload",
+        status: "failed",
+        model: result.model,
+        error: result.error.slice(0, 200),
+        ...(result.timed_out ? { timed_out: true } : {}),
+        note: "before local GPU claim; render continues (fail-open)",
+      }),
     );
   }
-  return ok;
+  return result;
 }

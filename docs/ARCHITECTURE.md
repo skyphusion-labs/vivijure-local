@@ -47,8 +47,8 @@ implements `NodePlatform`.
 | `ModuleTransport` | Service bindings `MODULE_*` | HTTP `fetch` to sidecar URLs |
 | `AIRouter` | `env.AI.run` + Gateway | Direct provider APIs (`vivijure/src/providers/*`) |
 | `RateLimiter` | `SPEND_RATE_LIMITER` | In-memory token bucket (v1); Redis optional later |
-| `Scheduler` | Cron `scheduled` | `node-cron` calling render sweep |
-| `StaticAssets` | Workers Assets | `express.static` / Hono `serveStatic` on `public/` |
+| `Scheduler` | Cron `scheduled` | `setInterval (core sweepUnresolvedJobs)` calling render sweep |
+| `StaticAssets` | Workers Assets | `Hono serveStatic` / Hono `serveStatic` on `public/` |
 
 ## Module transport
 
@@ -94,7 +94,7 @@ Module workers that called VPC fetchers (`beat-sync`, finish modules) use `*_VPC
 
 ## Auth
 
-v1 supports `AUTH_MODE=token` only (`STUDIO_API_TOKEN` + D1-shaped `api_tokens` table). CF Access is a cloud-host concern; not ported.
+v1 supports `AUTH_MODE=token` (default) and `AUTH_MODE=demo` (`STUDIO_API_TOKEN` + D1-shaped `api_tokens` table (named tokens = full operator reach, no scope column -- local#238)). CF Access is a cloud-host concern; not ported.
 
 **Named tokens are attribution, not scope (local#238).** `api_tokens` is `(name, token_hash,
 created_at, revoked_at)` with **no capability column**. `verifyTokenRequest` admits a named token

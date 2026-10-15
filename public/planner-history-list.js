@@ -480,11 +480,10 @@ function renderHistoryList(rows, totalRows) {
     else childrenByParent.set(x.parent_id, [x]);
   }
 
-  // v0.162.0: collect scatter-parent numeric ids so shard children are
-  // suppressed from the top-level list. Shards are shown nested (count +
-  // progress) on the parent card instead of as individual cards. Only rows
-  // whose job_id starts with "scatter-" are parents; non-scatter parent/child
-  // rows (keyframes-from / animate) are unaffected.
+  // Historical scatter parents stay in the list; hide their shard children
+  // so old scatter shards do not appear as their own cards. The parent row
+  // is labeled retired. Non-scatter parent/child rows (keyframes-from /
+  // animate) are unaffected.
   const scatterParentIds = new Set();
   for (const x of all) {
     if (typeof x.job_id === "string" && x.job_id.startsWith("scatter-")) {

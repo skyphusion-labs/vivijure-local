@@ -1,6 +1,6 @@
 {
   "name": "cloud-keyframe",
-  "version": "0.1.1",
+  "version": "0.1.8",
   "api": "vivijure-module/2",
   "hooks": [
     "keyframe"
@@ -15,13 +15,10 @@
     "model": {
       "type": "enum",
       "values": [
-        "@cf/black-forest-labs/flux-2-klein-9b",
-        "google/nano-banana-pro",
-        "@cf/black-forest-labs/flux-2-klein-4b",
-        "@cf/black-forest-labs/flux-2-dev"
+        "google/nano-banana-2"
       ],
-      "default": "@cf/black-forest-labs/flux-2-klein-9b",
-      "label": "image model (FLUX-2 klein-9b cheap/fast; nano-banana-pro quality)"
+      "default": "google/nano-banana-2",
+      "label": "image model (Cloudflare Nano Banana 2)"
     },
     "width": {
       "type": "int",
@@ -46,12 +43,12 @@
     },
     "film_ref": {
       "type": "string",
-      "default": "none",
+      "default": "first_keyframe",
       "label": "film-wide reference lock (none | first_keyframe | cast:<slot>)"
     }
   },
   "ui": {
     "section": "keyframe",
-    "order": 20
+    "order": 5
   }
 }

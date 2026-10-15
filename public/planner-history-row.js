@@ -101,31 +101,14 @@ function buildHistoryRow(r, childrenByParent) {
     meta.appendChild(fsBadge);
   }
 
-  // v0.162.0: scatter parent badge + shard progress. Shard children are
-  // suppressed from the top-level list in renderHistoryList; only the parent
-  // card appears. childrenByParent already indexes shards by parent numeric id.
+  // Historical scatter rows stay labeled. Scatter submit is retired; poll of
+  // scatter-* ids returns 410 and does not advance.
   if (typeof r.job_id === "string" && r.job_id.startsWith("scatter-")) {
-    const shards = childrenByParent.get(r.id) || [];
-    const nShards = shards.length;
     const scatterBadge = document.createElement("span");
     scatterBadge.className = "planner-history-mode planner-history-mode-scatter";
-    scatterBadge.textContent =
-      nShards ? "distributed -- " + nShards + " shards" : "distributed";
-    scatterBadge.title =
-      "scatter/gather distributed render" +
-      (nShards ? " (" + nShards + " parallel shards)" : "");
+    scatterBadge.textContent = "retired";
+    scatterBadge.title = "scatter is retired; start a single film";
     meta.appendChild(scatterBadge);
-
-    if (r.status === "SCATTERING" || r.status === "IN_PROGRESS" || r.status === "IN_QUEUE") {
-      const done = shards.filter((s) => s.status === "COMPLETED").length;
-      if (nShards > 0) {
-        const progBadge = document.createElement("span");
-        progBadge.className = "planner-history-mode planner-history-mode-progress";
-        progBadge.textContent = done + " of " + nShards + " shards complete";
-        progBadge.title = "shard render progress";
-        meta.appendChild(progBadge);
-      }
-    }
   }
 
   // v0.145.2: version badge for a derived animation (GPU finalize or cloud

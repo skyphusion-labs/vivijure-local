@@ -1,6 +1,6 @@
 {
   "name": "keyframe",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "api": "vivijure-module/2",
   "hooks": [
     "keyframe"
@@ -64,6 +64,18 @@
       ],
       "default": "ip_adapter",
       "label": "face identity method"
+    },
+    "scene_lock": {
+      "type": "bool",
+      "default": true,
+      "label": "keep people in the scene"
+    },
+    "canny_scale": {
+      "type": "float",
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "label": "scene lock strength"
     }
   },
   "ui": {

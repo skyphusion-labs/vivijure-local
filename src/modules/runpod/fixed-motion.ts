@@ -90,17 +90,24 @@ export const FIXED_MOTION: Record<string, FixedEndpointConfig> = {
   "alibaba-wan": {
     endpoint: "https://api.runpod.ai/v2/wan-2-6-i2v",
     clipSuffix: "_wan",
-    buildBody: (input, cfg) => ({
-      prompt: input.prompt,
-      image: input.keyframe_url,
-      negative_prompt: "",
-      size: String(cfg.resolution ?? cfg.size ?? "720p"),
-      duration: clampWanDuration(Number(input.seconds) || 5),
-      shot_type: String(cfg.shot_type ?? "single"),
-      seed: -1,
-      enable_prompt_expansion: cfg.enable_prompt_expansion === true,
-      enable_safety_checker: true,
-    }),
+    buildBody: (input, cfg) => {
+      const body: Record<string, unknown> = {
+        prompt: input.prompt,
+        image: input.keyframe_url,
+        negative_prompt: "",
+        size: String(cfg.resolution ?? cfg.size ?? "720p"),
+        duration: clampWanDuration(Number(input.seconds) || 5),
+        shot_type: String(cfg.shot_type ?? "single"),
+        seed: -1,
+        enable_prompt_expansion: cfg.enable_prompt_expansion === true,
+        enable_safety_checker: true,
+      };
+      // Driving audio is the shot LINE (WAV/MP3), never the Cast sample.
+      if (typeof input.audio_url === "string" && input.audio_url) {
+        body.audio = input.audio_url;
+      }
+      return body;
+    },
   },
   "alibaba-wan-lora": {
     endpoint: "https://api.runpod.ai/v2/wan-2-2-t2v-720-lora",
@@ -245,13 +252,15 @@ export async function pollFixedMotion(
   } catch (e) {
     return { ok: false, error: `${name} store failed: ${(e as Error).message}` };
   }
+  const frames = Math.round((st.seconds ?? 5) * (cfg.outFps ?? 16));
   return {
     ok: true,
     output: {
       shot_id: st.shotId,
       clip_key,
       fps: cfg.outFps ?? 16,
-      frames: Math.round((st.seconds ?? 5) * (cfg.outFps ?? 16)),
+      frames,
+      ...(name === "alibaba-wan" ? { has_audio: true } : {}),
     },
   };
 }

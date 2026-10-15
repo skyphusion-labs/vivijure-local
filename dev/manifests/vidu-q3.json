@@ -1,6 +1,6 @@
 {
   "name": "vidu-q3",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -8,19 +8,24 @@
   "provides": [
     {
       "id": "i2v-cloud",
-      "label": "Vidu Q3 (cloud i2v)"
+      "label": "Talking clips (Vidu)"
     }
   ],
   "config_schema": {
     "generate_audio": {
       "type": "bool",
-      "default": false,
-      "label": "native audio (off: core mux chain owns audio)"
+      "default": true,
+      "label": "keep the model's talking audio (off: silent clip)"
     },
     "bgm": {
       "type": "bool",
       "default": false,
       "label": "background music (off by default)"
+    },
+    "enable_safety_checker": {
+      "type": "bool",
+      "default": false,
+      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
@@ -28,6 +33,20 @@
     "order": 60,
     "locality": "cloud",
     "cost": "Pay per render",
-    "blurb": "Rents datacenter GPUs by the second -- top quality, scale-to-zero; you pay only for render seconds."
+    "blurb": "Talking clips when you have several stills. 3-10 seconds.",
+    "limits": [
+      "3-10 second clips",
+      "Same voice lock on every shot",
+      "One film, no scatter",
+      "Best when you have several stills",
+      "Cannot lock the Cast voice sample. Same description, not the same take."
+    ]
+  },
+  "usage": {
+    "native_audio": true,
+    "voice": "prompt_lock",
+    "scatter_native_audio": false,
+    "min_seconds": 3,
+    "max_seconds": 10
   }
 }

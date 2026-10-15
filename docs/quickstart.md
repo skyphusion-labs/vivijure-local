@@ -3,7 +3,7 @@
 This is the short path to a **local** Vivijure Studio: one `docker compose` command, no
 Cloudflare account, no Workers bindings, and **no RunPod modules** in the default stack. When you
 finish this page you will have the studio API, the planner UI, MinIO, Ollama (plan.enhance), CPU
-media containers, and the local-gpu sidecar on your machine.
+media containers, and the CPU media stack (add COMPOSE_PROFILES=localgpu + a door URL for local-gpu).
 
 > **Homelab / hobbyist host.** `vivijure-local` ships **full parity** with
 > [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf) on the same module contract.

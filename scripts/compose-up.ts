@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * `npm run compose:up` — pull + up, with a fail-closed preflight when
+ * `npm run compose:up` -- pull + up, with a fail-closed preflight when
  * COMPOSE_PROFILES includes `edge` and MinIO still has minioadmin defaults.
  */
 import { existsSync, readFileSync } from "node:fs";

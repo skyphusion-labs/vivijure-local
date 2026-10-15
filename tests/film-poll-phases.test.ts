@@ -59,6 +59,13 @@ describe("film poll phase projection (vivijure-core filmJobToPollView)", () => {
     }
   });
 
+  it("reports IN_PROGRESS for pre_clip_dialogue and pre_clip_speech", () => {
+    for (const phase of ["pre_clip_dialogue", "pre_clip_speech"] as const) {
+      const view = filmJobToPollView(baseJob(phase), null);
+      expect(view.status).toBe("IN_PROGRESS");
+    }
+  });
+
   it("reports IN_PROGRESS for master phase", () => {
     expect(filmJobToPollView(baseJob("master"), null).status).toBe("IN_PROGRESS");
   });

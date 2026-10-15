@@ -63,7 +63,7 @@ function buildCastLoraSubmit() {
   // server-side removes the dependency on cache freshness entirely.
   // S9 (F13): a cast id is an opaque public id (UUID string); pass it through
   // verbatim. Number() coercion would map every UUID to NaN and send an empty
-  // castLoras, and the render/scatter route now rejects a bare integer.
+  // castLoras, and the render route now rejects a bare integer.
   const out = {};
   for (const [slot, raw] of Object.entries(planState.castBindings || {})) {
     if (typeof slot !== "string" || slot.length === 0) continue;

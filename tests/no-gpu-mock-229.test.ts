@@ -102,8 +102,7 @@ describe("local-gpu with a real door (local#229 positive control)", () => {
     const body = await moduleJson(app(DOOR_CONFIGURED));
     expect(Object.keys(body)).not.toContain("configured");
     // CONTROL: the shipped manifest, not an empty object that would satisfy the above vacuously.
-    // This is the exact label the fabricated frames were once served under.
-    expect((body.provides as { label: string }[])[1].label).toBe("Local GPU Keyframe (SDXL on your own card)");
+    expect((body.provides as { label: string }[])[1].label).toBe("Keyframes on your own GPU");
     expect(body.name).toBe("local-gpu");
     // Kept by the registry filter for the same reason: nothing here asks to be hidden.
     const kept = filterConfiguredModules([body as unknown as RegisteredModule]).map((m) => m.name);

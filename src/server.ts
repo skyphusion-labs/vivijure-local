@@ -42,6 +42,26 @@ export async function buildStudio(): Promise<StudioBoot> {
 
   const runtime = await RuntimeEnv.load(process.env, db);
 
+  // local#379: the store WINS over .env, so an operator edit to the documented file can have no effect
+  // with no error anywhere. Name the divergent keys at boot; a warning is the whole fix, because
+  // reconciling either direction here would silently destroy a real change. Names only, never values,
+  // and never fatal: a boot that dies over a config report is worse than the drift.
+  try {
+    const { divergentRows, seedStoreDrift } = await import("./platform-secrets-drift.js");
+    const { listPlatformSecrets } = await import("./platform-secrets-db.js");
+    const divergent = divergentRows(seedStoreDrift(process.env, await listPlatformSecrets(db)));
+    if (divergent.length > 0) {
+      console.warn(
+        `platform secrets: ${divergent.length} key(s) differ between .env and the runtime store; ` +
+          `the STORE is live and .env is only a seed, so these .env values are NOT in effect: ` +
+          divergent.map((r) => r.key).join(", ") +
+          ". Run `npm run check:secret-drift` for the report and the clear-then-align order.",
+      );
+    }
+  } catch (e) {
+    console.warn(`platform secrets: seed/store drift check failed (${(e as Error).message})`);
+  }
+
   const storage = createStorage(runtime.asProcessEnv(), {
     publicBase,
     token: runtime.get("STUDIO_API_TOKEN"),

@@ -1,0 +1,50 @@
+{
+  "name": "infinitetalk",
+  "version": "0.1.1",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "motion.backend"
+  ],
+  "provides": [
+    {
+      "id": "i2v-cloud",
+      "label": "Talking from our voice (InfiniteTalk)"
+    }
+  ],
+  "config_schema": {
+    "size": {
+      "type": "enum",
+      "values": [
+        "480p",
+        "720p"
+      ],
+      "default": "480p",
+      "label": "resolution"
+    },
+    "enable_safety_checker": {
+      "type": "bool",
+      "default": false,
+      "label": "provider safety filter (off: we already refuse CSAM)"
+    }
+  },
+  "ui": {
+    "section": "motion",
+    "order": 15,
+    "locality": "cloud",
+    "cost": "Pay per render",
+    "blurb": "Portrait plus Cast audio. The speaker is ours, not invented.",
+    "limits": [
+      "Mouth follows the storyboard line in the Cast voice. A shot with no line stays quiet.",
+      "Clip length follows that audio.",
+      "One film, no scatter"
+    ]
+  },
+  "usage": {
+    "native_audio": false,
+    "voice": "cast_tts",
+    "scatter_native_audio": false,
+    "driving_audio": true,
+    "min_seconds": 2,
+    "max_seconds": 15
+  }
+}

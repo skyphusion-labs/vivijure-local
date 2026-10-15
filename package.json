@@ -1,6 +1,6 @@
 {
   "name": "vivijure-local",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Vivijure Local: run the AGPL AI film studio control panel on a home PC or any cloud server (Node, SQLite, S3/MinIO). Same API as vivijure-cf; no Cloudflare required.",
   "license": "AGPL-3.0-only",
   "homepage": "https://github.com/skyphusion-labs/vivijure-local",
@@ -27,6 +27,7 @@
     "migrate:demo": "tsx scripts/migrate-demo.ts",
     "bootstrap:secrets": "tsx scripts/bootstrap-secrets.ts",
     "sync:secrets": "tsx scripts/sync-minio-tunnel-secrets.ts",
+    "check:secret-drift": "tsx scripts/check-secret-drift.ts",
     "sync:secrets:compose": "docker compose exec -T studio npx tsx scripts/sync-minio-tunnel-secrets.ts",
     "sync:tunnel-secrets": "npm run sync:secrets",
     "sync:tunnel-secrets:compose": "npm run sync:secrets:compose",
@@ -64,24 +65,24 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1107.0",
-    "@hono/node-server": "^2.1.0",
-    "@skyphusion-labs/vivijure-core": "^1.11.0",
-    "@skyphusion-labs/vivijure-mcp": "^1.2.1",
-    "dotenv": "^17.4.2",
-    "hono": "^4.13.1"
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@hono/node-server": "^2.1.4",
+    "@skyphusion-labs/vivijure-core": "1.25.0",
+    "@skyphusion-labs/vivijure-mcp": "^1.3.0",
+    "dotenv": "^18.0.7",
+    "hono": "^4.13.13"
   },
   "overrides": {
-    "sharp": ">=0.35.0",
+    "sharp": "0.35.4",
     "undici": "7.29.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^26.2.0",
-    "@vitest/coverage-v8": "^4.1.10",
-    "tsx": "^4.23.12",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.4",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.120.1"
+    "vitest": "^5.0.4",
+    "wrangler": "^4.149.0"
   }
 }

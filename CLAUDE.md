@@ -12,15 +12,18 @@ core sources.
 
 Version: see root `package.json` / latest `v*` tag / `CHANGELOG.md` / `RELEASES.md`.
 
-Fleet reference install: **propagandhi** (local studio door). Operator pins; do not freeze hostnames
-or endpoint IDs as eternal truth here.
+The Hetzner fleet, including this section's old named reference installs, was decommissioned
+2026-09-24; there is currently no Skyphusion-operated reference install of either panel
+(verified 2026-09-25: the old production hostname for this panel is NXDOMAIN). Operator pins;
+do not freeze hostnames or endpoint IDs as eternal truth here -- that already happened once and
+the doc rotted under it.
 
 ## TWO panels (honesty)
 
 | Panel | Repo | Notes |
 |-------|------|-------|
-| CF | `vivijure-cf` | Workers / D1 / R2; fatmike CF door in fleet ops |
-| LOCAL (this) | `vivijure-local` | Node host; propagandhi |
+| CF | `vivijure-cf` | Workers / D1 / R2 |
+| LOCAL (this) | `vivijure-local` | Node host, self-hosted by the operator |
 
 **Product parity** (same-time feature releases, no community edition) is required. **Semver pins of
 core / MCP / compose images may lag cf** -- check each lockfile. Lag is not automatic defect; dual-panel
@@ -89,6 +92,15 @@ Full ledger: **`RELEASES.md`**.
 
 Tag must match `package.json` version and `CHANGELOG.md` must contain `## vX.Y.Z`. Tag must be an
 ancestor of `origin/main`.
+
+**Review-time half (local#399).** `tests/changelog-version.test.ts` runs inside the required `ci`
+check on every PR and asserts that `package.json` version equals the NEWEST `## vX.Y.Z` heading in
+`CHANGELOG.md` (the `## Unreleased` section above it is skipped), equals `package-lock.json`
+top-level `version`, and equals `package-lock.json` `packages[""].version`. It also asserts that an
+EXACT dependency pin on an `@skyphusion-labs/*` package matches what the lock resolves, because
+`npm ci` installs the LOCK and a hand-edited pin with a stale lock silently keeps the old package.
+Caret and tilde ranges are deliberately not asserted against their floor. The tag-time guard above
+fires only when someone cuts a tag; this one fires while a human is still looking at the diff.
 
 ### Dependency order
 
