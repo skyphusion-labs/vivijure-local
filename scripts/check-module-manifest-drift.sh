@@ -13,10 +13,11 @@
 #   bash scripts/check-module-manifest-drift.sh [vivijure-cf-clone]
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-module-manifest-drift.sh
 #
-# CI (manifest-drift.yml) checks out vivijure-cf at main ON PURPOSE. A parity guard that
-# pins its comparison selects a reference point at which drift is invisible, so it stops
-# being able to go red on the thing it exists for (local#403 closed local#362 on exactly
-# that argument). Tracking main is the posture; the marker below is the fix.
+# The CI workflow is OFF (2026-10-15). vivijure-local and vivijure-cf are out of sync
+# and will stay that way for some time, so the job was removed rather than left red.
+# Run this script by hand when a comparison is actually wanted. When the two repos
+# converge, put .github/workflows/manifest-drift.yml back: it checked vivijure-cf out
+# at main on purpose (local#403). A comparison pinned to an old sha hides drift.
 
 set -euo pipefail
 

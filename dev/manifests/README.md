@@ -36,7 +36,8 @@ install:
 
 1. `check-module-manifest-drift.sh` diffs every committed fixture against the `vivijure-cf` module.
    Removing the fixture without removing the sync-list entry (or the reverse) fails that check by
-   design, and the drift signal against cf is worth keeping.
+   design. CI does not run it right now: the two repos are out of sync and will be for some time
+   (workflow removed 2026-10-15). The script is still the manual check.
 2. An operator who wires RIFE to RunPod **explicitly** (`scripts/finish-module-server.ts`, see
    `docs/FINISH_BACKEND.md`) reads the config schema from this fixture. That path is opt-in, wired by
    hand, and stays supported. What is not supported is a local install being handed RIFE knobs it
@@ -59,5 +60,5 @@ the only FLUX family member allowed to self-host.
 
 Do not "fix" this fixture's default to a Hugging Face self-host id. The code guard and full
 table live in `src/modules/chain/cast-image-model-policy.ts` and `THIRD_PARTY_MODELS.md`. The
-fixture itself stays byte-synced with vivijure-cf (no local annotation key -- that would red the
-manifest-drift job).
+fixture itself stays byte-synced with vivijure-cf (no local annotation key). The CI job that
+used to red on that key is off until the repos converge.
