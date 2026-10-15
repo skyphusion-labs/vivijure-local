@@ -4,10 +4,11 @@
 // still says the old thing.
 //
 // What was left behind:
-//   README.md:5   summary line listed overlay among the served film.finish text routes
 //   README.md:41  the ROUTE TABLE presented it as live, 27 lines below the same file
-//                 saying it is retired (410) -- a file contradicting itself, each line
-//                 plausible on its own, and the table is the part a reader consults
+//                 saying it is retired (410). A file contradicting itself, each line
+//                 plausible on its own, and the table is the part a reader consults.
+//                 The summary parenthetical is vendored from vivijure-cf and still names
+//                 overlay. This file locks that sentence and does not rewrite it.
 //   app.py:16     `import base64`, 1 occurrence in the file, zero uses
 //   Dockerfile    fonts-dejavu-core + fontconfig justified ENTIRELY by "the /overlay route
 //                 added in #190"
@@ -50,12 +51,12 @@ describe("/overlay retirement is finished in the documents too", () => {
     ).toMatch(/RETIRED|410/i);
   });
 
-  it("the README does not list overlay among the routes it serves", () => {
+  it("the summary sentence is the vendored cf line", () => {
     const md = read(README);
-    expect(md).not.toMatch(/text routes \(overlay/);
-    // Control: the sentence still exists, so the absence above is about the word and not
-    // about the sentence having been deleted.
-    expect(md).toMatch(/text routes \(title\/credit cards, subtitles\)/);
+    // video-finish/README.md is byte-identical with vivijure-cf. That sentence still
+    // names overlay in the parenthetical. The route table row above is the control
+    // that the route is retired, so this assertion only locks the vendored sentence.
+    expect(md).toMatch(/text routes \(overlay, title\/credit cards, subtitles\)/);
   });
 
   it("app.py has no unused base64 import left over from the removal", () => {

@@ -34,17 +34,27 @@ import { accumulateFinishElapsed } from "@skyphusion-labs/vivijure-core/film-orc
 
 const ROOT = join(import.meta.dirname, "..");
 
-// Container -> how many stages of that container report their own wall clock. video-finish serves
-// three finish stages (/finish assemble-or-mux, /film-titles, /subtitle), each timed on its own.
+// Container -> how many clocks that container starts. video-finish serves three finish
+// stages (/finish assemble-or-mux, /film-titles, /subtitle), each timed on its own.
+// /finish emits elapsedMs on two returns (the direct path and the chunked path). Both
+// use the clock _finish_work starts, so emissions and clocks are not the same number.
 // Mirrors vivijure-cf exactly; a cf stage added without a local emitter reds the count here.
-const STAGES: Record<string, number> = {
+const CLOCKS: Record<string, number> = {
   "video-finish": 3,
   "image-prep": 1,
   "audio-beat-sync": 1,
   "audio-mix": 1,
   "audio-master": 1,
 };
-const TOTAL_STAGES = Object.values(STAGES).reduce((a, b) => a + b, 0);
+const EMISSIONS: Record<string, number> = {
+  "video-finish": 4,
+  "image-prep": 1,
+  "audio-beat-sync": 1,
+  "audio-mix": 1,
+  "audio-master": 1,
+};
+const TOTAL_CLOCKS = Object.values(CLOCKS).reduce((a, b) => a + b, 0);
+const TOTAL_EMISSIONS = Object.values(EMISSIONS).reduce((a, b) => a + b, 0);
 
 function containerSource(name: string): string {
   return readFileSync(join(ROOT, "containers", name, "app.py"), "utf8");
@@ -128,37 +138,37 @@ describe("the producers exist in the shipped containers (local#401)", () => {
     let containers = 0;
     let emissions = 0;
     let timed = 0;
-    for (const name of Object.keys(STAGES)) {
+    for (const name of Object.keys(CLOCKS)) {
       const src = containerSource(name);
       containers += 1;
       emissions += countEmissions(src);
       timed += countTimedStages(src);
     }
     console.log(
-      `local#401 producer scan: ${containers}/${Object.keys(STAGES).length} containers read, ` +
-        `${emissions}/${TOTAL_STAGES} emission sites found, ${timed}/${TOTAL_STAGES} stages measuring their own wall clock`,
+      `local#401 producer scan: ${containers}/${Object.keys(CLOCKS).length} containers read, ` +
+        `${emissions}/${TOTAL_EMISSIONS} emission sites found, ${timed}/${TOTAL_CLOCKS} stages measuring their own wall clock`,
     );
-    expect(containers).toBe(Object.keys(STAGES).length);
-    expect(emissions).toBe(TOTAL_STAGES);
-    expect(timed).toBe(TOTAL_STAGES);
+    expect(containers).toBe(Object.keys(CLOCKS).length);
+    expect(emissions).toBe(TOTAL_EMISSIONS);
+    expect(timed).toBe(TOTAL_CLOCKS);
   });
 
-  for (const [name, stages] of Object.entries(STAGES)) {
-    it(`${name} defines the helper, imports time, and emits on all ${stages} stage(s)`, () => {
+  for (const [name, clocks] of Object.entries(CLOCKS)) {
+    it(`${name} defines the helper, imports time, and emits on all ${EMISSIONS[name]} site(s)`, () => {
       const src = containerSource(name);
       expect(src).toMatch(/^import time$/m);
       expect(src).toMatch(/^def _elapsed_ms\(t0: float\) -> int:$/m);
       // The measurement is the container's OWN monotonic wall clock for its stage, never a
       // timestamp difference handed to it by the studio.
       expect(src).toMatch(/return max\(0, int\(round\(\(time\.monotonic\(\) - t0\) \* 1000\)\)\)/);
-      expect(countEmissions(src)).toBe(stages);
-      expect(countTimedStages(src)).toBe(stages);
+      expect(countEmissions(src)).toBe(EMISSIONS[name]);
+      expect(countTimedStages(src)).toBe(clocks);
     });
   }
 
   it("NEGATIVE CONTROL: the scanner reports ZERO once the emission is deleted (it can go red)", () => {
     const src = containerSource("video-finish");
-    expect(countEmissions(src)).toBe(STAGES["video-finish"]);
+    expect(countEmissions(src)).toBe(EMISSIONS["video-finish"]);
     // Same source, emission lines removed: this is exactly the pre-fix tree, and the scanner must
     // be able to see it. A guard that cannot report the defect it exists for is decoration.
     const stripped = src.replace(/^.*"elapsedMs".*\n/gm, "");
@@ -168,7 +178,7 @@ describe("the producers exist in the shipped containers (local#401)", () => {
 
 describe("the wire key matches at both ends (local#401)", () => {
   it("every container emits the SAME key, parsed from the container sources", () => {
-    const keys = new Set(Object.keys(STAGES).flatMap((n) => emittedKeys(containerSource(n))));
+    const keys = new Set(Object.keys(CLOCKS).flatMap((n) => emittedKeys(containerSource(n))));
     expect([...keys]).toEqual(["elapsedMs"]);
   });
 
@@ -178,7 +188,7 @@ describe("the wire key matches at both ends (local#401)", () => {
     // pass against an empty set, which is the shape of the bug this file is about.
     console.log(`local#401 core consume sites: ${sites} accumulateFinishElapsed call(s) reading body.[${[...consumed].join(", ")}]`);
     expect(sites).toBeGreaterThan(0);
-    const emitted = new Set(Object.keys(STAGES).flatMap((n) => emittedKeys(containerSource(n))));
+    const emitted = new Set(Object.keys(CLOCKS).flatMap((n) => emittedKeys(containerSource(n))));
     expect([...consumed].sort()).toEqual([...emitted].sort());
   });
 });
