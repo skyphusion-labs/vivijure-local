@@ -1,12 +1,18 @@
 name: vivijure-local
 # Default setup reads this file when the repository property
 # github-codeql-config-file points at it. That property is set on this
-# repository. containers/ is vendored from
-# vivijure-cf, and that repo ignores containers too. The py/full-ssrf
-# comment in url_guard.py does not cover an alert that carries a column,
-# so a whole-tree scan fails every pull request that touches those files.
-# test_url_guard.py is the behavioral check. There is no paths allowlist:
-# workflow files under .github have to stay in the scan.
+# repository.
+#
+# Do not ignore the whole containers tree. Every Python file in this repo
+# is under containers/, and a Python job with no source fails the check.
+# The py/full-ssrf alerts are the five url_guard.py copies. The suppression
+# comment does not cover an alert that has a column. Those files are
+# ignored here. app.py and the container tests stay in the scan.
+# There is no paths allowlist, so workflow files under .github stay in
+# the scan.
 paths-ignore:
-  - containers
-  - containers/**
+  - containers/video-finish/url_guard.py
+  - containers/image-prep/url_guard.py
+  - containers/audio-beat-sync/url_guard.py
+  - containers/audio-mix/url_guard.py
+  - containers/audio-master/url_guard.py
