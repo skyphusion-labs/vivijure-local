@@ -1,6 +1,7 @@
 name: vivijure-local
 # Default setup reads this file when the repository property
-# github-codeql-config-file points at it. containers/ is vendored from
+# github-codeql-config-file points at it. That property is set on this
+# repository. containers/ is vendored from
 # vivijure-cf, and that repo ignores containers too. The py/full-ssrf
 # comment in url_guard.py does not cover an alert that carries a column,
 # so a whole-tree scan fails every pull request that touches those files.
