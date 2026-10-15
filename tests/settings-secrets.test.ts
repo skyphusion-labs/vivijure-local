@@ -112,6 +112,45 @@ describe("settings secrets API", () => {
     expect(fields.find((f) => f.key === "MODULE_UPSCALE_URL")?.source).toBe("database");
   });
 
+  it("PATCH /api/settings/secrets rejects a key the catalog does not know (local#387)", async () => {
+    // The old handler did `if (!def) continue` and then answered ok:true. This request names
+    // only a key the catalog does not contain, so that path would still be 200.
+    app = createApp(testSettingsHost(makePlatform()));
+    const patch = await auth("/api/settings/secrets", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ values: { NOT_A_CATALOG_KEY: "192.0.2.1" } }),
+    });
+    expect(patch.status).toBe(400);
+    const body = (await patch.json()) as { ok: boolean; rejected: string[]; applied: string[] };
+    expect(body.ok).toBe(false);
+    expect(body.rejected).toEqual(["NOT_A_CATALOG_KEY"]);
+    expect(body.applied).toEqual([]);
+  });
+
+  it("PATCH /api/settings/secrets does not report ok when known and unknown keys are mixed (local#387)", async () => {
+    app = createApp(testSettingsHost(makePlatform()));
+    const patch = await auth("/api/settings/secrets", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        values: {
+          GATEWAY_ID: "vivijure-mixed",
+          NOT_A_CATALOG_KEY: "192.0.2.1",
+        },
+      }),
+    });
+    expect(patch.status).toBe(400);
+    const body = (await patch.json()) as { ok: boolean; rejected: string[]; applied: string[] };
+    expect(body.ok).toBe(false);
+    expect(body.rejected).toContain("NOT_A_CATALOG_KEY");
+    expect(body.applied).toContain("GATEWAY_ID");
+
+    const get = await auth("/api/settings/secrets");
+    const fields = ((await get.json()) as { fields: { key: string; source: string | null }[] }).fields;
+    expect(fields.find((f) => f.key === "GATEWAY_ID")?.source).toBe("database");
+  });
+
   it("PATCH /api/settings/secrets ignores install-only STUDIO_API_TOKEN", async () => {
     const platform = makePlatform();
     app = createApp(testSettingsHost(platform));

@@ -112,12 +112,16 @@ export function registerSettingsRoutes(app: Hono, host: SettingsHost): void {
 
       const applied: string[] = [];
       const cleared: string[] = [];
+      const rejected: string[] = [];
       let restartRecommended = false;
 
       for (const [key, value] of Object.entries(values)) {
         if (PLATFORM_SECRET_NOT_GUI_WRITABLE.has(key)) continue;
         const def = platformSecretField(key);
-        if (!def) continue;
+        if (!def) {
+          rejected.push(key);
+          continue;
+        }
         if (value === null || value === "") {
           await runtime.clear(platform.db, key);
           cleared.push(key);
@@ -130,6 +134,20 @@ export function registerSettingsRoutes(app: Hono, host: SettingsHost): void {
       }
 
       applyRuntimeEnvToPlatform(platform, runtime, { publicBase: host.publicBase });
+
+      if (rejected.length > 0) {
+        return json(
+          {
+            ok: false,
+            rejected,
+            applied,
+            cleared,
+            restart_recommended: restartRecommended,
+            message: `Unknown keys the catalog does not accept: ${rejected.join(", ")}.`,
+          },
+          400,
+        );
+      }
 
       return json({
         ok: true,
