@@ -34,8 +34,11 @@ describe("containers intentional Dockerfile pins (local#314)", () => {
     expect(dockerfile("image-prep/Dockerfile")).toMatch(/^FROM python:3\.11/m);
   });
 
-  it("audio-beat-sync stays on python 3.11 (numba pin)", () => {
-    expect(dockerfile("audio-beat-sync/Dockerfile")).toMatch(/^FROM python:3\.11/m);
+  it("audio-beat-sync stays on python 3.12 (librosa 1.0, numba below 3.14)", () => {
+    // Matches vivijure-cf. librosa 1.0 requires Python >=3.12, and numba still
+    // rejects 3.14. This Dockerfile is not allowlisted: the drift job also
+    // requires byte identity with cf, so a local 3.11 pin cannot sneak back in.
+    expect(dockerfile("audio-beat-sync/Dockerfile")).toMatch(/^FROM python:3\.12/m);
   });
 
   it("check-containers-drift.sh is the CI gate (not only a manual script)", () => {

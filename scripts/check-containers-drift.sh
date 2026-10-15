@@ -16,15 +16,19 @@
 #
 #   containers/video-finish/Dockerfile
 #     Base must stay python:3.11 on BOTH sides (cf parity, local#316 / PR #358). There is no
-#     longer a python delta here -- this path stays allowlisted only because local carries a
+#     longer a python delta here. This path stays allowlisted only because local carries a
 #     longer comment block recording that 3.14 was built cleanly twice and still rejected.
 #     Content under the FROM line is free to diverge in comments only.
 #
 #   containers/image-prep/Dockerfile
-#   containers/audio-beat-sync/Dockerfile
 #     Base must stay python:3.11 (numba). Local carries longer dependabot-ignore comments
 #     after #254; content under the FROM line is free to match or diverge in comments only.
 #     Pin-tested on the FROM line, not byte-identity.
+#
+#   containers/audio-beat-sync/Dockerfile
+#     Not allowlisted. librosa 1.0 requires Python >=3.12 and numba still rejects 3.14,
+#     so cf's Dockerfile is python:3.12. A local 3.11 pin cannot install that requirements
+#     file. Byte-identity is the guard, including the FROM line.
 #
 #   bash scripts/check-containers-drift.sh [vivijure-cf-clone]
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-containers-drift.sh
@@ -56,7 +60,6 @@ is_allowlisted() {
     README.md) return 0 ;;
     video-finish/Dockerfile) return 0 ;;
     image-prep/Dockerfile) return 0 ;;
-    audio-beat-sync/Dockerfile) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -66,7 +69,6 @@ pin_dockerfiles() {
   local fail=0
   local vf="$ROOT/containers/video-finish/Dockerfile"
   local ip="$ROOT/containers/image-prep/Dockerfile"
-  local abs="$ROOT/containers/audio-beat-sync/Dockerfile"
 
   if ! grep -qE '^FROM python:3\.11' "$vf"; then
     echo "check-containers-drift: PIN FAIL video-finish/Dockerfile must FROM python:3.11 (cf parity, local#316)" >&2
@@ -76,11 +78,7 @@ pin_dockerfiles() {
     echo "check-containers-drift: PIN FAIL image-prep/Dockerfile must FROM python:3.11 (numba pin)" >&2
     fail=1
   fi
-  if ! grep -qE '^FROM python:3\.11' "$abs"; then
-    echo "check-containers-drift: PIN FAIL audio-beat-sync/Dockerfile must FROM python:3.11 (numba pin)" >&2
-    fail=1
-  fi
-  # audio-mix and audio-master are not allowlisted: they must match cf, including FROM.
+  # audio-beat-sync, audio-mix, and audio-master are not allowlisted: they must match cf, including FROM.
   return "$fail"
 }
 
@@ -133,9 +131,9 @@ if [[ ${#drift[@]} -gt 0 || "$pin_fail" -ne 0 ]]; then
   if [[ ${#drift[@]} -gt 0 ]]; then
     echo "check-containers-drift: FAIL -- ${#drift[@]} drifting path(s): ${drift[*]}" >&2
     echo "check-containers-drift: fix with: VIVIJURE_SRC=$UP npm run sync-containers" >&2
-    echo "check-containers-drift: then restore intentional Dockerfile pins (video-finish/image-prep/audio-beat-sync all 3.11; local comment blocks) and README.md" >&2
+    echo "check-containers-drift: then restore intentional Dockerfile pins (video-finish and image-prep stay python 3.11; local comment blocks) and README.md" >&2
   fi
   exit 1
 fi
 
-echo "check-containers-drift: PASS (content matches vivijure-cf; allowlisted README + 3 Dockerfiles pin-tested)"
+echo "check-containers-drift: PASS (content matches vivijure-cf; allowlisted README + 2 Dockerfiles pin-tested)"

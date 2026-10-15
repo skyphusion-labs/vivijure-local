@@ -1,12 +1,11 @@
 name: vivijure-local
-paths:
-  - src
-  - tests
-  - scripts
+# Default setup reads this file when the repository property
+# github-codeql-config-file points at it. containers/ is vendored from
+# vivijure-cf, and that repo ignores containers too. The py/full-ssrf
+# comment in url_guard.py does not cover an alert that carries a column,
+# so a whole-tree scan fails every pull request that touches those files.
+# test_url_guard.py is the behavioral check. There is no paths allowlist:
+# workflow files under .github have to stay in the scan.
 paths-ignore:
-  # CPU containers carry presigned-URL fetches guarded by containers/*/url_guard.py
-  # (validate_fetch_url + guarded_get/guarded_put). SSRF coverage lives in test_url_guard.py;
-  # scanning the raw aiohttp call sites duplicates vivijure-cf's paths-ignore policy.
   - containers
-  - public
-  - docs
+  - containers/**

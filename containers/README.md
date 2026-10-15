@@ -11,5 +11,5 @@
 #   video-finish/Dockerfile           -- python 3.11 on BOTH sides (cf parity, local#316);
 #                                        allowlisted for local's longer comment block only
 #   image-prep/Dockerfile             -- numba pin 3.11; local dependabot comments
-#   audio-beat-sync/Dockerfile        -- same as image-prep
+# audio-beat-sync/Dockerfile matches cf (python 3.12; librosa 1.0 needs >=3.12).
 # Everything else under the five service dirs must match cf byte-for-byte.
