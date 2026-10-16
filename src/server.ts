@@ -14,7 +14,7 @@ import {
   type Platform,
 } from "./platform/index.js";
 import { RuntimeEnv } from "./platform/runtime-env.js";
-import { runpodJobRecorder } from "./runpod-job-log.js";
+import { runpodJobRecorder } from "./runpod-job-recorder.js";
 import { applyRuntimeEnvToPlatform } from "./platform/reload.js";
 import type { SettingsHost } from "./routes/m8-settings.js";
 

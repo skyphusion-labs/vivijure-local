@@ -2,7 +2,7 @@
 
 import type { Platform } from "./types.js";
 import { createModuleTransport } from "./modules.js";
-import { runpodJobRecorder } from "../runpod-job-log.js";
+import { runpodJobRecorder } from "../runpod-job-recorder.js";
 import { createStorage } from "./create-storage.js";
 import { RuntimeSecretStore } from "./runtime-secrets.js";
 import type { RuntimeEnv } from "./runtime-env.js";

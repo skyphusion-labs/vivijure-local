@@ -39,8 +39,13 @@ describe("parseRunpodErrorType: structured key or nothing", () => {
   });
 
   it("does not depend on error_type being the FIRST key, which is the entire reason for the column", () => {
+    // local#415: the padding is DERIVED from DETAIL_MAX rather than a literal 200. With the literal,
+    // this control went VACUOUS the moment the bound arrived from core at cf#320's 480: the crafted
+    // payload measured 336 chars with the class at index 321, so both CONTROL assertions below would
+    // have started failing while the thing they guard was still fine. A control that has to be
+    // hand-retuned every time the bound moves is a control that will one day be deleted instead.
     const reordered = JSON.stringify({
-      hostname: "x".repeat(200),
+      hostname: "x".repeat(DETAIL_MAX + 100),
       error_message: "finish_clip: clip_key is required",
       error_type: "<class 'vivijure_backend.harness.handler.HarnessError'>",
     });
