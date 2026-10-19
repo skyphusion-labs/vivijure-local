@@ -48,6 +48,9 @@ jobs:
             echo "no test/coverage script; coverage check present"
           fi
 
+      - name: Sidecar allowlist
+        run: python3 containers/cast-image/test_allowlist.py
+
       - name: Go coverage
         if: hashFiles('go.mod') != ''
         run: |

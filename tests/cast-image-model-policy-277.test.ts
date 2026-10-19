@@ -7,10 +7,12 @@ import {
   DEFAULT_CLOUD_CAST_MODEL,
   DEFAULT_SELF_HOST_HF_MODEL,
   SELF_HOST_ALLOWED_HF_MODELS,
+  SELF_HOST_MODEL_REVISIONS,
   isCloudCastModel,
   looksLikeSelfHostModelId,
   refuseSelfHostModel,
   resolveSelfHostModel,
+  selfHostRevision,
 } from "../src/modules/chain/cast-image-model-policy.js";
 import { DEFAULT_CAST_MODEL, MODELS } from "../src/modules/chain/cast-image-core.js";
 
@@ -37,6 +39,12 @@ describe("cast.image model policy (local#277)", () => {
   it("self-host allowlist is Apache Klein 4B only", () => {
     expect(SELF_HOST_ALLOWED_HF_MODELS).toEqual(["black-forest-labs/FLUX.2-klein-4B"]);
     expect(DEFAULT_SELF_HOST_HF_MODEL).toBe("black-forest-labs/FLUX.2-klein-4B");
+    expect(Object.keys(SELF_HOST_MODEL_REVISIONS)).toEqual([
+      ...SELF_HOST_ALLOWED_HF_MODELS,
+    ]);
+    expect(selfHostRevision(DEFAULT_SELF_HOST_HF_MODEL)).toBe(
+      "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+    );
     expect(refuseSelfHostModel(DEFAULT_SELF_HOST_HF_MODEL)).toBeNull();
     expect(resolveSelfHostModel(undefined)).toBe(DEFAULT_SELF_HOST_HF_MODEL);
     expect(resolveSelfHostModel(DEFAULT_SELF_HOST_HF_MODEL)).toBe(DEFAULT_SELF_HOST_HF_MODEL);
@@ -93,6 +101,8 @@ describe("cast.image model policy (local#277)", () => {
       // #272 defect shape: env default + from_pretrained(model_id, ...) with NO allowlist module.
       // Requiring ALLOWED_HF_MODELS / model_allowlist import is what actually fails that tree.
       expect(src).toMatch(/ALLOWED_HF_MODELS|model_allowlist|refuse_model|resolve_model/);
+      expect(src).toMatch(/pretrained_kwargs\(/);
+      expect(src).toMatch(/from_pretrained\([\s\S]{0,240}\*\*load/);
       // Non-commercial sibling must not be a default or hard-coded load target here.
       expect(src).not.toMatch(/FLUX\.2-klein-9B|flux-2-klein-9b/i);
       // Free-variable load is fine ONLY after resolve_model/refuse; ban the #272 raw-env pattern:
@@ -121,6 +131,7 @@ describe("cast.image model policy (local#277)", () => {
       for (const id of SELF_HOST_ALLOWED_HF_MODELS) {
         expect(setBody).toContain(id);
       }
+      expect(py).toContain(selfHostRevision(DEFAULT_SELF_HOST_HF_MODEL));
     },
   );
 });
