@@ -110,7 +110,6 @@ Mark each route when implemented **and** covered by a test. Status: `[ ]` pendin
 ## Auth modes
 
 - [x] `AUTH_MODE=token` (v1 target)
-- [x] `AUTH_MODE=demo` (seed data + `/api/demo/*`; run `npm run migrate:demo`)
 - [ ] CF Access (non-goal for local)
 
 ## Film poll phases

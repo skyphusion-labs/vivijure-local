@@ -78,7 +78,7 @@ control (see [docs/SECURITY.md](docs/SECURITY.md)).
 
 **Production / Cloudflare:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) · **Homelab path:** [docs/quickstart.md](docs/quickstart.md)
 
-**Vivijure Studio:** https://vivijure.com · **Live demo:** https://demo.vivijure.com · **Skyphusion Labs:** https://skyphusion.org
+**Vivijure Studio:** https://vivijure.com · **Skyphusion Labs:** https://skyphusion.org
 
 ## Quick start
 

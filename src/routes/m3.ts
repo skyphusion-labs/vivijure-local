@@ -35,8 +35,7 @@ import {
 } from "@skyphusion-labs/vivijure-core/storyboard-projects-db";
 import { getUserPrefs, setUserPrefs } from "../user-prefs.js";
 import { isValidVoiceId, VOICE_CATALOG, VOICE_IDS } from "@skyphusion-labs/vivijure-core/voices";
-import { authEnvFromPlatform } from "../http.js";
-import { catalogForDeploy, isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
+import { isCrossSiteRequest, CSRF_ADVANCE_MSG } from "../auth-gate.js";
 import { safeDecodeUriComponent } from "../shared.js";
 import {
   handleCastTrainLora,
@@ -83,7 +82,7 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/voices", (c) =>
     handle(c, async () =>
-      json({ voices: catalogForDeploy(authEnvFromPlatform(platform), VOICE_CATALOG) }),
+      json({ voices: VOICE_CATALOG }),
     ),
   );
 
