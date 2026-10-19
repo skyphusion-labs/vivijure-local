@@ -1,6 +1,7 @@
 # The software, the weights, and commercial use
 
-Status: upstream licenses verified 2026-07-31 (sources linked below). This document is
+Status: upstream licenses verified 2026-07-31; FLUX family, Cloudflare partner terms and Gemini
+API terms re-read 2026-09-26 (local#269, local#445; sources linked below). This document is
 project-maintained orientation, not legal advice; the upstream license texts control.
 
 ## The short version
@@ -45,11 +46,17 @@ any tagged release. Mind the family split, verified 2026-07-31 across every publ
 the FLUX.2 klein **4B** line is Apache-2.0, while the klein **9B** line and FLUX.2-dev carry
 the FLUX Non-Commercial License. That is exactly why the local path builds on the 4B, and why
 the larger klein is consumed only as licensed inference via Workers AI, never self-hosted.
+Re-read 2026-09-26: Klein 4B is Apache-2.0, and Klein 9B and FLUX.2-dev are FLUX
+Non-Commercial, which is why the local path builds on the 4B and those larger weights are
+consumed only as licensed inference via Workers AI. Output terms on that Workers AI path are
+quoted in the caveat below and in `THIRD_PARTY_MODELS.md`. vivijure-cf#751 ruled the Cloudflare
+path compliant with Cloudflare's Terms of Service. This file quotes BFL ToS 1.3(n) and does
+not interpret it.
 
 **Code + inventory (local#277):** the full third-party model table, the FLUX commercial rule,
 and the self-host allowlist live in [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md). The
-enforceable guard is `src/modules/chain/cast-image-model-policy.ts` (Apache-only HF ids for
-self-host; `@cf/` defaults stay on the CF BFL channel).
+enforceable guard is `src/modules/chain/cast-image-model-policy.ts` (verified-permissive HF ids
+for self-host, Apache Klein 4B only today; `@cf/` defaults stay on the CF BFL channel).
 
 ## What this means in practice
 
@@ -74,6 +81,20 @@ yourself:
    your box for those steps. (This is also why FLUX is offered via Workers AI and never
    self-hosted here: BFL-licensed FLUX weights require a commercial license unless consumed
    through BFL or a partner.)
+
+   **Caveat for `cast.image` (texts read 2026-09-26, local#269).** Cloudflare's model pages for
+   `@cf/black-forest-labs/*` link their terms to BFL's Terms of Service, and Cloudflare's terms
+   say that using a partner model means agreeing to the licensor's terms. Those terms include a
+   restriction on using Output *"to train, distill or fine-tune any other AI models"* (1.3(n)).
+   This document does not interpret how that clause applies to Cloudflare partner consumption or
+   to cast LoRA training; read it against your own setup.
+   [vivijure-cf#751](https://github.com/skyphusion-labs/vivijure-cf/issues/751) was ruled on
+   2026-09-26: business counsel advised that the Cloudflare path is compliant with Cloudflare's
+   Terms of Service, and the operator agreed with that advice. The locally hosted Apache-2.0
+   FLUX.2 Klein 4B path is under its own weight licence. The same BFL terms and Usage Policy,
+   and for `google/nano-banana-pro` the Gemini API terms (18+, no service directed at or likely
+   to be accessed by under-18s), bind you as the provider's customer when you connect your own
+   accounts.
 2. **Use the hosted studio** ([vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf)),
    where the operators carry the backend model licensing.
 
@@ -91,5 +112,13 @@ Both paths run the same software at the same release cadence; parity is absolute
 - U-2-Net (Apache-2.0): https://github.com/xuebinqin/U-2-Net
 - MuseTalk (MIT, weights usable for any purpose per upstream): https://github.com/TMElyralab/MuseTalk
 - Real-ESRGAN (BSD-3-Clause): https://github.com/xinntao/Real-ESRGAN
-- FLUX.2 Klein 4B (apache-2.0): https://huggingface.co/black-forest-labs/FLUX.2-klein-4B
+- FLUX.2 Klein 4B (apache-2.0, in-repo LICENSE.md verbatim Apache-2.0, read 2026-09-26 at revision
+  `e7b7dc2`): https://huggingface.co/black-forest-labs/FLUX.2-klein-4B
+- FLUX Non-Commercial (klein 9B / FLUX.2-dev; HF copies gated, read from BFL's GitHub 2026-09-26):
+  https://github.com/black-forest-labs/flux2/tree/main/model_licenses
+- Cloudflare Workers AI FLUX model pages ("Terms and License" -> https://bfl.ai/legal/terms-of-service,
+  2026-09-26): https://developers.cloudflare.com/workers-ai/models/flux-2-klein-9b/
+- Cloudflare Developer Platform terms, Workers AI section:
+  https://www.cloudflare.com/service-specific-terms-developer-platform/
+- Google Gemini API Additional Terms (effective 2026-03-23): https://ai.google.dev/gemini-api/terms
 - Wan 2.2 (apache-2.0): https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B
