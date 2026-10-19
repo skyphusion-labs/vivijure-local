@@ -1,0 +1,58 @@
+name: migration-commits
+
+# Commits that are not already on main (local#392). scripts/check-migration-commits.sh
+# holds the two rules: a migrations/ touch cannot wear a ci:, docs:, or chore: subject,
+# and a migration that already exists on the base cannot be edited. New files are allowed.
+#
+# The range is the commits being introduced, never the history of main. 341598e is
+# already on main; scanning every ancestor would fail that historical commit. A push
+# to main compares github.event.before to the new tip, so the same commit stays out
+# of range. There is no sha allowlist.
+#
+# PUBLIC repo: GitHub-hosted ubuntu-latest (fork-safe).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-commits-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-commits:
+    name: migration-commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check migration commits not already on main
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            # Head, not GitHub's synthetic merge commit. The merge ref's first
+            # parent diff would look like one commit that carried the whole PR.
+            head="${{ github.event.pull_request.head.sha }}"
+            git fetch --no-tags origin main
+            base=$(git rev-parse origin/main)
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+            # A brand-new ref reports a zero before-sha. Walking from there would
+            # scan all of history, including 341598e. There is nothing new to judge.
+            if printf '%s' "$base" | grep -Eq '^0+$'; then
+              echo "migration-commits: push has no previous tip; not walking history."
+              exit 0
+            fi
+          fi
+          # A missing endpoint is a broken instrument. Do not treat it as an empty range.
+          git cat-file -e "${base}^{commit}"
+          git cat-file -e "${head}^{commit}"
+          bash scripts/check-migration-commits.sh "$base" "$head"
