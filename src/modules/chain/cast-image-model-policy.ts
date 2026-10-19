@@ -4,6 +4,9 @@
  * FLUX.2 klein-9B and flux-2-dev weights are FLUX Non-Commercial on Hugging Face.
  * Commercial use of those weights is lawful ONLY through Cloudflare's BFL partner
  * channel (`@cf/black-forest-labs/...`). Self-hosting them is a license violation.
+ * vivijure-cf#751 (2026-09-26): business counsel advised that the Cloudflare path is
+ * compliant with Cloudflare's Terms of Service, and the operator agreed. This module
+ * does not read BFL ToS 1.3(n) as a ban on training on those `@cf/` outputs.
  *
  * FLUX.2 Klein 4B is Apache-2.0 and ungated: the only FLUX family member this door
  * may self-host. See THIRD_PARTY_MODELS.md and USE.md.

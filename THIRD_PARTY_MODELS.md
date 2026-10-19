@@ -17,9 +17,9 @@ from this doc is a defect.
 
 | Weights | Hugging Face license | Self-host | Commercial path | Outputs as training data |
 |---|---|---|---|---|
-| FLUX.2 Klein **4B** (`black-forest-labs/FLUX.2-klein-4B`, revision `e7b7dc27f91deacad38e78976d1f2b499d76a294`) | Apache-2.0 (ungated); in-repo `LICENSE.md` is the verbatim Apache License 2.0, sha256 `ca02bc51900ab07789d1b70283329e7137f5af98f5161c23a1c81fc38a4af1fe`; no NOTICE file | **Allowed** (this revision) | Unrestricted under Apache-2.0 | **Yes.** Apache-2.0 says nothing about outputs; silence in a permissive copyright licence is the absence of a restriction. |
-| FLUX.2 Klein **9B** | `flux-non-commercial-license` (gated; text read from BFL's GitHub copy, see sources) | **Forbidden** | Cloudflare Workers AI only (`@cf/black-forest-labs/flux-2-klein-9b`), via CF's BFL partner channel, **for inference** | **No, on the plain text.** The `@cf/` path is bound to BFL's Terms of Service, 1.3(n) (see below). Pending the cf#751 ruling, treat these outputs as not training data. |
-| FLUX.2 **dev** | `flux-non-commercial-license` (gated; same) | **Forbidden** | Cloudflare Workers AI only (`@cf/black-forest-labs/flux-2-dev`), **for inference** | **No, on the plain text.** Same clause. |
+| FLUX.2 Klein **4B** (`black-forest-labs/FLUX.2-klein-4B`, licence read at revision `e7b7dc27f91deacad38e78976d1f2b499d76a294`) | Apache-2.0 (ungated); in-repo `LICENSE.md` is the verbatim Apache License 2.0, sha256 `ca02bc51900ab07789d1b70283329e7137f5af98f5161c23a1c81fc38a4af1fe`; no NOTICE file | **Allowed** as the repo id. The allowlist does not pin the revision named here (rule 4 is not in force). | Unrestricted under Apache-2.0 | **Yes.** Apache-2.0 says nothing about outputs; silence in a permissive copyright licence is the absence of a restriction. |
+| FLUX.2 Klein **9B** | `flux-non-commercial-license` (gated; text read from BFL's GitHub copy, see sources) | **Forbidden** | Cloudflare Workers AI only (`@cf/black-forest-labs/flux-2-klein-9b`), via CF's BFL partner channel | **Not interpreted here.** vivijure-cf#751 ruled on 2026-09-26 that the Cloudflare path is compliant with Cloudflare's Terms of Service, on business counsel's advice, and the operator agreed. 1.3(n) is quoted below. This file does not interpret that clause. |
+| FLUX.2 **dev** | `flux-non-commercial-license` (gated; same) | **Forbidden** | Cloudflare Workers AI only (`@cf/black-forest-labs/flux-2-dev`) | **Not interpreted here.** Same clause and the same ruling. |
 
 That is why:
 
@@ -47,13 +47,14 @@ restrictions on use of such model."* The BFL Terms of Service then say, in 1.3 "
 Your Use of the Services": *"You may not do any of the following in connection with your use of
 the Services: ... (n) use Output to train, distill or fine-tune any other AI models;"*.
 
-`cast.image` exists to produce a LoRA training set. On the plain text, **outputs from the `@cf/`
-FLUX path are not training data**, on either door. Whether BFL's ToS (scoped to BFL's own
-Services) reaches Cloudflare partner consumption at all is a question for counsel, tracked as
-[vivijure-cf#751](https://github.com/skyphusion-labs/vivijure-cf/issues/751); until it is ruled,
-the cautious reading stands and no lane designs as though CF FLUX outputs may be trained on.
-Consequence: the local Apache Klein 4B path is not only the licence-clean path, it is the **only**
-FLUX path whose outputs may feed `/train-lora`.
+`cast.image` produces a LoRA training set. BFL ToS 1.3(n) is quoted above. This file does
+not interpret how that clause applies to Cloudflare partner consumption or to cast LoRA
+training; read it against your own setup.
+[vivijure-cf#751](https://github.com/skyphusion-labs/vivijure-cf/issues/751) was ruled on
+2026-09-26: business counsel advised that the Cloudflare path is compliant with Cloudflare's
+Terms of Service, and the operator agreed with that advice. This file does not instruct a
+lane to refuse training on `@cf/` FLUX outputs. Klein 4B remains the only FLUX weight this
+door may self-host, because the 9B and dev weights are FLUX Non-Commercial.
 
 The same terms also bind conduct on the `@cf/` path, whoever the operator is: 1.2(c) (consent
 where Output depicts *"real, identifiable individuals"*), 1.3(m) (no representing Output as
@@ -80,13 +81,16 @@ updated in the same commit:
    "non-commercial" licences fail here even when they are otherwise generous).
 4. The allowlist entry pins the **revision** whose licence was read, and the loader passes that
    revision through; a later revision can ship a different `LICENSE.md` under the same name.
+   **Not yet in force:** `SELF_HOST_ALLOWED_HF_MODELS` carries bare repo ids and no loader passes
+   a revision, so this rule currently binds the reviewer adding an entry, not the code
+   (local#398, whose implementation is stranded behind local#272).
 5. This file records the revision, the licence text's sha256 and the in-repo components.
 
 Applied to the candidates named in local#269 (all retrieved 2026-09-26):
 
 | Candidate | Status | Why |
 |---|---|---|
-| `black-forest-labs/FLUX.2-klein-4B` @ `e7b7dc2` | **Allowlisted** | Verbatim Apache-2.0 in repo. Components loaded by `Flux2KleinPipeline.from_pretrained`: `Flux2Transformer2DModel`, `AutoencoderKLFlux2`, a `Qwen3ForCausalLM` text encoder of the Qwen3-4B class (upstream `Qwen/Qwen3-4B` is Apache-2.0), `Qwen2TokenizerFast`; all inside the repo under its licence. |
+| `black-forest-labs/FLUX.2-klein-4B` @ `e7b7dc2` | **Licence read at this revision; the allowlist does not pin it** | Verbatim Apache-2.0 in repo. Components named by upstream `Flux2KleinPipeline.from_pretrained`: `Flux2Transformer2DModel`, `AutoencoderKLFlux2`, a `Qwen3ForCausalLM` text encoder of the Qwen3-4B class (upstream `Qwen/Qwen3-4B` is Apache-2.0), `Qwen2TokenizerFast`; all inside the repo under its licence. The repo id is the allowlist entry. No loader in this tree passes `e7b7dc2`. |
 | `Qwen/Qwen-Image` | Would qualify; **not allowlisted** | In-repo `LICENSE` is verbatim Apache-2.0 (sha256 `832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e`). Excluded on VRAM, not licence. |
 | `Tongyi-MAI/Z-Image-Turbo` | **Do not allowlist** | HF tag says `apache-2.0`; the repo contains **no licence file** and the README has no licence section. Fails rule 1. |
 | `black-forest-labs/FLUX.1-schnell` | **Do not allowlist** until the gate is read | BFL's GitHub copy is verbatim Apache-2.0, but the HF repo is `gated: auto` and its `LICENSE.md` returns 401; the click-through text is unread. Fails rule 1 today. |
@@ -110,7 +114,7 @@ provider terms apply.
 | MuseTalk stack | Opt-in lipsync satellite | Baked in vivijure-musetalk | MIT + Apache-2.0 + BSD-3-Clause (that repo) | Fine |
 | Real-ESRGAN | Opt-in upscale satellite | Baked in vivijure-upscale | BSD-3-Clause | Fine |
 | FLUX.2 Klein 4B (revision `e7b7dc2`) | Local cast.image sidecar (when enabled) | You download | Apache-2.0 | Fine (the only member of the verified-permissive self-host allowlist; outputs may be trained on) |
-| FLUX.2 Klein 9B / FLUX.2-dev | **Not** self-hosted | API via `@cf/...` | FLUX Non-Commercial (weights); BFL Terms of Service on the `@cf/` path | Self-host **forbidden**; CF BFL channel for inference only; **outputs not training data** on the plain text of BFL ToS 1.3(n) (cf#751) |
+| FLUX.2 Klein 9B / FLUX.2-dev | **Not** self-hosted | API via `@cf/...` | FLUX Non-Commercial (weights); BFL Terms of Service on the `@cf/` path | Self-host **forbidden**. Commercial use is the Cloudflare Workers AI path. vivijure-cf#751 ruled that path compliant with Cloudflare's Terms of Service (2026-09-26, business counsel; the operator agreed). This file quotes BFL ToS 1.3(n) and does not interpret it. |
 | Wan 2.2 A14B | RunPod datacenter backend only (not consumer cards) | Baked in vivijure-backend | Apache-2.0 | See [vivijure-backend THIRD_PARTY_MODELS.md](https://github.com/skyphusion-labs/vivijure-backend/blob/main/THIRD_PARTY_MODELS.md) |
 
 Cloud i2v providers (Seedance, Kling, Veo, Wan API, etc.) and other Workers AI models are

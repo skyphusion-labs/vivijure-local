@@ -46,10 +46,12 @@ any tagged release. Mind the family split, verified 2026-07-31 across every publ
 the FLUX.2 klein **4B** line is Apache-2.0, while the klein **9B** line and FLUX.2-dev carry
 the FLUX Non-Commercial License. That is exactly why the local path builds on the 4B, and why
 the larger klein is consumed only as licensed inference via Workers AI, never self-hosted.
-Re-read 2026-09-26: the Apache Klein 4B path is also the **only** FLUX path whose outputs may be
-used as LoRA training data, because the Workers AI path is bound to BFL's Terms of Service and
-1.3(n) there forbids using Output *"to train, distill or fine-tune any other AI models"* (see the
-caveat under "The two supported commercial paths" and `THIRD_PARTY_MODELS.md`).
+Re-read 2026-09-26: Klein 4B is Apache-2.0, and Klein 9B and FLUX.2-dev are FLUX
+Non-Commercial, which is why the local path builds on the 4B and those larger weights are
+consumed only as licensed inference via Workers AI. Output terms on that Workers AI path are
+quoted in the caveat below and in `THIRD_PARTY_MODELS.md`. vivijure-cf#751 ruled the Cloudflare
+path compliant with Cloudflare's Terms of Service. This file quotes BFL ToS 1.3(n) and does
+not interpret it.
 
 **Code + inventory (local#277):** the full third-party model table, the FLUX commercial rule,
 and the self-host allowlist live in [THIRD_PARTY_MODELS.md](THIRD_PARTY_MODELS.md). The
@@ -80,17 +82,19 @@ yourself:
    self-hosted here: BFL-licensed FLUX weights require a commercial license unless consumed
    through BFL or a partner.)
 
-   **Caveat for `cast.image` specifically (read from the texts 2026-09-26, local#269).** Licensed
-   inference is not a licence to train. Cloudflare binds Workers AI use of the
-   `@cf/black-forest-labs/*` models to BFL's Terms of Service, and 1.3(n) there forbids using
-   Output *"to train, distill or fine-tune any other AI models"*. `cast.image` produces LoRA
-   training references, so on the plain text the `@cf/` FLUX models are not a lawful source of
-   training data even for a commercial operator. Whether that clause reaches Cloudflare partner
-   consumption at all is with counsel ([vivijure-cf#751](https://github.com/skyphusion-labs/vivijure-cf/issues/751));
-   until ruled, do not train on `@cf/` FLUX outputs. The local Apache Klein 4B path carries no
-   such term. The same BFL terms and Usage Policy, and for `google/nano-banana-pro` the Gemini API
-   terms (18+, no service directed at or likely to be accessed by under-18s), bind you as the
-   provider's customer when you connect your own accounts.
+   **Caveat for `cast.image` (texts read 2026-09-26, local#269).** Cloudflare's model pages for
+   `@cf/black-forest-labs/*` link their terms to BFL's Terms of Service, and Cloudflare's terms
+   say that using a partner model means agreeing to the licensor's terms. Those terms include a
+   restriction on using Output *"to train, distill or fine-tune any other AI models"* (1.3(n)).
+   This document does not interpret how that clause applies to Cloudflare partner consumption or
+   to cast LoRA training; read it against your own setup.
+   [vivijure-cf#751](https://github.com/skyphusion-labs/vivijure-cf/issues/751) was ruled on
+   2026-09-26: business counsel advised that the Cloudflare path is compliant with Cloudflare's
+   Terms of Service, and the operator agreed with that advice. The locally hosted Apache-2.0
+   FLUX.2 Klein 4B path is under its own weight licence. The same BFL terms and Usage Policy,
+   and for `google/nano-banana-pro` the Gemini API terms (18+, no service directed at or likely
+   to be accessed by under-18s), bind you as the provider's customer when you connect your own
+   accounts.
 2. **Use the hosted studio** ([vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf)),
    where the operators carry the backend model licensing.
 
