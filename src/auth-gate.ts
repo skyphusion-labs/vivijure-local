@@ -1,4 +1,4 @@
-// /api/* auth gate -- ported from vivijure/src/auth-gate.ts (token + demo modes for local v1).
+// /api/* auth gate -- ported from vivijure/src/auth-gate.ts (token mode for local v1).
 // CF Access (access mode) is a cloud-host concern; unset/legacy path honors ALLOW_UNAUTHENTICATED only.
 
 import type { AuthEnv } from "./env.js";
@@ -153,77 +153,6 @@ export function isCrossSiteRequest(request: Request): boolean {
   return !isSameOriginHeader(origin, request.url);
 }
 
-export function isDemoMode(env: AuthEnv): boolean {
-  return (env.AUTH_MODE || "").trim() === "demo";
-}
-
-/** Hide operator catalogs on demo deploys (voices, models, etc.). */
-export function catalogForDeploy<T>(env: AuthEnv, catalog: readonly T[]): readonly T[] {
-  return isDemoMode(env) ? [] : catalog;
-}
-
-export const DEMO_WRITE_ROUTES: ReadonlySet<string> = new Set(["/api/demo/render", "/api/demo/chat"]);
-
-/** #43: operator-only read surfaces that a public demo GET must NOT reach. Demo allows all GETs so the
- *  read-only studio UI works, but these routes disclose the operator's connection config -- an S3
- *  access-key id, Cloudflare account/gateway ids, RunPod endpoint ids, and the full internal module/backend
- *  topology (every `sensitive:false` field is returned in cleartext for the operator's own view). The demo
- *  UI never needs them, so deny at the GATE (defence-in-depth: covers both routes and any future
- *  handler under these paths, not one per-route check that can be forgotten). Note: `/api/modules` (the
- *  registry catalog the demo UI renders from) stays allowed; only `/api/modules/:name/config` is denied. */
-/** Artifact keys the public demo may serve via /api/artifact (isolated demo prefix only). */
-export function isDemoAllowedArtifactKey(rawKey: string): boolean {
-  let key: string;
-  try {
-    key = decodeURIComponent(rawKey);
-  } catch {
-    return false;
-  }
-  // Curator/demo-box writes land under demo/ or renders/demo/ (project=demo). Operator
-  // cast/, bundles/, uploads/, and other renders/ stay private.
-  return key.startsWith("demo/") || key.startsWith("renders/demo/");
-}
-
-export function isDemoDeniedRead(pathname: string): boolean {
-  if (pathname === "/api/settings" || pathname.startsWith("/api/settings/")) return true;
-  if (/^\/api\/modules\/[^/]+\/config$/.test(pathname)) return true;
-  // State-advancing GETs: CSRF only fires when vivijure_token cookie is present. Demo visitors
-  // have no cookie, so cross-site <img>/poll would otherwise drive GPU spend anonymously.
-  // Demo UI uses /api/demo/* -- these operator poll routes stay denied.
-  if (/^\/api\/storyboard\/render\/[^/]+$/.test(pathname)) return true;
-  if (/^\/api\/render\/film\/[^/]+$/.test(pathname)) return true;
-  if (/^\/api\/cast\/[^/]+\/refs-job\/[^/]+$/.test(pathname)) return true;
-  // Cast .vvcast export includes portraits, refs, and trained LoRA weights -- operator-only.
-  if (/^\/api\/cast\/export\/[^/]+$/.test(pathname)) return true;
-  // Byte serve: deny operator storage; allow only the isolated demo prefix.
-  if (pathname.startsWith("/api/artifact/")) {
-    return !isDemoAllowedArtifactKey(pathname.slice("/api/artifact/".length));
-  }
-  return false;
-}
-
-export function verifyDemoRequest(request: Request): AccessDecision {
-  const method = request.method.toUpperCase();
-  if (method === "GET" || method === "HEAD") {
-    if (isDemoDeniedRead(new URL(request.url).pathname)) {
-      return {
-        ok: false,
-        status: 403,
-        reason: "operator settings are not exposed on the demo studio",
-      };
-    }
-    return { ok: true, sub: "demo-visitor", email: null };
-  }
-  if (method === "POST" && DEMO_WRITE_ROUTES.has(new URL(request.url).pathname)) {
-    return { ok: true, sub: "demo-visitor", email: null };
-  }
-  return {
-    ok: false,
-    status: 403,
-    reason: "demo studio is read-only: mutations are disabled on this deployment. Run your own studio to render.",
-  };
-}
-
 function legacyUnconfiguredGate(env: AuthEnv): AccessDecision {
   if ((env.ALLOW_UNAUTHENTICATED || "").trim() === "true") {
     return { ok: true, sub: "unauthenticated-dev", email: null };
@@ -238,7 +167,6 @@ function legacyUnconfiguredGate(env: AuthEnv): AccessDecision {
 export async function gateApi(request: Request, env: AuthEnv): Promise<AccessDecision> {
   const mode = (env.AUTH_MODE || "").trim();
   if (mode === "token") return verifyTokenRequest(request, env);
-  if (mode === "demo") return verifyDemoRequest(request);
   if (mode === "access") {
     return {
       ok: false,
@@ -250,6 +178,6 @@ export async function gateApi(request: Request, env: AuthEnv): Promise<AccessDec
   return {
     ok: false,
     status: 403,
-    reason: `unknown AUTH_MODE ${JSON.stringify(mode)} (expected "token" or "demo") -- denying (fail closed)`,
+    reason: `unknown AUTH_MODE ${JSON.stringify(mode)} (expected "token") -- denying (fail closed)`,
   };
 }

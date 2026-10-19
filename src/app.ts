@@ -16,7 +16,6 @@ import { handleRenderFrames } from "./render-frames.js";
 import { httpErrorResponse } from "./errors.js";
 import { authEnvFromPlatform } from "./http.js";
 import type { ArtifactStore } from "./platform/create-storage.js";
-import { isDemoMode } from "./auth-gate.js";
 import { abuseReportUrl } from "./abuse-contact.js";
 import { discoverConfiguredModules } from "./module-registry.js";
 import { modulesResponse } from "@skyphusion-labs/vivijure-core";
@@ -38,7 +37,6 @@ import { registerM6Routes } from "./routes/m6.js";
 import { registerM7Routes } from "./routes/m7.js";
 import { registerM9Routes } from "./routes/m9-render-api.js";
 import { registerM10Routes } from "./routes/m10-chat.js";
-import { registerM11DemoRoutes } from "./routes/m11-demo.js";
 import { registerM12Routes } from "./routes/m12-planner-extra.js";
 import { registerM13Routes } from "./routes/m13-render-history.js";
 import { registerSettingsRoutes, type SettingsHost } from "./routes/m8-settings.js";
@@ -149,7 +147,6 @@ export function createApp(host: SettingsHost): Hono {
         dispatch: false,
         ...(anyHookUnavailable ? { hooks_unavailable: hooksUnavailable } : {}),
         ...(abuseUrl ? { abuse_report_url: abuseUrl } : {}),
-        ...(isDemoMode(authEnv()) ? { readonly: true } : {}),
       }),
     );
   });
@@ -214,7 +211,6 @@ export function createApp(host: SettingsHost): Hono {
   registerM7Routes(app, host);
   registerM9Routes(app, platform);
   registerM10Routes(app, host);
-  registerM11DemoRoutes(app, platform);
   registerM12Routes(app, platform);
   registerM13Routes(app, platform);
   registerSettingsRoutes(app, host);

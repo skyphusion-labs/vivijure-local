@@ -18,8 +18,6 @@ import {
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import type { SettingsHost } from "../routes/m8-settings.js";
-import { authEnvFromPlatform } from "../http.js";
-import { isDemoMode } from "../auth-gate.js";
 import { planningModelsFromModules } from "../planning-models.js";
 import { dbEnvFromPlatform } from "../resolve-id.js";
 import {
@@ -57,9 +55,6 @@ export function registerM7Routes(app: Hono, host: SettingsHost): void {
 
   app.get("/api/storyboard/models", (c) =>
     handle(c, async () => {
-      if (isDemoMode(authEnvFromPlatform(platform))) {
-        return json({ models: [] });
-      }
       const { modules } = await planningHost();
       return json({ models: planningModelsFromModules(modules) });
     }),

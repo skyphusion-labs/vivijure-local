@@ -26,13 +26,12 @@ internet exposure without additional front-door controls you operate.
 
 ---
 
-## Auth modes: token and demo (v1)
+## Auth modes (v1)
 
 | Mode | Supported locally | Behavior |
 |------|-------------------|----------|
 | `token` | **Yes** (default) | `Authorization: Bearer <STUDIO_API_TOKEN>` on every `/api/*` request |
 | `access` | No | Cloudflare Access JWT verification (cloud host only) |
-| `demo` | Yes (browse + capped demo routes) | Capped write surface; not cloud-only |
 
 Implementation: `src/auth-gate.ts` (ported from upstream). The gate **fails closed**: unknown mode,
 missing token, or wrong token denies the request.

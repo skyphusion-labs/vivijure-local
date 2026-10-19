@@ -261,17 +261,17 @@ describe("migration commit guard (local#392)", () => {
     expect(output).toContain("starts with ci:");
   });
 
-  it("treats migrations/demo the same as a numbered file at the root", () => {
+  it("treats a nested migrations path the same as a numbered file at the root", () => {
     const repo = initRepo();
-    write(repo, "migrations/demo/0001_demo_seed.sql", "select 1;\n");
-    const base = commit(repo, "feat(db): seed demo");
-    write(repo, "migrations/demo/0001_demo_seed.sql", "select 2;\n");
-    const head = commit(repo, "fix(db): amend demo seed");
+    write(repo, "migrations/tenant/0001_tenant_seed.sql", "select 1;\n");
+    const base = commit(repo, "feat(db): seed tenant");
+    write(repo, "migrations/tenant/0001_tenant_seed.sql", "select 2;\n");
+    const head = commit(repo, "fix(db): amend tenant seed");
 
     const { status, output } = run(repo, base, head);
 
     expect(status, output).toBe(1);
-    expect(output).toContain("migrations/demo/0001_demo_seed.sql");
+    expect(output).toContain("migrations/tenant/0001_tenant_seed.sql");
     expect(output).toContain("already exists");
   });
 });

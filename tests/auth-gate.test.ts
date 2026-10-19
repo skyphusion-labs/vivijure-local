@@ -6,8 +6,6 @@ import { join } from "node:path";
 import {
   gateApi,
   constantTimeEqual,
-  isDemoAllowedArtifactKey,
-  isDemoDeniedRead,
   sha256Hex,
   TOKEN_COOKIE,
 } from "../src/auth-gate.js";
@@ -165,65 +163,3 @@ describe("HTTP routes (M1)", () => {
   });
 });
 
-describe("gateApi -- demo mode operator-config exposure (#43)", () => {
-  const demo = { AUTH_MODE: "demo" };
-
-  it("DENIES GET /api/settings/secrets (operator connection config: S3 key id, account/endpoint ids, topology)", async () => {
-    const d = await gateApi(req({}, "GET", "/api/settings/secrets"), demo);
-    expect(d).toMatchObject({ ok: false, status: 403 });
-  });
-
-  it("DENIES GET /api/settings and GET /api/modules/:name/config", async () => {
-    expect(await gateApi(req({}, "GET", "/api/settings"), demo)).toMatchObject({ ok: false, status: 403 });
-    expect(await gateApi(req({}, "GET", "/api/modules/keyframe/config"), demo)).toMatchObject({
-      ok: false,
-      status: 403,
-    });
-  });
-
-  it("still ALLOWS the demo UI reads: /api/modules catalog and ordinary /api reads", async () => {
-    expect(await gateApi(req({}, "GET", "/api/modules"), demo)).toMatchObject({ ok: true });
-    expect(await gateApi(req({}, "GET", "/api/cast"), demo)).toMatchObject({ ok: true });
-    expect(await gateApi(req({}, "GET", "/api/projects"), demo)).toMatchObject({ ok: true });
-  });
-
-  it("isDemoDeniedRead: settings + module-config denied, catalog + other reads allowed", () => {
-    expect(isDemoDeniedRead("/api/settings/secrets")).toBe(true);
-    expect(isDemoDeniedRead("/api/settings")).toBe(true);
-    expect(isDemoDeniedRead("/api/modules/musetalk/config")).toBe(true);
-    expect(isDemoDeniedRead("/api/modules")).toBe(false);
-    expect(isDemoDeniedRead("/api/modules/musetalk")).toBe(false);
-    expect(isDemoDeniedRead("/api/cast")).toBe(false);
-    expect(isDemoDeniedRead("/api/storyboard/render/job-1")).toBe(true);
-    expect(isDemoDeniedRead("/api/render/film/job-1")).toBe(true);
-    expect(isDemoDeniedRead("/api/cast/c1/refs-job/j1")).toBe(true);
-    expect(isDemoDeniedRead("/api/cast/export/c1")).toBe(true);
-    expect(isDemoDeniedRead("/api/artifact/cast/c1/portrait.png")).toBe(true);
-    expect(isDemoDeniedRead("/api/artifact/bundles/proj/story.json")).toBe(true);
-    expect(isDemoDeniedRead("/api/artifact/renders/operator/out.mp4")).toBe(true);
-    expect(isDemoDeniedRead("/api/artifact/demo/kf/neon.png")).toBe(false);
-    expect(isDemoDeniedRead("/api/artifact/renders/demo/clip.mp4")).toBe(false);
-    expect(isDemoAllowedArtifactKey("demo/kf/x.png")).toBe(true);
-    expect(isDemoAllowedArtifactKey("renders%2Fdemo%2Fclip.mp4")).toBe(true);
-    expect(isDemoAllowedArtifactKey("cast/c1/portrait.png")).toBe(false);
-  });
-
-  it("demo mode denies cast bundle export (LoRA + media)", async () => {
-    const demo = { AUTH_MODE: "demo" };
-    expect(await gateApi(req({}, "GET", "/api/cast/export/c1"), demo)).toMatchObject({
-      ok: false,
-      status: 403,
-    });
-  });
-
-  it("demo mode denies operator artifact keys; allows demo prefix", async () => {
-    const demo = { AUTH_MODE: "demo" };
-    expect(await gateApi(req({}, "GET", "/api/artifact/cast/c1/portrait.png"), demo)).toMatchObject({
-      ok: false,
-      status: 403,
-    });
-    expect(await gateApi(req({}, "GET", "/api/artifact/demo/kf/neon.png"), demo)).toMatchObject({
-      ok: true,
-    });
-  });
-});

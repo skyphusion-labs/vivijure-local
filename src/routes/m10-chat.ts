@@ -9,8 +9,6 @@ import type { ChatImageArgs } from "../chat-image-module.js";
 import { imageModelsFromModules, resolveCatalogTarget } from "../module-catalog.js";
 import { chatImageViaModule } from "../chat-image-module.js";
 import { planningModelsFromModules } from "../planning-models.js";
-import { authEnvFromPlatform } from "../http.js";
-import { isDemoMode } from "../auth-gate.js";
 import type { SettingsHost } from "./m8-settings.js";
 import { moduleEnvFromPlatform } from "../platform/module-env.js";
 
@@ -31,9 +29,6 @@ export function registerM10Routes(app: Hono, host: SettingsHost): void {
   // hardcoded list to a module projection, and that must be invisible to every consumer. An empty
   // planning list is a legitimate, honest answer -- never a 404, never a hardcoded backfill.
   app.get("/api/models", async (c) => {
-    if (isDemoMode(authEnvFromPlatform(platform))) {
-      return c.json({ models: [] });
-    }
     const modEnv = moduleEnvFromPlatform(platform);
     const modules = await discoverConfiguredModules(modEnv, { cacheTtlMs: 60_000 });
     // BOTH halves are projections now (cf#129 phase 2): the studio hardcodes no model names at all.

@@ -42,30 +42,10 @@ describe("auth mode docs agree with auth-gate.ts (not with each other)", () => {
     const advertised = advertisedModes(src);
     // Denominators beside the claim. A zero from either would make everything below vacuous.
     expect(dispatched.length, `dispatched=${JSON.stringify(dispatched)}`).toBeGreaterThan(1);
-    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(1);
+    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(0);
     // `access` is dispatched only to be REFUSED by name, so it is dispatched and not advertised.
     expect(dispatched, "the gate should still name access explicitly to refuse it").toContain("access");
-    expect(advertised, `the gate advertises: ${JSON.stringify(advertised)}`).toEqual(["demo", "token"]);
-  });
-
-  it("no document claims a single supported mode", () => {
-    // The class, not the two instances that were reported.
-    const docs = ["docs/SECURITY.md", "docs/DEPLOYMENT.md", "docs/ARCHITECTURE.md", "USE.md", "docs/quickstart.md"];
-    const offenders: string[] = [];
-    for (const d of docs) {
-      let body: string;
-      try {
-        body = read(d);
-      } catch {
-        continue; // a doc that moved is not this guard's business
-      }
-      for (const line of body.split("\n")) {
-        if (/only supported mode|token only|Only supported|only mode/i.test(line)) {
-          offenders.push(`${d}: ${line.trim()}`);
-        }
-      }
-    }
-    expect(offenders, `a heading or row still claims one mode:\n${offenders.join("\n")}`).toEqual([]);
+    expect(advertised, `the gate advertises: ${JSON.stringify(advertised)}`).toEqual(["token"]);
   });
 
   it("SECURITY.md's mode table lists every advertised mode as supported", () => {
@@ -73,11 +53,11 @@ describe("auth mode docs agree with auth-gate.ts (not with each other)", () => {
     const advertised = advertisedModes(src);
     // Denominator FIRST: this test LOOPS over `advertised`, so an empty derivation would make
     // its body never run and the test pass having asserted nothing.
-    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(1);
+    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(0);
     const sec = read("docs/SECURITY.md");
-    const rows = sec.split("\n").filter((l) => /^\|\s*`(token|demo|access)`\s*\|/.test(l));
+    const rows = sec.split("\n").filter((l) => /^\|\s*`(token|access)`\s*\|/.test(l));
     // Control: the table exists at all.
-    expect(rows.length, "no auth-mode table rows found; did the table move?").toBeGreaterThanOrEqual(3);
+    expect(rows.length, "no auth-mode table rows found; did the table move?").toBeGreaterThanOrEqual(2);
     for (const mode of advertised) {
       const row = rows.find((r) => r.includes(`\`${mode}\``));
       expect(row, `no row for advertised mode ${mode}`).toBeDefined();
@@ -98,7 +78,7 @@ describe("auth mode docs agree with auth-gate.ts (not with each other)", () => {
     expect(row, "no AUTH_MODE row found in DEPLOYMENT.md").toBeDefined();
     const advertised = advertisedModes(read(GATE));
     // Same reason as above: an empty list would make the loop below assert nothing.
-    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(1);
+    expect(advertised.length, `advertised=${JSON.stringify(advertised)}`).toBeGreaterThan(0);
     for (const mode of advertised) {
       expect(row, `AUTH_MODE row omits the advertised mode ${mode}: ${row}`).toContain(mode);
     }

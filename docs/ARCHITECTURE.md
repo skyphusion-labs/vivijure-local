@@ -94,7 +94,7 @@ Module workers that called VPC fetchers (`beat-sync`, finish modules) use `*_VPC
 
 ## Auth
 
-v1 supports `AUTH_MODE=token` (default) and `AUTH_MODE=demo` (`STUDIO_API_TOKEN` + D1-shaped `api_tokens` table (named tokens = full operator reach, no scope column -- local#238)). CF Access is a cloud-host concern; not ported.
+v1 supports `AUTH_MODE=token` (default; `STUDIO_API_TOKEN` + D1-shaped `api_tokens` table (named tokens = full operator reach, no scope column -- local#238)). CF Access is a cloud-host concern; not ported.
 
 **Named tokens are attribution, not scope (local#238).** `api_tokens` is `(name, token_hash,
 created_at, revoked_at)` with **no capability column**. `verifyTokenRequest` admits a named token
