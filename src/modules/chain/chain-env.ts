@@ -112,6 +112,15 @@ export type CastImageBackend = "local-door" | "workers-ai";
  * So a set-but-unusable value fails loud and stops here; only a genuinely empty variable reaches
  * Workers AI. Unlike speech-upscale this is NOT a polish step, so the stop is `ok: false` and not
  * an honest degrade -- see the contract note on generateCastImageLocal.
+ *
+ * KNOWN GAP, measured after local#481 landed, tracked as local#490: "fails loud" is true of a
+ * door that REFUSES the connection (14ms, door named) and NOT of one that accepts and never
+ * answers. generateCastImageLocal uses ONE AbortController per request, so the connect phase
+ * inherits CAST_IMAGE_GENERATE_TIMEOUT_MS (600s, sized for a cold Klein 4B weight load) and that
+ * shape reads as a hang. A lone door is not health-probed either, because door-pool orderDoors
+ * skips the probe at pool size one on purpose. The argument above is unaffected -- a fall-through
+ * would still be wrong -- but the loudness half is only partly kept today. local#490 splits the
+ * bound and deletes this paragraph.
  */
 export function resolveCastImageBackend(env: ChainModuleEnv): CastImageBackend {
   if (castImageLocalDoorRaw(env)) return "local-door";
