@@ -34,6 +34,22 @@
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-containers-drift.sh
 #
 # Runs in the containers-drift CI job, which checks out cf main for this script.
+#
+# THE CI JOB COMPARES AGAINST FLOATING cf main, AND THAT IS THE DESIGN (local#403).
+# This is a parity guard. If it reds with no change on this side, cf moved and the
+# drift is REAL: absorb it with a deliberate sync PR. Do NOT pin cf to a sha to green
+# it -- local#362 proposed exactly that for the sibling manifest guard and it was
+# refused, because a pin selects a reference point at which the gap is invisible and
+# the guard stops being able to go red on the thing it exists for.
+#
+# WHAT local#482 CHANGED was the TRIGGER, not the ref: the workflow now runs this on
+# push to main, on a daily schedule, and on a pull request ONLY when that PR edits one
+# of the five DIRS below or this script. A parity fact is a property of main and of
+# cf, so asserting it on every PR made unrelated authors hostage to cf merges.
+#
+# DIRS BELOW AND THE WORKFLOW paths: FILTER MUST STAY IN STEP. The filter lists these
+# five directories, not containers/**, because containers/ holds unguarded dirs too
+# (cast-image), and a containers/** filter would re-run this on PRs it cannot speak to.
 
 set -euo pipefail
 
