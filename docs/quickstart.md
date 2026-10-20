@@ -144,3 +144,5 @@ npm run conformance:compose
 
 For the full variable list and security model, use [DEPLOYMENT.md](DEPLOYMENT.md) and
 [SECURITY.md](SECURITY.md).
+
+<!-- local#482 skip-probe: temporary, this branch is never merged -->
