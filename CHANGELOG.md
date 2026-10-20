@@ -7,6 +7,14 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(cast-image): the sidecar pins Klein 4B and refuses every other id
+
+`containers/cast-image` is the local loader. `SELF_HOST_MODEL_REVISIONS` pins
+`black-forest-labs/FLUX.2-klein-4B` to `e7b7dc27f91deacad38e78976d1f2b499d76a294`,
+and that loader passes the revision to `from_pretrained`. An id that is not on
+the allowlist is refused, including an id that misses the named non-commercial
+list. The panel does not call this sidecar yet.
+
 ### fix(runpod): the job log points at core; detail no longer truncates at 160
 
 

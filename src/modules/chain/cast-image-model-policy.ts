@@ -9,7 +9,9 @@
  * does not read BFL ToS 1.3(n) as a ban on training on those `@cf/` outputs.
  *
  * FLUX.2 Klein 4B is Apache-2.0 and ungated: the only FLUX family member this door
- * may self-host. See THIRD_PARTY_MODELS.md and USE.md.
+ * may self-host. SELF_HOST_MODEL_REVISIONS pins the revision whose licence was
+ * read, and containers/cast-image passes that revision to from_pretrained.
+ * See THIRD_PARTY_MODELS.md and USE.md.
  *
  * This module is the code half of that constraint. Documentation alone is not a
  * guardrail (local#269 read as a bug against the CF default until this was written).
@@ -28,6 +30,23 @@ export type SelfHostAllowedHfModel = (typeof SELF_HOST_ALLOWED_HF_MODELS)[number
  */
 export const DEFAULT_SELF_HOST_HF_MODEL: SelfHostAllowedHfModel =
   "black-forest-labs/FLUX.2-klein-4B";
+
+/**
+ * Revision whose licence text was read, keyed by allowlisted repo id.
+ * The sidecar loader passes this value to from_pretrained. A later revision
+ * can ship a different LICENSE.md under the same repo id.
+ */
+export const SELF_HOST_MODEL_REVISIONS: {
+  readonly [K in SelfHostAllowedHfModel]: string;
+} = {
+  "black-forest-labs/FLUX.2-klein-4B":
+    "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+};
+
+/** Pinned revision for an allowlisted id. The type forbids an unpinned entry. */
+export function selfHostRevision(id: SelfHostAllowedHfModel): string {
+  return SELF_HOST_MODEL_REVISIONS[id];
+}
 
 /**
  * Full cloud cast.image catalog (order = panel enum order). Default is klein-9b via CF

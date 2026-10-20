@@ -155,6 +155,9 @@ jobs:
       - name: Test
         working-directory: vivijure-local
         run: npm test
+      - name: Sidecar allowlist
+        working-directory: vivijure-local
+        run: python3 containers/cast-image/test_allowlist.py
       - name: Module conformance
         working-directory: vivijure-local
         run: npm run conformance

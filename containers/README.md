@@ -13,3 +13,5 @@
 #   image-prep/Dockerfile             -- numba pin 3.11; local dependabot comments
 # audio-beat-sync/Dockerfile matches cf (python 3.12; librosa 1.0 needs >=3.12).
 # Everything else under the five service dirs must match cf byte-for-byte.
+# cast-image/ is local-only. It is not synced from vivijure-cf, and the drift
+# check does not include it. It is the Apache Klein 4B sidecar.
