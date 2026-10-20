@@ -12,4 +12,12 @@ CI runs `python3 containers/cast-image/test_allowlist.py`. That file has no
 torch dependency. `test_app.py` is the HTTP suite and needs aiohttp, pillow,
 and pytest; it is not part of `npm test`.
 
-The image is not built in CI. The panel does not call this sidecar yet.
+The image is not built in CI; `compose.yaml` builds it locally under the
+`cast-image` profile.
+
+The panel calls this sidecar when `CAST_IMAGE_BACKEND_URL` is set (local#269).
+It unloads Ollama before each `/generate` and calls `/unload` after the last
+reference image, so the card is only held while a cast job is running. The
+panel sends the allowlisted repo id explicitly and refuses a response whose
+`revision` is not the pinned one, so this container's own refusal is a second
+independent check rather than the only one.

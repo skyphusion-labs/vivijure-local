@@ -41,7 +41,7 @@ describe("cast.image poll", () => {
       mime: "image/png",
     });
 
-    const invoke = await invokeCastImage(store, {
+    const invoke = await invokeCastImage(env, store, {
       hook: "cast.image",
       input: {
         cast_id: 42,
@@ -76,7 +76,7 @@ describe("cast.image poll", () => {
       .mockRejectedValueOnce(new Error("3030 has been flagged"))
       .mockResolvedValue({ bytes: fakePng, mime: "image/png" });
 
-    const invoke = await invokeCastImage(store, {
+    const invoke = await invokeCastImage(env, store, {
       hook: "cast.image",
       input: { cast_id: 7, portrait_url: "https://example.com/p.png" },
       config: { num_images: 4 },

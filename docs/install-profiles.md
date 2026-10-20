@@ -56,6 +56,7 @@ Also started (not a module sidecar): **`ollama`** (+ one-shot `ollama-pull` for
 | Piece | Default |
 |-------|---------|
 | Planner | Ollama (`OLLAMA_BASE_URL` + `OLLAMA_PLAN_MODEL=qwen3:14b`); unload before keyframe |
+| cast.image (training refs) | Workers AI. Set `CAST_IMAGE_BACKEND_URL` + `cast-image` profile for Apache-2.0 Klein 4B on your own card (local#269) |
 | Keyframe + motion | `module-local-gpu`, **`localgpu` profile only** (16GB door). No door: the service is **not in the stack**, and the host reports both hooks unavailable -- no mock, no doorless stand-in (local#229, local#280) |
 | Dialogue / music-gen | AI Gateway sidecars (honest degrade when gateway creds unset) |
 | RunPod keyframe | **not started** (`profiles: [cloud]`; `MODULE_KEYFRAME_URL` unset) |
@@ -93,6 +94,67 @@ startup on a variable you already deleted.
 
 If you enable the profile by hand and leave the door address empty, `localgpu-door-gate` fails the lane
 at startup rather than bringing up a sidecar pointed at nothing.
+
+## Profile: `cast-image` (cast references on your own card)
+
+`cast.image` generates the 4-10 training references a cast LoRA is trained on. By default it runs
+on Workers AI. Set `CAST_IMAGE_BACKEND_URL` and it runs on your own card instead, on Apache-2.0
+**FLUX.2 Klein 4B** at a pinned revision (local#269, under epic local#200: Cloudflare and RunPod
+are deliberate opt-ins, never defaults a user discovers they are already on).
+
+Needs roughly **13GB VRAM**. Its own profile, not folded into `localgpu`, because the two are
+separately useful: you can run the GPU door for keyframes and still generate references in the
+cloud, or the reverse.
+
+```bash
+docker compose --profile cast-image build cast-image        # CUDA image, not baked in CI
+
+# .env
+CAST_IMAGE_BACKEND_URL=http://cast-image:8785
+# CAST_IMAGE_TOKEN=...            # optional bearer, must match the sidecar
+
+COMPOSE_PROFILES=cast-image docker compose \
+  -f compose.yaml -f compose.cast-image-nvidia.yaml up -d cast-image
+npm run sync:secrets:compose
+docker compose up -d --force-recreate module-cast-image
+```
+
+**Setting the URL takes cast references off Cloudflare entirely.** Presence wins over the Workers
+AI catalog, and an unusable or unreachable door **fails loudly naming the door** rather than
+falling back to the cloud. Three reasons the fall-through would be wrong, and they are worth
+knowing before someone "fixes" it:
+
+1. Writing the variable IS the operator asking for the local card. Reading a typo as "unset" would
+   put the job on the exact cloud dependency this lane removes, silently, looking like success.
+2. The cloud default is `@cf/black-forest-labs/flux-2-klein-9b`, and `cast.image` exists to produce
+   **training** data. ernst's licence read on local#269 found BFL ToS 1.3(n) prohibits using Output
+   to train or fine-tune other models. vivijure-cf#751 settled the Cloudflare path for inference;
+   a silent failure-path switch into it for training data is not a decision the code may take.
+3. A homelabber running this door usually has no Cloudflare credentials at all, so the "fallback"
+   is an obscure auth error several layers down instead of a sentence naming the door.
+
+Unlike `speech-upscale`, there is **no honest-degrade shape** here. Cast prep is not a polish step:
+a miss means there is no training image, and training a LoRA on a short set is worse than a stopped
+job. So failures are `ok: false`, loud, and named.
+
+**The run records `model:local/flux-2-klein-4b`**, never a `@cf/` id the box never called, even
+when the panel's model picker sent one. The picker still projects the cloud catalog from
+`dev/manifests/cast-image.json`; with a door wired the module replaces that choice rather than
+honouring it. The manifest enum is deliberately **not** given a `local/...` entry, because a
+selectable option that means nothing without a door is worse than no option.
+
+**Sequential VRAM** (local#265): the panel unloads Ollama before each `/generate` and calls
+`POST /unload` after the last reference image, so cast prep, planning and keyframes take the card
+in turn rather than contending for it. Without `compose.cast-image-nvidia.yaml` the sidecar starts
+but reports `configured:false`, and the panel surfaces that as a 503 naming the GPU: the honest
+built-but-unusable state, not a silent CPU fallback.
+
+Weights land in the `cast-image-models` named volume, so a `--force-recreate` does not re-download
+several GB.
+
+**Still RunPod/CF for now:** training the LoRA itself. Local SDXL `train_lora` is
+[local#271](https://github.com/skyphusion-labs/vivijure-local/issues/271); Apache references
+without a local train step still leave the adapter half on RunPod or Cloudflare.
 
 ## Profile: `cloud` (RunPod / cloud GPU modules)
 

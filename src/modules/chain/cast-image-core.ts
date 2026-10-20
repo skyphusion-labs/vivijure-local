@@ -62,6 +62,16 @@ export function refKey(castId: number, index: number, ext: string): string {
   return `cast-gen/${castId}/ref_${String(index).padStart(2, "0")}.${safeExt}`;
 }
 
+/**
+ * WHERE this run generates. Chosen ONCE at /invoke and persisted, never re-derived per poll.
+ *
+ * A ten-image cast prep spans ten polls. Re-reading the resolver on each one would let a
+ * mid-job env change move the remaining images to a different backend while `applied` still
+ * names one model, so the record would be a lie about half the training set. Pinning the
+ * decision into state makes the run reproducible from the state file alone.
+ */
+export type CastImageRunBackend = "local-door" | "workers-ai";
+
 export interface CastImageState {
   cast_id: number;
   model: string;
@@ -70,6 +80,19 @@ export interface CastImageState {
   done: { key: string; mime: string }[];
   total: number;
   ref_urls: string[];
+  /** Absent on states written before local#269; read as "workers-ai". */
+  backend?: CastImageRunBackend;
+  /**
+   * The on-box door this run is pinned to, health-ordered at /invoke. Pinned for the same
+   * reason as `backend`: re-selecting per poll would scatter one training set across cards
+   * and hide a door that died halfway through.
+   */
+  door_url?: string;
+}
+
+/** Backend of a run, tolerating state written before the field existed. */
+export function stateBackend(state: CastImageState): CastImageRunBackend {
+  return state.backend === "local-door" ? "local-door" : "workers-ai";
 }
 
 export interface PollToken {
@@ -99,11 +122,22 @@ export function buildState(
   input: { cast_id: number; portrait_url: string; source_urls?: string[]; bible?: string; art_style?: string },
   model: string,
   num: number,
+  run?: { backend?: CastImageRunBackend; door_url?: string },
 ): CastImageState {
   const n = clampNumImages(num);
   const prompts = TRAINING_PROMPTS.slice(0, n).map((t) => composeTrainingPrompt(t, input.bible, input.art_style));
   const ref_urls = [input.portrait_url, ...(input.source_urls || [])].filter(Boolean);
-  return { cast_id: input.cast_id, model, fallback_used: false, prompts, done: [], total: n, ref_urls };
+  return {
+    cast_id: input.cast_id,
+    model,
+    fallback_used: false,
+    prompts,
+    done: [],
+    total: n,
+    ref_urls,
+    ...(run?.backend ? { backend: run.backend } : {}),
+    ...(run?.door_url ? { door_url: run.door_url } : {}),
+  };
 }
 
 export function readOutput(state: CastImageState): CastImageOutput {
