@@ -72,8 +72,25 @@ function allCalls(): string[] {
   return calls;
 }
 
+/**
+ * Hostname match, NOT a substring match. `u.includes("cloudflare.com")` is
+ * js/incomplete-url-substring-sanitization: `http://cloudflare.com.evil.test/` and
+ * `http://door/path?x=cloudflare.com` both match it. CodeQL flagged it here and it is right
+ * for a sharper reason than style -- a door URL with that string anywhere in it would count
+ * as a cloud call and the negatives below would pass for the wrong reason.
+ */
+function isCloudflareHost(u: string): boolean {
+  let host: string;
+  try {
+    host = new URL(u).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return host === "cloudflare.com" || host.endsWith(".cloudflare.com");
+}
+
 function cloudflareCalls(): string[] {
-  return calls.filter((u) => u.includes("cloudflare.com"));
+  return calls.filter(isCloudflareHost);
 }
 
 interface DoorBehaviour {
@@ -131,7 +148,7 @@ function mockFetch(door: DoorBehaviour = {}) {
 
       // The CLOUD path. Reached only when the implementation fell through, which is the defect
       // every negative below is watching for -- and which the control at the bottom provokes.
-      if (url.includes("cloudflare.com")) {
+      if (isCloudflareHost(url)) {
         void init;
         return new Response(JSON.stringify({ result: { image: PNG_B64 }, success: true }), {
           status: 200,
