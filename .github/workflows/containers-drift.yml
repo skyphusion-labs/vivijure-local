@@ -43,7 +43,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'tmp/**']
   schedule:
     # Daily. This is what keeps the subject alive: cf drift is caught within a day whether
     # or not anyone opens a PR, against floating main, and the red blocks nobody. The
