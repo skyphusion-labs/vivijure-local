@@ -337,6 +337,29 @@ handlers do not passthrough fake output.
 
 See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, propagandhi teardown notes, and smoke matrix.
 
+### cast.image on your own card (local#269)
+
+`cast.image` builds the training reference set for a cast LoRA. Default is Workers AI. Set
+`CAST_IMAGE_BACKEND_URL` and it runs locally on Apache-2.0 FLUX.2 Klein 4B instead (~13GB VRAM):
+
+```bash
+docker compose --profile cast-image build cast-image
+# .env: CAST_IMAGE_BACKEND_URL=http://cast-image:8785   (CAST_IMAGE_TOKEN optional)
+COMPOSE_PROFILES=cast-image docker compose \
+  -f compose.yaml -f compose.cast-image-nvidia.yaml up -d cast-image
+npm run sync:secrets:compose
+docker compose up -d --force-recreate module-cast-image
+```
+
+Presence of the variable wins over the Workers AI catalog and there is **no fallback to the cloud**:
+an unusable or unreachable door fails the job loudly, naming the door. Cast prep is not a polish
+step, so there is no passthrough/degrade shape (contrast `speech-upscale`). The run records
+`model:local/flux-2-klein-4b`. Sequential VRAM is handled for you: Ollama is unloaded before each
+generate, and the door is unloaded after the last image.
+
+Full rationale, including the licence reasoning behind the no-fallback rule, is in
+[install-profiles.md](install-profiles.md#profile-cast-image-cast-references-on-your-own-card).
+
 Production R2 deploys keep HTTPS-only guards (`S3_ALLOW_HTTP_FETCH=false`).
 
 ### Module sidecars

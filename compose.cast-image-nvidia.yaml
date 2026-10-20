@@ -1,0 +1,23 @@
+# Optional NVIDIA GPU overlay for the local cast.image door (local#269).
+#
+# Use when the cast.image sidecar shares the homelab card with Ollama and the
+# 16GB GPU door. Sequential VRAM: cast prep -> unload -> plan -> unload ->
+# keyframe. The panel unloads Ollama before each door generate and calls
+# POST /unload after the last reference image, so the card is only held while
+# a cast job is actually running.
+#
+#   COMPOSE_PROFILES=cast-image docker compose \
+#     -f compose.yaml -f compose.cast-image-nvidia.yaml up -d cast-image
+#
+# Or set COMPOSE_FILE=compose.yaml:compose.cast-image-nvidia.yaml in .env.
+#
+# Requires the NVIDIA Container Toolkit on the host. Without this file the
+# sidecar still starts and reports configured:false on GET /health, and
+# POST /generate returns 503. That is the honest built-but-unusable state,
+# not a silent CPU fallback: Klein 4B on CPU is not a thing anyone wants.
+
+services:
+  cast-image:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all

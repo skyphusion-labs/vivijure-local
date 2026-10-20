@@ -2,10 +2,13 @@
 # Local cast.image sidecar: FLUX.2 Klein 4B at the revision pinned in
 # model_allowlist.py. Not baked in CI (CUDA image, multi-GB weights).
 #
-# Homelab build, from this directory:
+# Homelab build, from the repo root:
+#   docker compose --profile cast-image build cast-image
+#
+# Or from this directory:
 #   docker build -t vivijure-cast-image .
 #
-# The panel does not call this sidecar yet.
+# The panel calls this sidecar when CAST_IMAGE_BACKEND_URL is set (local#269).
 
 FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 

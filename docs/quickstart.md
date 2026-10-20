@@ -122,6 +122,10 @@ npm run conformance:compose
   See [DEPLOYMENT.md](DEPLOYMENT.md) and [install-profiles.md](install-profiles.md).
 - **Local finish sidecars:** `FINISH_BACKEND` already defaults to `local`; add `LOCAL_FINISH_*_URL`
   ([FINISH_BACKEND.md](FINISH_BACKEND.md)).
+- **Cast references on your own card:** `COMPOSE_PROFILES=cast-image` plus
+  `CAST_IMAGE_BACKEND_URL` runs `cast.image` on Apache-2.0 FLUX.2 Klein 4B locally instead of
+  Workers AI (~13GB VRAM). See
+  [install-profiles.md](install-profiles.md#profile-cast-image-cast-references-on-your-own-card).
 - **Public HTTPS** (studio + MinIO for remote GPU fetch): [EDGE.md](EDGE.md)
   (`npm run install:edge`, then `COMPOSE_PROFILES=edge npm run compose:up`).
 - **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).

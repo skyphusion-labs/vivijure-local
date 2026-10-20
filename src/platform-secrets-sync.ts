@@ -40,6 +40,11 @@ export const PLATFORM_TUNNEL_SYNC_KEYS = [
   // settable in the GUI and silently ignored from .env. (.env is a SEED; the store is the value.)
   "LOCAL_FINISH_SPEECH_URL",
   "LOCAL_FINISH_TOKEN",
+  // local#269, and local#379 is the reason this row is not optional: without it the .env seed
+  // never reaches the runtime store, so the key would be settable in the GUI and silently
+  // ignored from .env. (.env is a SEED; the store is the value.)
+  "CAST_IMAGE_BACKEND_URL",
+  "CAST_IMAGE_TOKEN",
 ] as const satisfies readonly (typeof PLATFORM_SECRET_FIELDS)[number]["key"][];
 
 export interface SyncPlatformSecretsResult {
