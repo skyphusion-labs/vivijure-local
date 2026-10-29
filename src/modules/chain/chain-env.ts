@@ -14,6 +14,13 @@ export type ChainModuleEnv = PlannerEnv & {
   LOCAL_FINISH_SPEECH_URL?: string;
   /** Shared bearer for the on-box LOCAL_FINISH_* doors; the speech door is one of them. */
   LOCAL_FINISH_TOKEN?: string;
+  /**
+   * Comma-separated on-box cast.image door pool (local#269). Same list shape as
+   * LOCAL_FINISH_SPEECH_URL, parsed by the same door-pool selector.
+   */
+  CAST_IMAGE_BACKEND_URL?: string;
+  /** Optional bearer for the cast.image door; mirrors CAST_IMAGE_TOKEN in containers/cast-image. */
+  CAST_IMAGE_TOKEN?: string;
 };
 
 export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = process.env): ChainModuleEnv {
@@ -29,6 +36,8 @@ export function chainModuleEnvFromProcess(processEnv: NodeJS.ProcessEnv = proces
     RUNPOD_WORKERS_MAX: processEnv.RUNPOD_WORKERS_MAX?.trim() || undefined,
     LOCAL_FINISH_SPEECH_URL: processEnv.LOCAL_FINISH_SPEECH_URL?.trim() || undefined,
     LOCAL_FINISH_TOKEN: processEnv.LOCAL_FINISH_TOKEN?.trim() || undefined,
+    CAST_IMAGE_BACKEND_URL: processEnv.CAST_IMAGE_BACKEND_URL?.trim() || undefined,
+    CAST_IMAGE_TOKEN: processEnv.CAST_IMAGE_TOKEN?.trim() || undefined,
   };
 }
 
@@ -71,4 +80,49 @@ export function resolveSpeechBackend(env: ChainModuleEnv): SpeechBackend {
   if (speechLocalDoorRaw(env)) return "local-door";
   if (speechRunpodConfigured(env)) return "runpod";
   return "mock";
+}
+
+/** The raw, untrimmed-of-meaning cast.image door list. Non-empty means the operator asked for it. */
+export function castImageLocalDoorRaw(env: ChainModuleEnv): string {
+  return env.CAST_IMAGE_BACKEND_URL?.trim() ?? "";
+}
+
+export type CastImageBackend = "local-door" | "workers-ai";
+
+/**
+ * WHERE cast.image sends work (local#269, under epic local#200). ONE resolver; there is no second
+ * selection path, for the same reason door-pool.ts exists.
+ *
+ * `CAST_IMAGE_BACKEND_URL` WINS ON PRESENCE, NOT ON USABILITY, exactly as LOCAL_FINISH_SPEECH_URL
+ * does, and for a sharper reason than that one. Three things make the fall-through wrong here:
+ *
+ *   1. Writing a value into this variable IS the operator saying "generate my cast references on
+ *      my own card". Reading a typo as "unset" would send the job to Workers AI, which is the
+ *      cloud dependency epic local#200 exists to make optional, arriving silently and looking like
+ *      success.
+ *   2. The cloud default is `@cf/black-forest-labs/flux-2-klein-9b`. ernst's licence read on
+ *      local#269 (2026-09-26) found BFL ToS 1.3(n) forbids using Output to "train, distill or
+ *      fine-tune any other AI models", and the entire purpose of cast.image is a LoRA training
+ *      set. vivijure-cf#751 settled the Cloudflare path for INFERENCE; a silent failure-path
+ *      switch into it for TRAINING data is not a decision this resolver gets to make.
+ *   3. A homelabber running the local door usually holds no CLOUDFLARE_ACCOUNT_ID or CF_AIG_TOKEN
+ *      at all, so the "fallback" surfaces as an obscure auth error several layers down rather
+ *      than a sentence naming the door that did not answer.
+ *
+ * So a set-but-unusable value fails loud and stops here; only a genuinely empty variable reaches
+ * Workers AI. Unlike speech-upscale this is NOT a polish step, so the stop is `ok: false` and not
+ * an honest degrade -- see the contract note on generateCastImageLocal.
+ *
+ * KNOWN GAP, measured after local#481 landed, tracked as local#490: "fails loud" is true of a
+ * door that REFUSES the connection (14ms, door named) and NOT of one that accepts and never
+ * answers. generateCastImageLocal uses ONE AbortController per request, so the connect phase
+ * inherits CAST_IMAGE_GENERATE_TIMEOUT_MS (600s, sized for a cold Klein 4B weight load) and that
+ * shape reads as a hang. A lone door is not health-probed either, because door-pool orderDoors
+ * skips the probe at pool size one on purpose. The argument above is unaffected -- a fall-through
+ * would still be wrong -- but the loudness half is only partly kept today. local#490 splits the
+ * bound and deletes this paragraph.
+ */
+export function resolveCastImageBackend(env: ChainModuleEnv): CastImageBackend {
+  if (castImageLocalDoorRaw(env)) return "local-door";
+  return "workers-ai";
 }

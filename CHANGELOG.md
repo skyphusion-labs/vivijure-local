@@ -7,13 +7,42 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### feat(cast-image): the panel generates cast references on your own card
+
+`CAST_IMAGE_BACKEND_URL` points `cast.image` at the `containers/cast-image`
+sidecar, so a homelabber produces LoRA training references on Apache-2.0
+FLUX.2 Klein 4B instead of Workers AI (local#269, under epic local#200).
+New compose profile `cast-image` plus `compose.cast-image-nvidia.yaml`.
+
+Presence of the variable wins over the Workers AI catalog and **there is no
+fallback to the cloud**: an unusable or unreachable door fails the job loudly,
+naming the door. Cast prep is not a polish step, so there is no passthrough
+shape here, and no nano-banana safety-flag retry on the local path either --
+that overlay is Workers AI, and reaching it from inside a failure handler
+would put a training set on the cloud path this lane removes.
+
+Sequential VRAM (local#265): Ollama is unloaded before each generate and the
+door is unloaded after the last image. The backend and the chosen door are
+pinned into run state at invoke, so a ten-image job cannot scatter across
+backends mid-run. The run records `model:local/flux-2-klein-4b`, never a
+`@cf/` id the box never called.
+
+`refuseSelfHostModel` gains its first production caller: the panel resolves the
+allowlisted repo id before the request and refuses a response whose `revision`
+is not the pinned one, so the sidecar's own refusal is a second independent
+check rather than the only one.
+
+[#272](https://github.com/skyphusion-labs/vivijure-local/pull/272) remains the
+design record for this work and is not superseded in substance, only re-cut
+against current `main`.
+
 ### fix(cast-image): the sidecar pins Klein 4B and refuses every other id
 
 `containers/cast-image` is the local loader. `SELF_HOST_MODEL_REVISIONS` pins
 `black-forest-labs/FLUX.2-klein-4B` to `e7b7dc27f91deacad38e78976d1f2b499d76a294`,
 and that loader passes the revision to `from_pretrained`. An id that is not on
 the allowlist is refused, including an id that misses the named non-commercial
-list. The panel does not call this sidecar yet.
+list. (The panel wiring followed; see the entry above.)
 
 ### fix(runpod): the job log points at core; detail no longer truncates at 160
 

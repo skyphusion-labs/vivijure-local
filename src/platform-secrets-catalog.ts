@@ -275,6 +275,26 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
+    key: "CAST_IMAGE_BACKEND_URL",
+    label: "Local cast.image door URL",
+    blurb:
+      "HTTP base(s) for cast training-reference generation on your own card " +
+      "(comma-separated for several). SET THIS AND NO CAST REFERENCES GO TO CLOUDFLARE: presence " +
+      "wins over the Workers AI catalog, and an unreachable door fails loudly naming the door " +
+      "rather than falling back to the cloud. Needs the cast-image profile and ~13GB VRAM.",
+    category: "providers",
+    sensitive: false,
+    applies_on: "immediate",
+  },
+  {
+    key: "CAST_IMAGE_TOKEN",
+    label: "Local cast.image door token",
+    blurb: "Optional bearer token for the cast.image door (CAST_IMAGE_TOKEN on the sidecar).",
+    category: "providers",
+    sensitive: true,
+    applies_on: "immediate",
+  },
+  {
     key: "LOCAL_FINISH_TOKEN",
     label: "Local finish backend token",
     blurb: "Optional bearer token for LOCAL_FINISH_*_URL services, including the speech door.",

@@ -59,7 +59,7 @@ export function createChainModuleApp(
     }
     if (moduleName === "cast-image") {
       if (req.hook !== "cast.image") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });
-      return c.json(await invokeCastImage(store, req as InvokeRequest<CastImageInput>));
+      return c.json(await invokeCastImage(env, store, req as InvokeRequest<CastImageInput>));
     }
     if (moduleName === "image-generate") {
       if (req.hook !== "image.generate") return c.json({ ok: false, error: "unsupported hook " + String(req.hook) });

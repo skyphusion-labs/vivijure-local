@@ -38,6 +38,9 @@ volumes:
   ollama-data:
   caddy-data:
   caddy-config:
+  # local#269: Hugging Face cache for the cast.image sidecar. Declared unconditionally (a named
+  # volume costs nothing until a service mounts it) so the cast-image profile needs no second file.
+  cast-image-models:
 
 x-cpu-health: &cpu-health
   interval: 30s
@@ -129,6 +132,13 @@ x-profile-cloud: &profile-cloud
 x-profile-localgpu: &profile-localgpu
   profiles: [localgpu]
 
+# local#269: the local cast.image lane. Its own profile and not part of `localgpu`, because the two
+# are separately useful: a homelabber can run the GPU door for keyframes while still generating cast
+# references in the cloud, or the reverse. Folding them together would make one card a prerequisite
+# for the other.
+x-profile-cast-image: &profile-cast-image
+  profiles: [cast-image]
+
 x-ai-gateway-env: &ai-gateway-env
   CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
   GATEWAY_ID: ${GATEWAY_ID:-skyphusion-llm}
@@ -184,6 +194,44 @@ services:
     healthcheck:
       <<: *cpu-health
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+
+  # cast.image on your own card (local#269, under epic local#200): Apache-2.0 FLUX.2 Klein 4B at the
+  # revision pinned in containers/cast-image/model_allowlist.py. Wire the panel to it by setting
+  # CAST_IMAGE_BACKEND_URL; with that unset the panel still uses Workers AI and this service is inert.
+  #
+  # BUILT LOCALLY, NOT PULLED. The other CPU sidecars come from GHCR; this one is a CUDA image with
+  # multi-GB weights and is deliberately not baked in CI, so `image:` would point at a tag that does
+  # not exist. `build:` is the honest declaration of that (local#480).
+  #
+  # No GPU reservation here: add compose.cast-image-nvidia.yaml for the card. Without it the service
+  # starts and reports configured:false, which is the state the panel surfaces as a 503 naming the GPU.
+  cast-image:
+    <<: *profile-cast-image
+    build:
+      context: ./containers/cast-image
+    image: vivijure-local-cast-image:local
+    pull_policy: never
+    restart: unless-stopped
+    networks: [studio]
+    ports:
+      - "127.0.0.1:8785:8785"
+    environment:
+      PORT: "8785"
+      # The sidecar refuses a non-allowlisted value at import, so a typo here fails the container
+      # rather than quietly loading other weights (local#277 / local#398).
+      CAST_IMAGE_MODEL: ${CAST_IMAGE_MODEL:-black-forest-labs/FLUX.2-klein-4B}
+      CAST_IMAGE_TOKEN: ${CAST_IMAGE_TOKEN:-}
+      HF_HOME: /models/huggingface
+    volumes:
+      # Weights survive a recreate. Without this every `up -d --force-recreate` re-downloads
+      # several GB, which on a home connection reads as the container being broken.
+      - cast-image-models:/models/huggingface
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8785/health"]
 
   audio-beat-sync:
     <<: *cpu-service
@@ -551,6 +599,14 @@ services:
     environment:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       <<: *ai-gateway-env
+      # local#269: set CAST_IMAGE_BACKEND_URL and cast references are generated on your own card
+      # instead of Workers AI. Presence wins; see resolveCastImageBackend for why an unusable value
+      # is a loud failure rather than a silent fall-through to the cloud.
+      CAST_IMAGE_BACKEND_URL: ${CAST_IMAGE_BACKEND_URL:-}
+      CAST_IMAGE_TOKEN: ${CAST_IMAGE_TOKEN:-}
+      # Sequential VRAM (local#265): the module unloads Ollama before each door generate.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-qwen3:14b}
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}

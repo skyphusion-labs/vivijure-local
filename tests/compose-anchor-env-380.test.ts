@@ -22,7 +22,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const REPO = join(import.meta.dirname, "..");
-const PROFILES = ["satellites", "cloud", "localgpu"];
+// local#269 added `cast-image`. A profile missing from this list is a service this guard cannot
+// see, so the list grows with the lanes or the coverage silently lags behind the compose file.
+const PROFILES = ["satellites", "cloud", "localgpu", "cast-image"];
 
 /**
  * Compose v2 ships as a `docker` plugin and v5 also ships as a standalone binary; a dev box may have

@@ -34,6 +34,27 @@
 #   VIVIJURE_SRC=/path/to/vivijure-cf bash scripts/check-containers-drift.sh
 #
 # Runs in the containers-drift CI job, which checks out cf main for this script.
+#
+# THE CI JOB COMPARES AGAINST FLOATING cf main, AND THAT IS THE DESIGN (local#403).
+# This is a parity guard. If it reds with no change on this side, cf moved and the
+# drift is REAL: absorb it with a deliberate sync PR. Do NOT pin cf to a sha to green
+# it -- local#362 proposed exactly that for the sibling manifest guard and it was
+# refused, because a pin selects a reference point at which the gap is invisible and
+# the guard stops being able to go red on the thing it exists for.
+#
+# WHAT local#482 CHANGED was the SCOPE, not the ref: the workflow runs this on every
+# push to main and daily on a schedule, and on a pull request ONLY when that PR edits
+# one of the five DIRS below or this script. A parity fact is a property of main and of
+# cf, so asserting it against every PR made unrelated authors hostage to cf merges.
+#
+# That scoping lives INSIDE the job, in a WATCHED regex, not in an on.pull_request.paths
+# filter. A paths filter reports no status at all, which strands a required check on
+# "Expected -- waiting for status". Deciding in-job always reports a status, and the
+# skip is printed loudly because a green that compared nothing must say so.
+#
+# DIRS BELOW AND THAT WATCHED REGEX MUST STAY IN STEP. It lists these five directories,
+# not containers/**, because containers/ holds unguarded dirs too (cast-image), and a
+# containers/** filter would re-run this on PRs it cannot speak to.
 
 set -euo pipefail
 

@@ -30,10 +30,16 @@ import {
   isFlaggedError,
   readOutput as readCastOutput,
   refKey,
+  stateBackend as castStateBackend,
   stateKey as castStateKey,
   type CastImageState,
 } from "./cast-image-core.js";
 import { generateCastImage } from "./cast-image-gen.js";
+import {
+  LOCAL_CAST_MODEL_TAG,
+  generateCastImageLocal,
+  unloadCastImageDoor,
+} from "./cast-image-local.js";
 export { invokeImageGenerate, MODELS as IMAGE_GENERATE_MODELS } from "./image-generate-core.js";
 export type { ImageGenerateInput, ImageGenerateOutput } from "./image-generate-core.js";
 import {
@@ -64,7 +70,7 @@ import {
   type Intensity,
 } from "./plan-enhance-core.js";
 import { augmentSystemForOllama } from "./ollama-prompts.js";
-import { ollamaConfigured } from "./ollama.js";
+import { ensureOllamaUnloadedForGpu, ollamaConfigured } from "./ollama.js";
 import {
   CHAT_NO_REPLY_ERROR,
   degradeReasonFromError,
@@ -81,6 +87,8 @@ import {
   successRunpodOutput,
 } from "./speech-upscale-core.js";
 import {
+  castImageLocalDoorRaw,
+  resolveCastImageBackend,
   resolveSpeechBackend,
   speechLocalDoorRaw,
   speechRunpodConfigured,
@@ -326,7 +334,45 @@ export async function invokePlanEnhance(
   };
 }
 
+/**
+ * Pick and pin the on-box cast.image door for one run (local#269).
+ *
+ * Returns the chosen base URL, or a refusal string naming WHICH of the two distinct failures
+ * happened. "configured wrong" and "configured but nothing answers" are different facts and an
+ * operator acts differently on each, so they never collapse into one message. Neither falls
+ * through to Workers AI; see resolveCastImageBackend for why.
+ */
+async function pickCastImageDoor(env: ChainModuleEnv): Promise<{ url: string } | { error: string }> {
+  const { urls, dropped } = normalizeDoorBaseUrls(castImageLocalDoorRaw(env));
+  if (dropped > 0) {
+    // Never silent: a dropped entry is lost capacity and the operator's variable still looks fine.
+    console.warn(
+      `cast.image: ${dropped} unusable entr${dropped === 1 ? "y" : "ies"} dropped from ` +
+        `CAST_IMAGE_BACKEND_URL; ${urls.length} usable`,
+    );
+  }
+  if (urls.length === 0) {
+    return {
+      error:
+        "cast.image: CAST_IMAGE_BACKEND_URL is set but yielded 0 usable doors. " +
+        "Expected an http(s) base URL such as http://cast-image:8785 " +
+        "(comma-separate several cards). Not falling back to Workers AI (local#269).",
+    };
+  }
+  const ordered = await orderDoors(urls);
+  if (ordered.length === 0) {
+    return {
+      error:
+        `cast.image: ${urls.length} door(s) configured, 0 reachable. Start the sidecar ` +
+        "(docker compose --profile cast-image up -d cast-image) and check GET /health. " +
+        "Not falling back to Workers AI (local#269).",
+    };
+  }
+  return { url: ordered[0] };
+}
+
 export async function invokeCastImage(
+  env: ChainModuleEnv,
   store: ArtifactStore,
   req: InvokeRequest<CastImageInput>,
 ): Promise<InvokeResponse<CastImageOutput>> {
@@ -334,16 +380,31 @@ export async function invokeCastImage(
   if (!input || typeof input.cast_id !== "number" || !input.portrait_url) {
     return { ok: false, error: "cast.image: input needs cast_id and portrait_url" };
   }
-  // Cloud catalog only here (MODELS / DEFAULT_CAST_MODEL). Self-host HF ids are refused by
-  // cast-image-model-policy when a local sidecar path is wired; they must never sneak in as
-  // the cloud default (local#277 / FLUX Non-Commercial).
-  const model =
-    typeof req.config?.model === "string" && MODELS.includes(req.config.model as (typeof MODELS)[number])
-      ? req.config.model
-      : MODELS[0];
   const num = typeof req.config?.num_images === "number" ? req.config.num_images : 10;
   const job_id = crypto.randomUUID();
-  const state = buildCastState(input, model, num);
+  const backend = resolveCastImageBackend(env);
+
+  let state: CastImageState;
+  if (backend === "local-door") {
+    const door = await pickCastImageDoor(env);
+    if ("error" in door) return { ok: false, error: door.error };
+    // The config enum still carries the cloud catalog, and the panel picker projects those rows.
+    // An operator who wired a door asked for the door, so the request's cloud model id is REPLACED
+    // rather than honoured, and the state records what actually ran. `applied` then reads
+    // `model:local/flux-2-klein-4b`, never a CF id the box never called (the local#249 / local#77
+    // honesty rule applied to the record rather than to a degrade).
+    state = buildCastState(input, LOCAL_CAST_MODEL_TAG, num, { backend, door_url: door.url });
+  } else {
+    // Cloud catalog only here (MODELS / DEFAULT_CAST_MODEL). Self-host HF ids are refused by
+    // cast-image-model-policy on the local path; they must never sneak in as the cloud default
+    // (local#277 / FLUX Non-Commercial).
+    const model =
+      typeof req.config?.model === "string" && MODELS.includes(req.config.model as (typeof MODELS)[number])
+        ? req.config.model
+        : MODELS[0];
+    state = buildCastState(input, model, num, { backend });
+  }
+
   try {
     await writeJson(store, castStateKey(input.cast_id, job_id), state);
   } catch (e) {
@@ -366,22 +427,49 @@ export async function pollCastImage(
   if (!state) return { ok: false, error: "cast.image: run state not found (expired or bad token)" };
   if (state.prompts.length === 0) return { ok: true, output: readCastOutput(state) };
 
+  const backend = castStateBackend(state);
+  const doorUrl = state.door_url;
+  if (backend === "local-door" && !doorUrl) {
+    // Only reachable from state hand-edited or written by a build that pinned no door.
+    return { ok: false, error: "cast.image: local run state carries no door url" };
+  }
+
   for (let i = 0; i < CAST_IMAGE_PER_POLL && state.prompts.length > 0; i++) {
     const prompt = state.prompts[0];
     let img: { bytes: Uint8Array; mime: string };
-    try {
-      img = await generateCastImage(env, state.model, prompt, state.ref_urls);
-    } catch (e) {
-      if (isFlaggedError((e as Error).message) && state.model !== FLAG_FALLBACK_MODEL) {
-        state.model = FLAG_FALLBACK_MODEL;
-        state.fallback_used = true;
-        try {
-          img = await generateCastImage(env, state.model, prompt, state.ref_urls);
-        } catch (e2) {
-          return { ok: false, error: "cast.image: generation failed (post-fallback): " + (e2 as Error).message };
+
+    if (backend === "local-door") {
+      // Sequential VRAM (local#265): free Ollama before the door claims the card. Per poll rather
+      // than once per job, because a ten-image cast prep spans ten polls and plan.enhance in
+      // another tab can reload the model between any two of them. Fail-open and structured, the
+      // same contract every other local GPU claim uses.
+      await ensureOllamaUnloadedForGpu(env as unknown as Record<string, unknown>);
+      try {
+        img = await generateCastImageLocal(doorUrl as string, prompt, state.ref_urls, {
+          token: env.CAST_IMAGE_TOKEN,
+        });
+      } catch (e) {
+        // NO nano-banana fallback here. FLAG_FALLBACK_MODEL is a Workers AI overlay, so retrying
+        // through it would put the training set on the cloud path the door exists to replace,
+        // inside a failure handler, without the operator asking. Release the card and fail loud.
+        await unloadCastImageDoor(doorUrl as string, { token: env.CAST_IMAGE_TOKEN });
+        return { ok: false, error: "cast.image: local door generation failed: " + (e as Error).message };
+      }
+    } else {
+      try {
+        img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+      } catch (e) {
+        if (isFlaggedError((e as Error).message) && state.model !== FLAG_FALLBACK_MODEL) {
+          state.model = FLAG_FALLBACK_MODEL;
+          state.fallback_used = true;
+          try {
+            img = await generateCastImage(env, state.model, prompt, state.ref_urls);
+          } catch (e2) {
+            return { ok: false, error: "cast.image: generation failed (post-fallback): " + (e2 as Error).message };
+          }
+        } else {
+          return { ok: false, error: "cast.image: generation failed: " + (e as Error).message };
         }
-      } else {
-        return { ok: false, error: "cast.image: generation failed: " + (e as Error).message };
       }
     }
     const ext = img.mime.includes("jpeg") ? "jpg" : img.mime.includes("webp") ? "webp" : "png";
@@ -401,9 +489,15 @@ export async function pollCastImage(
     /* best-effort: next poll re-reads prior state */
   }
 
-  return state.prompts.length === 0
-    ? { ok: true, output: readCastOutput(state) }
-    : { ok: true, pending: true };
+  if (state.prompts.length > 0) return { ok: true, pending: true };
+
+  if (backend === "local-door" && doorUrl) {
+    // Last image is stored; hand the card back so keyframe / plan.enhance are not contending with
+    // a pipeline nobody is using. Best effort by construction: the training set already exists, so
+    // a failed unload must not turn a finished job into a failed one (it logs, it never throws).
+    await unloadCastImageDoor(doorUrl, { token: env.CAST_IMAGE_TOKEN });
+  }
+  return { ok: true, output: readCastOutput(state) };
 }
 
 function ttsBytesFromAiResult(result: unknown): Uint8Array {
