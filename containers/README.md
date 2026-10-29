@@ -2,7 +2,7 @@
 #
 # Canonical source: ../vivijure-cf/containers/
 # Sync:   npm run sync-containers
-# Check:  npm run containers:check   (CI: .github/workflows/containers-drift.yml, local#314)
+# Check:  npm run containers:check   (manual only; not a CI job. local and cf stay out of sync on purpose)
 #
 # Services are defined in the repo-root compose.yaml (no cloudflared / Workers VPC).
 #
