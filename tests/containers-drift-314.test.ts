@@ -1,8 +1,8 @@
 // local#314: intentional container deltas must stay pin-tested in-repo so a Dependabot
 // bump or a careless rsync cannot silently rewrite the local base-image policy. Content
-// identity against vivijure-cf is the CI job (containers-drift.yml); these pins run in
-// every `npm test` without a cf checkout.
-import { readFileSync } from "node:fs";
+// The containers-drift workflow is not a CI check: local and cf stay out of sync
+// on purpose. These pins run in every `npm test` without a cf checkout.
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -41,13 +41,11 @@ describe("containers intentional Dockerfile pins (local#314)", () => {
     expect(dockerfile("audio-beat-sync/Dockerfile")).toMatch(/^FROM python:3\.12/m);
   });
 
-  it("check-containers-drift.sh is the CI gate (not only a manual script)", () => {
+  it("check-containers-drift.sh is a manual script, not a CI workflow", () => {
     const sh = readFileSync(resolve(root, "scripts/check-containers-drift.sh"), "utf8");
     expect(sh).toContain("local#314");
     expect(sh).toContain("video-finish");
     expect(sh).toContain("is_allowlisted");
-    const wf = readFileSync(resolve(root, ".github/workflows/containers-drift.yml"), "utf8");
-    expect(wf).toContain("check-containers-drift.sh");
-    expect(wf).toContain("skyphusion-labs/vivijure-cf");
+    expect(existsSync(resolve(root, ".github/workflows/containers-drift.yml"))).toBe(false);
   });
 });
