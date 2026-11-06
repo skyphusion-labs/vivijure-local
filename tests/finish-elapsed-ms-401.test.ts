@@ -39,15 +39,19 @@ const ROOT = join(import.meta.dirname, "..");
 // /finish emits elapsedMs on two returns (the direct path and the chunked path). Both
 // use the clock _finish_work starts, so emissions and clocks are not the same number.
 // Mirrors vivijure-cf exactly; a cf stage added without a local emitter reds the count here.
+// local#504 sync from cf main 0e46569: video-finish gained POST /async/join-films (cf#1171), a fourth
+// stage with its own clock and emission (_join_films_work). Each of the other four gained a GET
+// /selftest handler (cf test_selftest.py) that starts a clock and emits no elapsedMs, so it adds a
+// clock and no emission.
 const CLOCKS: Record<string, number> = {
-  "video-finish": 3,
-  "image-prep": 1,
-  "audio-beat-sync": 1,
-  "audio-mix": 1,
-  "audio-master": 1,
+  "video-finish": 4,
+  "image-prep": 2,
+  "audio-beat-sync": 2,
+  "audio-mix": 2,
+  "audio-master": 2,
 };
 const EMISSIONS: Record<string, number> = {
-  "video-finish": 4,
+  "video-finish": 5,
   "image-prep": 1,
   "audio-beat-sync": 1,
   "audio-mix": 1,

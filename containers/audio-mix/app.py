@@ -32,6 +32,10 @@ PORT = int(os.environ.get("PORT", "8000"))
 DOWNLOAD_TIMEOUT_S = 120
 UPLOAD_TIMEOUT_S = 120
 MAX_TRACK_BYTES = 128 * 1024 * 1024   # 128 MB per track
+# The dialogue track is the assembled film, because ffmpeg takes its audio from there. An upscaled film of
+# about 2 minutes passes 128 MB, and that used to cost the film its voices (vivijure-cf#1158). A larger film
+# is still refused, and the studio then keeps its voices and drops the bed.
+MAX_DIALOGUE_TRACK_BYTES = 3 * 1024 * 1024 * 1024
 MAX_TRACKS = 16
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -46,6 +50,11 @@ def _elapsed_ms(t0: float) -> int:
 async def health(_req):
     # Cheap readiness probe; does not shell out to ffmpeg.
     return web.json_response({"ok": True})
+
+
+def track_cap(role):
+    """Bytes allowed for a track. Only dialogue may be a whole film."""
+    return MAX_DIALOGUE_TRACK_BYTES if role == "dialogue" else MAX_TRACK_BYTES
 
 
 async def _download(session, url, path, cap):
@@ -157,7 +166,7 @@ async def mix(req):
         async with ClientSession(timeout=ClientTimeout(total=DOWNLOAD_TIMEOUT_S)) as s:
             for i, t in enumerate(parsed):
                 p = os.path.join(work, f"track_{i:02d}.bin")
-                ok, info = await _download(s, t["url"], p, MAX_TRACK_BYTES)
+                ok, info = await _download(s, t["url"], p, track_cap(t["role"]))
                 if not ok:
                     status = 413 if info == "too large" else (400 if info.startswith("blocked:") else 502)
                     return web.json_response({"ok": False, "error": f"tracks[{i}] {info}"}, status=status)
@@ -203,11 +212,67 @@ async def mix(req):
         shutil.rmtree(work, ignore_errors=True)
 
 
+def _selftest():
+    """Local mix. No R2. Isolated CF Container proof (cf#1044)."""
+    work = tempfile.mkdtemp(prefix="amix-selftest-")
+    try:
+        dia = os.path.join(work, "dia.wav")
+        mus = os.path.join(work, "mus.wav")
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+                "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", dia,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=220:duration=2",
+                "-af", "volume=0.5",
+                "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", mus,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        tracks = [
+            {"path": dia, "role": "dialogue", "gainDb": 0.0},
+            {"path": mus, "role": "music", "gainDb": 0.0},
+        ]
+        out_path, result = mix_tracks(work, tracks, DEFAULT_TARGET_LUFS, "mp3")
+        size = os.path.getsize(out_path) if os.path.isfile(out_path) else 0
+        if size < 100:
+            raise RuntimeError("selftest output missing")
+        return {
+            "ok": True,
+            "applied": ["selftest:mix:duck"],
+            "bytes": size,
+            "durationSeconds": result["durationSeconds"],
+            "lufs": result["lufs"],
+            "ducked": result["ducked"],
+        }
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+async def selftest(_req):
+    """POST /selftest -- local mix. No R2. Isolated CF proof (cf#1044)."""
+    t0 = time.monotonic()
+    try:
+        result = await asyncio.get_running_loop().run_in_executor(None, _selftest)
+    except Exception as e:  # noqa: BLE001 - surface processing failure as 500
+        log.exception("selftest failed")
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
+    result["elapsedMs"] = _elapsed_ms(t0)
+    return web.json_response(result)
+
+
 app = web.Application(
     client_max_size=1024 * 1024,  # JSON bodies are small (URLs only)
     middlewares=[bearer_middleware],
 )
 app.router.add_get("/health", health)
+app.router.add_post("/selftest", selftest)
 app.router.add_post("/mix", mix)
 # The single-bed "master the bed" pass (formerly POST /music-upscale here) was lifted out into its own
 # first-class module under the `master` hook (modules/audio-master + containers/audio-master). This
