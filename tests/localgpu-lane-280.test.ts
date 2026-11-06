@@ -107,7 +107,12 @@ describe("no door: the local-gpu service is not in the stack at all", () => {
     // A dependency on a service that may not exist is the assumption that forced the stand-in.
     const all = rendered();
     const studio = all.slice(all.indexOf("\n  studio:"));
-    const dependsOn = studio.slice(studio.indexOf("depends_on:"), studio.indexOf("environment:"));
+    // local#506: cut from depends_on to the NEXT key at the same indent, whatever it is. Compose does not
+    // fix the key order: v5.6.1 renders environment before depends_on, so slicing up to "environment:"
+    // came back empty and the control below went red on a healthy stack.
+    const start = studio.indexOf("\n    depends_on:");
+    const next = start < 0 ? -1 : studio.slice(start + 1).search(/\n {4}[a-z_]+:/);
+    const dependsOn = start < 0 ? "" : studio.slice(start, next < 0 ? undefined : start + 1 + next);
     expect(dependsOn).not.toContain("module-local-gpu");
     expect(dependsOn).toContain("video-finish"); // control: the block was actually found
   });
