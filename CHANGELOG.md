@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(modules): GET /api/modules reports speech in hooks_unavailable when nothing serves it (local#515)
+
+This is the parity half of vivijure-cf#904. `speech` is in core's catalog. On the default compose profile nothing serves it, because `module-speech-upscale` starts only under `cloud` or `satellites`. So the panel offered a stage that could not run. `host.hooks_unavailable.speech` now says so, derived from discovery, so it clears itself when a module serving `speech` is found. The catalog keeps the hook. The local reason names the operator's knobs: the `satellites` profile, `MODULE_SPEECH_UPSCALE_URL` and `LOCAL_FINISH_SPEECH_URL`.
+
 ### chore(containers): sync the five container build contexts from vivijure-cf main
 
 `npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.

@@ -59,7 +59,9 @@ const fakeDoorManifest = {
   name: "acme-door",
   version: "1.0.0",
   api: "vivijure-module/2",
-  hooks: [...GPU_ENGINE_HOOKS],
+  // local#515: it serves `speech` too, so "fully configured" stays true now that a host with no speech
+  // module reports it. The speech gate has its own tests in tests/speech-availability-515.test.ts.
+  hooks: [...GPU_ENGINE_HOOKS, "speech"],
   provides: [{ id: "acme-door", label: "ACME Door" }],
   binding: "MODULE_ACMEDOOR",
 };

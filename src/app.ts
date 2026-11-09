@@ -44,6 +44,7 @@ import { renderConfigProjection } from "@skyphusion-labs/vivijure-core/render-mo
 import { resolveStudioPage } from "./studio-pages.js";
 import { videoFinishHooksUnavailable } from "./video-finish-availability.js";
 import { localDoorHooksUnavailable } from "./local-door-availability.js";
+import { speechHooksUnavailable } from "./speech-availability.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export const repoRoot = join(__dirname, "..");
@@ -136,6 +137,9 @@ export function createApp(host: SettingsHost): Hono {
       // every option 400s at submit. Derived from the FILTERED module list, so a `cloud`-profile
       // studio with RunPod creds reports nothing.
       ...localDoorHooksUnavailable(modules),
+      // local#515 (cf#904 twin): `speech` is in the catalog and nothing discovered serves it on the
+      // default profile. Derived from discovery, so it clears itself. See src/speech-availability.ts.
+      ...speechHooksUnavailable(modules),
     };
     const anyHookUnavailable = Object.keys(hooksUnavailable).length > 0;
     // control-plane#130 twin: where a reporter is sent for abuse of THIS studio. Absent unless the
