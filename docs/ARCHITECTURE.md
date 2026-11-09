@@ -94,14 +94,22 @@ Module workers that called VPC fetchers (`beat-sync`, finish modules) use `*_VPC
 
 ## Auth
 
-v1 supports `AUTH_MODE=token` (default; `STUDIO_API_TOKEN` + D1-shaped `api_tokens` table (named tokens = full operator reach, no scope column -- local#238)). CF Access is a cloud-host concern; not ported.
+v1 supports `AUTH_MODE=token` (default; `STUDIO_API_TOKEN` + D1-shaped `api_tokens` table of named, scoped tokens). CF Access is a cloud-host concern; not ported.
 
-**Named tokens are attribution, not scope (local#238).** `api_tokens` is `(name, token_hash,
-created_at, revoked_at)` with **no capability column**. `verifyTokenRequest` admits a named token
-with the same authority as `STUDIO_API_TOKEN` (renders, settings, every `/api` route). Blast radius
-is bounded by **revocation** and visible via **attribution** (`sub: api-token:<name>`), not by
-permission. Honest description until a scope column lands: an operator token with a name on it.
-Mint with `scripts/mint-api-token.sh`; revoke by setting `revoked_at`.
+**Named tokens carry a scope (local#238, the cf#520 twin).** `api_tokens` is `(name, token_hash,
+created_at, revoked_at, scope)`, where `scope` is `operator` or `consumer` (migration 0023).
+Admission is `src/auth-gate.ts`; authorization is `src/authz.ts`, registered right after the gate.
+`OPERATOR_ROUTES` there lists the six routes that need `operator` (storage usage and reconcile,
+module config GET and PATCH, settings secrets GET and PATCH). Every other `/api` route is
+`consumer`. A consumer token on an operator route gets `403 {"error": "insufficient scope: ...",
+"code": "scope_denied"}`, which does not raise the panel's paste-a-token prompt.
+`STUDIO_API_TOKEN` and the `ALLOW_UNAUTHENTICATED` dev opt-out are `operator`. A row with a scope
+outside the union is denied as a bad token and logged as `authz.token_scope_invalid`.
+
+Migration 0023 sets every named token that already exists to `consumer`. Mint with
+`scripts/mint-api-token.sh <name> <operator|consumer>` (scope is required, no default); re-scope
+a live token without rotating it with `scripts/mint-api-token.sh --set-scope <name> <scope>`;
+revoke by setting `revoked_at`.
 
 ## Port order (implementation sequence)
 
