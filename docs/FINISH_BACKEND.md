@@ -24,7 +24,7 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (the retired homelab host / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
+| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
 | **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
@@ -40,14 +40,14 @@ finish chain (RIFE, MuseTalk, upscale, audio-upscale) for regression and promoti
 > phase 1) -- the canonical id map, where still relevant, is
 > `fleet-chezmoi/docs/runbooks/vivijure-runpod-endpoints.md`, never this repo.
 
-Two-layer model today on the retired homelab host (legacy, being trimmed):
+Two-layer model today on propagandhi (legacy, being trimmed):
 
 1. **Studio → module sidecar** (local HTTP): `MODULE_LIPSYNC_URL`, `MODULE_UPSCALE_URL` (and
    historically `MODULE_FINISH_RIFE_URL`) point at `module-finish-*` containers.
 2. **Module sidecar → GPU** (RunPod today): each sidecar runs `scripts/finish-module-server.ts` and
    submits to RunPod or proxies to `LOCAL_FINISH_*_URL`.
 
-On the retired homelab host, GPU finish work has used **local-panel RunPod endpoints** for lipsync/upscale (and
+On propagandhi, GPU finish work has used **local-panel RunPod endpoints** for lipsync/upscale (and
 historically RIFE):
 
 | Module | RunPod EP (local panel) | Image |
@@ -58,7 +58,7 @@ historically RIFE):
 | `finish-rife` | *(scheduled for teardown, cf#215; id retired from tracked docs, see fleet-chezmoi runpod endpoints runbook)* (backend) | `vivijure-backend` -- **CF/production only; not local panel** |
 
 CPU assemble (`video-finish`, `audio-*`, `image-prep`) runs locally in compose. Motion i2v defaults
-to **`LOCAL_BACKEND_URL`** (16gb door on the retired homelab host).
+to **`LOCAL_BACKEND_URL`** (16gb door on propagandhi).
 
 Canonical endpoint map: `fleet-chezmoi/docs/runbooks/vivijure-runpod-endpoints.md`.
 
@@ -98,9 +98,13 @@ When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **f
 `FINISH_BACKEND=runpod`, enable the `satellites` profile, set `MODULE_LIPSYNC_URL` /
 `MODULE_UPSCALE_URL`, and the existing `*_RUNPOD_ENDPOINT_ID` vars.
 
-## The retired homelab host live (2026-07-22 audit)
+## Historical: the homelab host is retired
 
-Verified on the retired homelab host:
+The 2026-07-22 audit below names a host that no longer exists. The paths and commands are left verbatim so the record stays readable. Do not run them.
+
+## Propagandhi live (2026-07-22 audit)
+
+Verified on propagandhi:
 
 | Container | Status | Action after #186 merge |
 |-----------|--------|-------------------------|
@@ -113,8 +117,8 @@ Minimal homelab bar after cutover: clips from local-gpu door → `video-finish` 
 finish GPU sidecars required.
 
 ```bash
-# On the retired homelab host -- remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
-cd /opt/fleet-chezmoi/system/stacks/the retired homelab host/vivijure-finish-gpu
+# On propagandhi -- remove RIFE (safe after studio env drops MODULE_FINISH_RIFE_URL)
+cd /opt/fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu
 sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 ```
 
@@ -136,9 +140,9 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 
 | File | Change |
 |------|--------|
-| `system/stacks/the retired homelab host/vivijure-local/.env.the retired homelab host.example` | `FINISH_BACKEND=local`, `LOCAL_FINISH_*` URLs; comment out local-panel RunPod finish EP IDs |
-| `system/stacks/the retired homelab host/RUNBOOK-vivijure-local-topology.md` | §10: local finish sidecars, not RunPod chain |
-| New stack dir (TBD) | Compose for on-box GPU finish services (musetalk, upscale, rife) on the retired homelab host GEX44 |
+| `system/stacks/propagandhi/vivijure-local/.env.propagandhi.example` | `FINISH_BACKEND=local`, `LOCAL_FINISH_*` URLs; comment out local-panel RunPod finish EP IDs |
+| `system/stacks/propagandhi/RUNBOOK-vivijure-local-topology.md` | §10: local finish sidecars, not RunPod chain |
+| New stack dir (TBD) | Compose for on-box GPU finish services (musetalk, upscale, rife) on propagandhi GEX44 |
 
 ### Homelab GPU HTTP services (who owns serve mode)
 
@@ -149,12 +153,12 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 | Video upscale | `vivijure-upscale` | `vivijure-upscale` `Dockerfile.serve` |
 
 **Do not merge homelab serve scaffolding into `vivijure-backend`.** The backend stays RunPod-first;
-local panel adds thin HTTP wrappers only for lipsync/upscale in the finish satellite repos. The retired homelab host
-stack: `fleet-chezmoi/system/stacks/the retired homelab host/vivijure-finish-gpu/`.
+local panel adds thin HTTP wrappers only for lipsync/upscale in the finish satellite repos. Propagandhi
+stack: `fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu/`.
 
 ## Smoke / verify matrix trim
 
-Post-cutover **the retired homelab host homelab bar**:
+Post-cutover **propagandhi homelab bar**:
 
 | Path | Motion | Keyframe | Finish GPU | RIFE | RunPod required |
 |------|--------|----------|------------|------|-----------------|
@@ -165,7 +169,7 @@ Post-cutover **the retired homelab host homelab bar**:
 
 ## RunPod worker quota benefit
 
-Local panel currently holds **idle workers** on finish endpoints for the retired homelab host traffic:
+Local panel currently holds **idle workers** on finish endpoints for propagandhi traffic:
 
 | Endpoint | Typical `workersMax` | Freed when local finish is default |
 |----------|---------------------|-------------------------------------|
@@ -174,7 +178,7 @@ Local panel currently holds **idle workers** on finish endpoints for the retired
 | Video upscale | 2 | Full endpoint idle for local panel |
 | Audio upscale | 2 | **Moved to local** (local#383): set `LOCAL_FINISH_SPEECH_URL` and no speech audio reaches it |
 
-Conservative estimate: **4-7 fewer warm RunPod workers** reserved for the retired homelab host finish traffic.
+Conservative estimate: **4-7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
 
 Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
 `RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on `LOCAL_BACKEND_URL`
@@ -249,12 +253,12 @@ and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
 
 ## Rollout order (post-musetalk smoke)
 
-**Do not apply the retired homelab host live until Conrad signs off after musetalk jitter test.**
+**Do not apply propagandhi live until Conrad signs off after musetalk jitter test.**
 
 1. **Land vivijure-local #186** (compose trim, no RIFE sidecar, docs). Merge only after CI green.
-2. **Tear down the retired homelab host `finish-rife`** (finish-gpu stack + stop `module-finish-rife` sidecar).
-3. **Optional:** provision local lipsync/upscale HTTP on the retired homelab host (finish-gpu stack minus RIFE).
-4. **Cut the retired homelab host `.env`**: no `MODULE_FINISH_RIFE_URL`; `FINISH_BACKEND=local` for lipsync/upscale if enabled.
+2. **Tear down propagandhi `finish-rife`** (finish-gpu stack + stop `module-finish-rife` sidecar).
+3. **Optional:** provision local lipsync/upscale HTTP on propagandhi (finish-gpu stack minus RIFE).
+4. **Cut propagandhi `.env`**: no `MODULE_FINISH_RIFE_URL`; `FINISH_BACKEND=local` for lipsync/upscale if enabled.
 5. **`npm run sync:secrets:compose`** + compose roll (`VJ_IMAGE_TAG` bump).
 6. **Verify**: one full `local-gpu` film with CPU assemble (no finish GPU chain).
 7. **Idle local-panel RunPod finish endpoints**; CF prod EPs unchanged.
@@ -263,5 +267,5 @@ and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
 
 - Local RIFE of any form (serve overlay, GHCR image, on-box GPU HTTP). Closed; do not revive.
 - Changing **vivijure-cf** default finish routing (stays RunPod, including RIFE).
-- Live the retired homelab host cutover before musetalk jitter smoke completes.
+- Live propagandhi cutover before musetalk jitter smoke completes.
 - MuseTalk handler jitter fixes (owned by agent `582d5f29`; do not touch those files in this lane).
