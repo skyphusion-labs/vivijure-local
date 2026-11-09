@@ -42,6 +42,7 @@
     "voice": "cast_tts",
     "scatter_native_audio": false,
     "driving_audio": true,
+    "driving_audio_min_seconds": 3,
     "min_seconds": 5,
     "max_seconds": 15,
     "duration_steps": [

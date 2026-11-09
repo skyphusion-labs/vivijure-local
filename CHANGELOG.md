@@ -7,6 +7,15 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): adopt vivijure-core 1.43.0 from 1.26.0 (local#526, local#520, local#525)
+
+Core moves from the exact pin `1.26.0` to `^1.43.0`, seventeen minor releases. Two of them changed a contract local depends on with no test noticing, and both are fixed in the manifests local serves:
+
+- **core#471 (core 1.38.0):** core selects a score module only by its declared `score_kind`. `dev/manifests/beat-sync.json`, `music-gen.json` and `narration-gen.json` declared none, so on the new core a local film got no score bed and no beat sync. They now declare `beat`, `music` and `narration`, as cf's do.
+- **core#466 (core 1.37.0):** a spoken line is padded only to the floor its door declares. `alibaba-wan.json` now declares cf's `driving_audio_min_seconds: 3` (Wan takes 3 to 30 s of driving audio). `keyframe.json` also takes cf's `trains_loras: true` (core#376).
+
+Core's typed refusals now answer as client errors instead of `500` (`src/errors.ts`): `ConfigValueError` 400 (core#343), `BoardKeyCollisionError` 409 (core#518), `FilmBusyError` 409 with `retryable` (core#448), `FilmNotStartedError` 503 (core#422). The panel render, render from keyframes and finalize forward the caller's `dialogue_backend` and `dialogue_config` (core#339). Every host-facing change from 1.27 to 1.43 is listed in the PR with its status; follow-ups are local#527 to local#531.
+
 ### test(finish-upscale): guard the target_height contract on the wire; document the minimum door image (local#377)
 
 The local panel's upscale control, `target_height: 1080`, is live end to end. The receive side was the defect, and it was fixed in vivijure-upscale PR #109, first published as `1.1.3-serve`. That handler gives a 240-high source 720 when asked for 720, and refuses a request it cannot meet. Before, it returned 480 with `ok: true`. `tests/upscale-target-height-377.test.ts` reads the body a real socket door receives, and fails if `target_height` is dropped or a `scale` is sent beside it. The handler refuses two knobs that disagree. `docs/FINISH_BACKEND.md` names the minimum door image.

@@ -84,5 +84,6 @@
   },
   "cancelable": true,
   "keyframe_label": "SDXL",
-  "needs_tenant_r2": true
+  "needs_tenant_r2": true,
+  "trains_loras": true
 }

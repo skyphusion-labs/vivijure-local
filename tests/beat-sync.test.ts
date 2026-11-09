@@ -75,6 +75,9 @@ describe("beat-analyze helpers", () => {
       api: "vivijure-module/2" as const,
       binding: "MODULE_BEAT_SYNC",
       hooks: ["score" as const],
+      // core#471 (core 1.38.0) selects a score module ONLY by its declared score_kind, never by config keys.
+      // This fixture mirrors dev/manifests/beat-sync.json, which now declares it (local#526).
+      score_kind: "beat" as const,
       config_schema: { clip_seconds: { type: "float" as const, default: 8 } },
     } as unknown as RegisteredModule;
     const music = {

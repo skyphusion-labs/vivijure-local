@@ -5,6 +5,7 @@
   "hooks": [
     "score"
   ],
+  "score_kind": "beat",
   "provides": [
     {
       "id": "librosa-beat-sync",
