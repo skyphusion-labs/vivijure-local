@@ -5,6 +5,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gateApi } from "./auth-gate.js";
+import { recordCredentialScope, registerOperatorGuards } from "./authz.js";
 import {
   artifactKeyFromPath,
   artifactUrlKeyFromPath,
@@ -68,8 +69,14 @@ export function createApp(host: SettingsHost): Hono {
     if (!gate.ok) {
       return c.json({ error: gate.reason }, gate.status as 403 | 503);
     }
+    recordCredentialScope(c.req.raw, gate.scope);
     await next();
   });
+
+  // local#238: per-route authorization. Registered immediately after admission and before every
+  // handler, because Hono runs matched handlers in registration order. A consumer-scoped named token
+  // gets 403 scope_denied on the operator routes listed in src/authz.ts.
+  registerOperatorGuards(app);
 
   // core#52 (vivijure-cf twin): the storage ceiling. Enforced at SUBMIT, before the spend, on the routes
   // whose product is stored bytes -- so an over-quota studio is denied honestly with the real numbers
