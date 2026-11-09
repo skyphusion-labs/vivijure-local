@@ -99,7 +99,8 @@ export function registerOperatorGuards(app: Hono): void {
           required: "operator",
           held: held ?? "none",
         }));
-        return c.json({ error: AUTHZ_DENY_REASON, code: AUTHZ_DENY_CODE }, 403);
+        // Same body AND header as cf (src/studio.ts): X-Vivijure-Authz lets a client read the refusal without parsing JSON.
+        return c.json({ error: AUTHZ_DENY_REASON, code: AUTHZ_DENY_CODE }, 403, { "X-Vivijure-Authz": AUTHZ_DENY_CODE });
       }
       return next();
     };

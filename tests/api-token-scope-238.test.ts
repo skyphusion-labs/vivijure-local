@@ -71,6 +71,7 @@ describe("local#238 -- per-route token scope", () => {
         body: r.method === "GET" ? undefined : "{}",
       });
       expect(res.status, `${r.method} ${r.pattern}`).toBe(403);
+      expect(res.headers.get("x-vivijure-authz"), `${r.method} ${r.pattern}`).toBe(AUTHZ_DENY_CODE);
       expect(await res.json(), `${r.method} ${r.pattern}`).toEqual({
         error: AUTHZ_DENY_REASON,
         code: AUTHZ_DENY_CODE,
