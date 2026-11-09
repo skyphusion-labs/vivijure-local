@@ -202,6 +202,9 @@ export async function animateFromPreview(
       per_shot_motion: perShotMotion,
       motion_config: mapped.motion_config,
       finish_config: mapped.finish_config,
+      // local#526 (core#339, parity with vivijure-cf#1379): the caller's dialogue module and config.
+      dialogue_backend: mapped.dialogue_backend,
+      dialogue_config: mapped.dialogue_config,
       speech_config: mapped.speech_config,
       film_finish_config: mapped.film_finish_config,
       master_config: mapped.master_config,

@@ -5,6 +5,7 @@
   "hooks": [
     "score"
   ],
+  "score_kind": "music",
   "provides": [
     {
       "id": "minimax-music",

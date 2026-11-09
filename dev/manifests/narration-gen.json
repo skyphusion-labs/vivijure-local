@@ -5,6 +5,7 @@
   "hooks": [
     "score"
   ],
+  "score_kind": "narration",
   "provides": [
     {
       "id": "minimax-speech",

@@ -21,6 +21,7 @@ import {
 } from "@skyphusion-labs/vivijure-core/platform";
 import {
   cancelFilmJob,
+  FilmBusyError,
   startFilmJob,
   startFilmFromKeyframes,
   type FilmScene,
@@ -164,6 +165,9 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           keyframe_config: mapped.keyframe_config,
           motion_config: mapped.motion_config,
           finish_config: mapped.finish_config,
+          // local#526 (core#339, parity with vivijure-cf#1379): the caller's dialogue module and config.
+          dialogue_backend: mapped.dialogue_backend,
+          dialogue_config: mapped.dialogue_config,
           speech_config: mapped.speech_config,
           film_finish_config: mapped.film_finish_config,
           master_config: mapped.master_config,
@@ -248,7 +252,14 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           404,
         );
       }
-      const job = await cancelFilmJob(oenv, jobId);
+      let job: Awaited<ReturnType<typeof cancelFilmJob>>;
+      try {
+        job = await cancelFilmJob(oenv, jobId);
+      } catch (e) {
+        // core#448, parity with vivijure-cf: the body names the job, so a client retries the right one.
+        if (e instanceof FilmBusyError) return c.json({ error: e.message, jobId, retryable: true }, 409);
+        throw e;
+      }
       if (!job) return c.json({ error: "render job not found" }, 404);
       const view = filmJobToPollView(job, null);
       await updateRenderFromView(oenv, view, noopExecutionContext);
@@ -312,6 +323,9 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           motion_backend: motionBackend,
           motion_config: mapped.motion_config,
           finish_config: mapped.finish_config,
+          // local#526 (core#339, parity with vivijure-cf#1379): the caller's dialogue module and config.
+          dialogue_backend: mapped.dialogue_backend,
+          dialogue_config: mapped.dialogue_config,
           speech_config: mapped.speech_config,
           film_finish_config: mapped.film_finish_config,
           master_config: mapped.master_config,
