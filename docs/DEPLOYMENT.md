@@ -269,7 +269,7 @@ engines and different duration contracts:
 | Door | Typical host (fleet) | Image | Engine | `duration_grid` |
 | --- | --- | --- | --- | --- |
 | Flagship CF door | fatmike | `vivijure-local-12gb` | **ltx-video** | **absent** (flexible `seconds * fps`) |
-| Local panel door | propagandhi | `vivijure-local-16gb` | **cogvideox** | fps 8, 49 max_frames on all tiers |
+| Local panel door | the retired homelab host | `vivijure-local-16gb` | **cogvideox** | fps 8, 49 max_frames on all tiers |
 
 Same panel request, different clip lengths and motion characteristics depending on which door is
 bound. `module-local-gpu` snaps shot length to the door-declared grid when present, and falls back
@@ -305,7 +305,7 @@ point at the previous door):
 > BOTH read correct while the sidecar still dials the old one, because the sidecar resolves its
 > backend from `platform_secrets` (DB wins), not from its process env. The failure surfaces only
 > at render time as `local-gpu keyframe submit failed: fetch failed` -- a connection error against
-> the door you just stopped. Verify the DB value. Found live on propagandhi, cf#224.
+> the door you just stopped. Verify the DB value. Found live on the retired homelab host, cf#224.
 
 Verify: `docker compose logs module-local-gpu | tail` should show the new backend URL (not the
 previous door).
@@ -335,7 +335,7 @@ GPU HTTP** (`FINISH_BACKEND=local` + `LOCAL_FINISH_LIPSYNC_URL` / `LOCAL_FINISH_
 registered module with missing creds or backend URL **fails the shot** (`ok: false`); finish
 handlers do not passthrough fake output.
 
-See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, propagandhi teardown notes, and smoke matrix.
+See [FINISH_BACKEND.md](FINISH_BACKEND.md) for env vars, the retired homelab host teardown notes, and smoke matrix.
 
 ### cast.image on your own card (local#269)
 
@@ -533,7 +533,7 @@ top-level `motion_backend` field, not by nesting under the backend id.
 }
 ```
 
-Verified on propagandhi 12GB door film smoke (agent `212d8ff5`): nested config failed submit;
+Verified on the retired homelab host 12GB door film smoke (agent `212d8ff5`): nested config failed submit;
 flat config succeeded (`film-0542ed5e`). Same rule applies to `npm run smoke:exit`,
 `npm run smoke:exhaustive`, and any MCP or API caller.
 
@@ -590,54 +590,6 @@ hobbyist host with full contract parity, not the production deploy path:
 
 ---
 
-## Production: propagandhi (fleet overlay)
+## Production overlay (retired)
 
-The live public studio at `https://vivijure-local.skyphusion.org` runs on **propagandhi**
-behind a Hetzner L4 edge load balancer. This is **not** the homelab
-`COMPOSE_PROFILES=edge` path from [EDGE.md](EDGE.md). Fleet IaC owns the overlay files.
-
-Addresses below are RFC 5737 documentation placeholders: `192.0.2.7` stands for this
-host's own VLAN address, `198.51.100.0/24` for the edge load balancer's subnet.
-Substitute your own; nothing here is a literal to copy.
-
-**Every release roll must:**
-
-1. Check out the pinned vivijure-local tag in the compose root (typically
-   `/home/strummer/dev/vivijure-local` on propagandhi).
-2. Copy fleet files **before** `docker compose up` (git checkout does not restore them):
-
-   ```bash
-   FLEET=/opt/fleet-chezmoi/system/stacks/propagandhi/vivijure-local
-   cp "$FLEET/docker-compose.override.yml" .
-   mkdir -p caddy && cp "$FLEET/caddy/Caddyfile.propagandhi ./caddy/
-   ```
-
-   The override mounts the fleet Caddyfile (PROXY protocol wrapper for the edge LB). Without
-   it, Caddy listens but the public URL breaks.
-
-3. Set **`EDGE_BIND_IP`** in `.env` to this host's own VLAN address (with the placeholder
-   above, `EDGE_BIND_IP=192.0.2.7`). Compose publishes Caddy on that VLAN address only.
-   Do **not** use `CADDY_BIND_IP` (wrong key; Caddy falls back to `0.0.0.0`).
-
-4. Roll the **full** stack with the reverse-proxy profile:
-
-   ```bash
-   COMPOSE_PROFILES=reverse-proxy docker compose pull
-   COMPOSE_PROFILES=reverse-proxy docker compose up -d --pull always
-   ss -ltnp | grep ':443'   # must show $EDGE_BIND_IP, not 0.0.0.0
-   ```
-
-5. Reconcile host firewall after deploy:
-
-   ```bash
-   sudo /opt/fleet-chezmoi/system/ufw/apply-ufw.sh propagandhi
-   ```
-
-   Allows edge LB traffic (the load balancer subnet, `198.51.100.0/24` here) to port
-   443 on `$EDGE_BIND_IP`. VLAN bind remains the load-bearing control; ufw is
-   belt-and-suspenders.
-
-Canonical operator checklist:
-[fleet-chezmoi `vivijure-local-propagandhi-release.md`](https://github.com/skyphusion-labs/fleet-chezmoi/blob/main/docs/runbooks/vivijure-local-propagandhi-release.md).
-Stack README:
-[`system/stacks/propagandhi/vivijure-local/`](https://github.com/skyphusion-labs/fleet-chezmoi/tree/main/system/stacks/propagandhi/vivijure-local).
+The old public studio host and its edge load balancer are retired. Do not follow a fleet overlay. Run [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) or this repo on a machine you control, using the compose path in [EDGE.md](EDGE.md).

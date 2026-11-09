@@ -98,6 +98,10 @@ When `FINISH_BACKEND=local` and a `LOCAL_FINISH_*_URL` is unset, the sidecar **f
 `FINISH_BACKEND=runpod`, enable the `satellites` profile, set `MODULE_LIPSYNC_URL` /
 `MODULE_UPSCALE_URL`, and the existing `*_RUNPOD_ENDPOINT_ID` vars.
 
+## Historical: the homelab host is retired
+
+The 2026-07-22 audit below names a host that no longer exists. The paths and commands are left verbatim so the record stays readable. Do not run them.
+
 ## Propagandhi live (2026-07-22 audit)
 
 Verified on propagandhi:
