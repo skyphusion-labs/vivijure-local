@@ -29,8 +29,8 @@ the doc rotted under it.
 core / MCP / compose images may lag cf** -- check each lockfile. Lag is not automatic defect; dual-panel
 ship is the review obligation.
 
-Upstream wire contract: host `docs/CONTRACT.md` parity with cf; module types from core (not a
-vendored `src/modules/types.ts` fork).
+Upstream wire contract: `vivijure-cf` `docs/CONTRACT.md` (this repo has no copy; gaps in
+`docs/PARITY.md`); module types from core (not a vendored `src/modules/types.ts` fork).
 
 ## Rules
 
