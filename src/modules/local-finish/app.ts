@@ -18,6 +18,9 @@ export function createLocalFinishModuleApp(
 ): Hono {
   const app = new Hono();
   const action = moduleName === "finish-lipsync" ? ("lipsync_clip" as const) : ("upscale_clip" as const);
+  // local#377: the upscale door's sizing contract is `target_height` and NO `scale`. vivijure-upscale
+  // honours it from the 1.1.3-serve image (its PR #109) and refuses when both knobs disagree; older
+  // images ignored it and returned a blind 2x. Guarded on the wire by tests/upscale-target-height-377.
   const extra = moduleName === "finish-upscale" ? { target_height: 1080 } : undefined;
 
   app.get("/module.json", async (c) => {

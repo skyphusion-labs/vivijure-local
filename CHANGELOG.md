@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### test(finish-upscale): guard the target_height contract on the wire; document the minimum door image (local#377)
+
+The local panel's upscale control, `target_height: 1080`, is live end to end. The receive side was the defect, and it was fixed in vivijure-upscale PR #109, first published as `1.1.3-serve`. That handler gives a 240-high source 720 when asked for 720, and refuses a request it cannot meet. Before, it returned 480 with `ok: true`. `tests/upscale-target-height-377.test.ts` reads the body a real socket door receives, and fails if `target_height` is dropped or a `scale` is sent beside it. The handler refuses two knobs that disagree. `docs/FINISH_BACKEND.md` names the minimum door image.
+
 ### fix(modules): GET /api/modules reports speech in hooks_unavailable when nothing serves it (local#515)
 
 This is the parity half of vivijure-cf#904. `speech` is in core's catalog. On the default compose profile nothing serves it, because `module-speech-upscale` starts only under `cloud` or `satellites`. So the panel offered a stage that could not run. `host.hooks_unavailable.speech` now says so, derived from discovery, so it clears itself when a module serving `speech` is found. The catalog keeps the hook. The local reason names the operator's knobs: the `satellites` profile, `MODULE_SPEECH_UPSCALE_URL` and `LOCAL_FINISH_SPEECH_URL`.
