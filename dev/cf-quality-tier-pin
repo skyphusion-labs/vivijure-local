@@ -30,4 +30,7 @@ MAX_BEHIND_COMMITS=150
 MAX_AGE_DAYS=30
 #
 # Format: one SHA= line with a full 40-char lowercase hex commit.
-SHA=545121578c97fb98a7d6bc6f8aee718f4b276447
+
+# 2026-11-09: bumped so core's renders tests see migrations 0017/0018
+# (finish_elapsed_ms, motion_backend). The previous pin predates both.
+SHA=dccf6e2a1a6dccf10262bf5f2c26fc5e429e03bc
