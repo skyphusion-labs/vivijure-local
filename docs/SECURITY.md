@@ -91,7 +91,7 @@ SSRF guards in `containers/*/url_guard.py` restrict outbound fetch hosts (MinIO 
 
 ## What this build does not include
 
-- Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- ported (named tokens; no scopes yet -- local#238).
+- Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- ported (named tokens with an `operator` or `consumer` scope -- local#238; see docs/ARCHITECTURE.md Auth).
 - Cloudflare Access / SSO / device posture.
 - Rate limiting across operators (in-memory limiter only where ported).
 - Audit log shipping (stdout only).
