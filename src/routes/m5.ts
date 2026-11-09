@@ -20,7 +20,6 @@ import {
   type OrchestratorEnv,
 } from "@skyphusion-labs/vivijure-core/platform";
 import {
-  advanceFilmJob,
   cancelFilmJob,
   startFilmJob,
   startFilmFromKeyframes,
@@ -35,6 +34,7 @@ import {
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
 import type { Platform } from "../platform/types.js";
 import { isScatterJobId } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
+import { advanceFilmTick, FILM_TICK_DEFERRED, FILM_TICK_DEFERRED_BODY } from "../film-advance.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import { stageBundleInjectedKeyframes } from "../bundle-keyframes.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
@@ -215,7 +215,9 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         );
       }
 
-      const r = await advanceFilmJob(oenv, jobId);
+      // local#503: a tick that threw left the film in progress (core#428). Nothing below may run.
+      const r = await advanceFilmTick(oenv, jobId, "GET /api/storyboard/render/:jobId");
+      if (r === FILM_TICK_DEFERRED) return c.json(FILM_TICK_DEFERRED_BODY, 500);
       if (!r) return c.json({ error: "render job not found" }, 404);
 
       const kfDone =

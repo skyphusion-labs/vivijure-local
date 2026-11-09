@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(film): a film poll whose tick throws answers the contract's 500 and leaves the film for the next tick (local#503)
+
+vivijure-core#428 makes `advanceFilmJob` throw when storage blocks the film's doc, and leave the film in progress. Both poll routes, `GET /api/render/film/:id` and `GET /api/storyboard/render/:jobId`, now catch that throw through `src/film-advance.ts`. They log `film.poll_deferred` with the film id and reason, write nothing about the render that tick, and answer `500 {"error":"internal error"}`, which is the cf contract's uncaught-error envelope. Before this, the throw escaped to Hono's plain-text 500, which the panel could not parse. The background sweep needs no change, because core catches each job inside `sweepUnresolvedJobs`. This lands before the core bump past 1.26.0. With the current pin it changes nothing.
+
 ### chore(containers): sync the five container build contexts from vivijure-cf main
 
 `npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.
