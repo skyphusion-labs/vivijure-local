@@ -138,6 +138,8 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 
 ### fleet-chezmoi (separate PR, after code lands)
 
+> Historical. The homelab host is retired. These steps are kept as the record. Do not run them.
+
 | File | Change |
 |------|--------|
 | `system/stacks/propagandhi/vivijure-local/.env.propagandhi.example` | `FINISH_BACKEND=local`, `LOCAL_FINISH_*` URLs; comment out local-panel RunPod finish EP IDs |
@@ -252,6 +254,8 @@ and `LOCAL_FINISH_TOKEN` from its own `environment:` block.
 > lands.
 
 ## Rollout order (post-musetalk smoke)
+
+> Historical. The homelab host is retired. These steps are kept as the record. Do not run them.
 
 **Do not apply propagandhi live until Conrad signs off after musetalk jitter test.**
 
