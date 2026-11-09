@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(film): a film poll whose tick throws answers the contract's 500 and leaves the film for the next tick (local#503)
+
+vivijure-core#428 makes `advanceFilmJob` throw when storage blocks the film's doc, and leave the film in progress. Both poll routes, `GET /api/render/film/:id` and `GET /api/storyboard/render/:jobId`, now catch that throw through `src/film-advance.ts`. They log `film.poll_deferred` with the film id and reason, write nothing about the render that tick, and answer `500 {"error":"internal error"}`, which is the cf contract's uncaught-error envelope. Before this, the throw escaped to Hono's plain-text 500, which the panel could not parse. The background sweep needs no change, because core catches each job inside `sweepUnresolvedJobs`. This lands before the core bump past 1.26.0. With the current pin it changes nothing.
+
 ### fix(auth): named API tokens carry a scope, and a consumer token is refused on operator routes (local#238)
 
 `api_tokens` gains `scope` (`operator` or `consumer`, migration 0023), the twin of cf#520. Six routes need `operator`: storage usage and reconcile, module config GET and PATCH, settings secrets GET and PATCH. A consumer token there gets `403` with `code: scope_denied` and an `X-Vivijure-Authz: scope_denied` header, the same as cf. **Upgrade note: every named token that already exists becomes `consumer`.** Put one back with `scripts/mint-api-token.sh --set-scope <name> operator`; the secret does not change. `STUDIO_API_TOKEN` is not affected. `mint-api-token.sh` now requires a scope and refuses a name outside `[a-z0-9][a-z0-9_-]{0,63}`. It also runs again: the old form used top-level await, which `tsx -e` refuses, so it failed before it wrote anything. Values now reach the program by environment, never by source text, so an error cannot echo the new token.
