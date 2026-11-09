@@ -151,7 +151,7 @@ Verify poll responses advance through phases identically to upstream (`tests/fil
 
 - [x] `@skyphusion-labs/vivijure-core` `1.22.5` (see `package.json` -- may lag `vivijure-cf`'s core pin)
 
-## Ops hardening (compose / propagandhi; flatliners retired)
+## Ops hardening (compose; the old studio boxes are retired)
 
 - [x] MinIO root creds from `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` (not hardcoded `minioadmin`)
 - [x] `npm run rotate:minio-creds` helper + docs
