@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(auth): named API tokens carry a scope, and a consumer token is refused on operator routes (local#238)
+
+`api_tokens` gains `scope` (`operator` or `consumer`, migration 0023), the twin of cf#520. Six routes need `operator`: storage usage and reconcile, module config GET and PATCH, settings secrets GET and PATCH. A consumer token there gets `403` with `code: scope_denied` and an `X-Vivijure-Authz: scope_denied` header, the same as cf. **Upgrade note: every named token that already exists becomes `consumer`.** Put one back with `scripts/mint-api-token.sh --set-scope <name> operator`; the secret does not change. `STUDIO_API_TOKEN` is not affected. `mint-api-token.sh` now requires a scope and refuses a name outside `[a-z0-9][a-z0-9_-]{0,63}`. It also runs again: the old form used top-level await, which `tsx -e` refuses, so it failed before it wrote anything. Values now reach the program by environment, never by source text, so an error cannot echo the new token.
+
 ### chore(containers): sync the five container build contexts from vivijure-cf main
 
 `npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.

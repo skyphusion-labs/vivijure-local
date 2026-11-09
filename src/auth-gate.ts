@@ -3,11 +3,12 @@
 
 import type { AuthEnv } from "./env.js";
 import { isStudioApiTokenPlaceholder } from "./studio-token.js";
+import { isScope, type Scope } from "./authz.js";
 
 export const TOKEN_COOKIE = "vivijure_token";
 
 export type AccessDecision =
-  | { ok: true; sub: string | null; email: string | null }
+  | { ok: true; sub: string | null; email: string | null; scope: Scope }
   | { ok: false; status: number; reason: string };
 
 export async function constantTimeEqual(a: string, b: string): Promise<boolean> {
@@ -51,17 +52,35 @@ export async function sha256Hex(s: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function namedTokenConsumer(presented: string, env: AuthEnv): Promise<string | null> {
+async function namedTokenConsumer(
+  presented: string,
+  env: AuthEnv,
+): Promise<{ name: string; scope: Scope } | null> {
   if (!env.DB) return null;
   try {
     const hash = await sha256Hex(presented);
     const row = await env.DB.prepare(
-      "SELECT name FROM api_tokens WHERE token_hash = ?1 AND revoked_at IS NULL",
+      "SELECT name, scope FROM api_tokens WHERE token_hash = ?1 AND revoked_at IS NULL",
     )
       .bind(hash)
-      .first<{ name: string }>();
-    return row?.name ?? null;
+      .first<{ name: string; scope: unknown }>();
+    if (!row) return null;
+    // local#238: a row whose scope is outside the union is a CONFIGURATION DEFECT (a value written
+    // around the CHECK constraint, which SQLite does not re-evaluate for older rows). Fail CLOSED:
+    // guessing consumer would silently downgrade, guessing operator would be the hole this closes.
+    // Loud in the log, and the wire reason stays identical to any other bad token.
+    if (!isScope(row.scope)) {
+      console.error(JSON.stringify({
+        ev: "authz.token_scope_invalid",
+        name: row.name,
+        scope: typeof row.scope === "string" ? row.scope : String(row.scope),
+        msg: "api_tokens row has no usable scope -- denying. Re-scope it with scripts/mint-api-token.sh --set-scope.",
+      }));
+      return null;
+    }
+    return { name: row.name, scope: row.scope };
   } catch {
+    // Table or column missing (migration not applied) or DB error -> named tokens deny.
     return null;
   }
 }
@@ -88,12 +107,14 @@ export async function verifyTokenRequest(request: Request, env: AuthEnv): Promis
     };
   }
   if (await constantTimeEqual(presented, secret)) {
-    return { ok: true, sub: "studio-api-token", email: null };
+    // The operator secret IS the operator. It never consults api_tokens.
+    return { ok: true, sub: "studio-api-token", email: null, scope: "operator" };
   }
-  // Named tokens: attribution only (local#238). Same full /api reach as STUDIO_API_TOKEN; no scope column.
+  // local#238: a named token carries the scope on its own row. Before this it was admitted at
+  // operator authority. Route enforcement is src/authz.ts, applied after this gate.
   const consumer = await namedTokenConsumer(presented, env);
   if (consumer !== null) {
-    return { ok: true, sub: `api-token:${consumer}`, email: null };
+    return { ok: true, sub: `api-token:${consumer.name}`, email: null, scope: consumer.scope };
   }
   return { ok: false, status: 403, reason: "bad API token" };
 }
@@ -155,7 +176,8 @@ export function isCrossSiteRequest(request: Request): boolean {
 
 function legacyUnconfiguredGate(env: AuthEnv): AccessDecision {
   if ((env.ALLOW_UNAUTHENTICATED || "").trim() === "true") {
-    return { ok: true, sub: "unauthenticated-dev", email: null };
+    // The conscious dev opt-out: no credential exists to scope, so it is the operator.
+    return { ok: true, sub: "unauthenticated-dev", email: null, scope: "operator" };
   }
   return {
     ok: false,
