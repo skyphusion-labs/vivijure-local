@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### test(finish-upscale): guard the target_height contract on the wire; document the minimum door image (local#377)
+
+The local panel's upscale control, `target_height: 1080`, is live end to end. The receive side was the defect, and it was fixed in vivijure-upscale PR #109, first published as `1.1.3-serve`. That handler gives a 240-high source 720 when asked for 720, and refuses a request it cannot meet. Before, it returned 480 with `ok: true`. `tests/upscale-target-height-377.test.ts` reads the body a real socket door receives, and fails if `target_height` is dropped or a `scale` is sent beside it. The handler refuses two knobs that disagree. `docs/FINISH_BACKEND.md` names the minimum door image.
+
 ### chore(containers): sync the five container build contexts from vivijure-cf main
 
 `npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.

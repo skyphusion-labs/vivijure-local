@@ -78,7 +78,7 @@ Mirror the **`local-gpu` module pattern** for finish (lipsync/upscale only):
 |----------|---------|
 | `FINISH_BACKEND` | `local` (**the default**, local#229) or `runpod` (explicit opt-in) |
 | `LOCAL_FINISH_LIPSYNC_URL` | HTTP base for MuseTalk / `lipsync_clip` |
-| `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip` |
+| `LOCAL_FINISH_UPSCALE_URL` | HTTP base for video upscale / `upscale_clip`. The panel sends `target_height: 1080` and no `scale`. The door must run `ghcr.io/skyphusion-labs/vivijure-upscale:1.1.3-serve` or newer: older images ignore `target_height` and return a blind 2x with `ok: true` (local#377, vivijure-upscale#102) |
 | `LOCAL_FINISH_SPEECH_URL` | HTTP base for `speech-upscale` (local#383). Not governed by `FINISH_BACKEND` -- see below |
 | `LOCAL_FINISH_TOKEN` | Optional bearer (same pattern as `LOCAL_BACKEND_TOKEN`); covers the speech door too |
 | `FINISH_LIPSYNC_BACKEND` | Optional per-module override (`local` \| `runpod`) |
