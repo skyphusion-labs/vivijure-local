@@ -37,6 +37,7 @@ keeps the credentials.
 | Route | Method | Purpose |
 |---|---|---|
 | `/health` | GET | readiness probe (`{ok:true}`); does not shell out to ffmpeg |
+| `/auth-check` | GET | cf#887: bearer-gated, does NO work. `200 {ok, serving: true, bearer: verified\|disabled, liveness_only: true}` means the process is up and accepted the bearer the caller sent; a wrong or stale token is the gate 401. Liveness only: it does not prove a finish would succeed |
 | `/finish` | POST | concat per-shot clips (cut/xfade) + mux soundtrack -> final MP4 |
 | `/overlay` | POST | **retired** (410) -- text-overlay module gone; use film-titles / subtitle |
 | `/film-titles` | POST | prepend a title card + append credit cards |
@@ -61,6 +62,22 @@ satellites). Jobs live IN-PROCESS: a container restart drops them, at which poin
 `not_found` and the core re-submits (the deterministic output key makes a re-run idempotent) or adopts
 the R2 artifact if the encode had finished. The synchronous routes are UNCHANGED, so an old core / an
 old module keeps working.
+
+### Holding a clip to its planned length (`holdToSeconds`, cf#1338)
+
+Each entry in `clips` may carry `holdToSeconds`. When the clip's video is shorter, `/finish` clones its last
+frame (`tpad=stop_mode=clone`) until the clip lasts that long, and on a talking film it pads the clip's own
+audio with silence to the same length (`apad`). The core sends it for a shot on a door that is driven by its
+line and bills by length (a per-second price, or none): that door's line is not padded, because the pad would
+be billed, so its clip can come back shorter than the plan. A door that bills per clip gets its line padded
+in the core instead, and no hold.
+
+On a talking film (`keepClipAudio`), every clip's video also runs at least as long as its own audio, by the
+same last-frame clone. A door that delivers a `4n+1` frame count rounds its video down (InfiniteTalk: 9 frames,
+0.36 s, against 0.43 s of audio), and the audio is never cut to fit the video. The join's one-frame tail-trim is
+taken from the clip's length after the hold. An absent, zero or non-numeric `holdToSeconds` holds nothing, so an
+older Worker's request assembles exactly as before. Tests: `test_hold.py` (CI, no ffmpeg) and
+`test_local_hold.py` (real ffmpeg, with a control that shows the 70 ms gap without the change).
 
 ### Chunked assemble and the `partialUrls` pool (#784)
 

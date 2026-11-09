@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(containers): sync the five container build contexts from vivijure-cf main
+
+`npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.
+
 ### fix(containers): sync-containers.sh no longer overwrites the deltas check-containers-drift.sh allowlists
 
 The two scripts now read one list, `scripts/containers-local-divergence.txt` (local#489). The sync passes each listed path to rsync as an exclude, so `--delete` neither writes nor deletes it, and the restore step is gone. The checker fails when a listed path has become byte-identical to cf, which is exactly the shape the old sync produced while the checker reported PASS. It also fails on a listed path that no longer exists, and both scripts refuse to run without the list. `tests/containers-divergence-489.test.ts` runs the real scripts against a synthetic cf tree.

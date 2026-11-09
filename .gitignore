@@ -20,3 +20,7 @@ reverse-proxy/certs/*.key
 
 # wrangler local dev state (if used)
 .wrangler/
+
+# Python bytecode from running container tests locally; never tracked.
+__pycache__/
+*.pyc
