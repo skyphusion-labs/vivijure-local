@@ -1,0 +1,13 @@
+# Paths under containers/ that are ALLOWED to differ from vivijure-cf (local#489).
+#
+# ONE LIST, TWO READERS. scripts/check-containers-drift.sh skips the byte comparison for these
+# paths, and scripts/sync-containers.sh never writes them. Before local#489 each tool carried its
+# own idea of scope: the checker allowlisted these paths while the sync rsync'd over them with
+# --delete, and the checker then reported PASS on the overwritten tree. Both tools now read this
+# file, so they cannot disagree about scope. The same fix as local#313 for the manifest tooling.
+#
+# Why each path diverges is recorded in the header of scripts/check-containers-drift.sh.
+# One path per line, relative to containers/. "#" starts a comment.
+README.md
+video-finish/Dockerfile
+image-prep/Dockerfile

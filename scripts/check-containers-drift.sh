@@ -11,6 +11,14 @@
 # INTENTIONAL DELTAS (exclude + pin-test). Everything else under the five dirs must match cf
 # byte-for-byte (excluding __pycache__ / .pyc / .DS_Store).
 #
+# THE LIST LIVES IN scripts/containers-local-divergence.txt, AND scripts/sync-containers.sh READS
+# THE SAME FILE (local#489). Before that, this script allowlisted the paths below while the sync
+# rsync'd over them with --delete, and this script then reported PASS on the overwritten tree: the
+# loop skipped the paths in both directions and the FROM-line pin matched cf's file too. Now the sync
+# never writes a listed path, and a listed path that has become BYTE-IDENTICAL to cf is a FAIL here,
+# because an intentional delta that no longer differs means either something overwrote it or the
+# delta is gone and its line should be removed. Either way the list is no longer true.
+#
 #   containers/README.md
 #     Local host docs (compose, no Workers VPC). cf documents GHCR/VPC publish.
 #
@@ -74,15 +82,30 @@ if [[ ! -d "$ROOT/containers" ]]; then
   exit 2
 fi
 
-# Paths relative to containers/ that may differ. Exact basenames (files) or "dir/Dockerfile".
+# Paths relative to containers/ that may differ, from the ONE list both tools read (local#489).
+LIST="$ROOT/scripts/containers-local-divergence.txt"
+if [[ ! -f "$LIST" ]]; then
+  # Fail closed: with no list nothing is allowlisted, and saying why beats a wall of drift.
+  echo "check-containers-drift: missing $LIST (the divergence list sync-containers.sh also reads)" >&2
+  exit 2
+fi
+ALLOWLIST=()
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%%#*}"
+  line="$(printf '%s' "$line" | tr -d '[:space:]')"
+  [[ -n "$line" ]] && ALLOWLIST+=("$line")
+done < "$LIST"
+if [[ ${#ALLOWLIST[@]} -eq 0 ]]; then
+  echo "check-containers-drift: $LIST lists no paths; refusing to read that as a deliberate choice" >&2
+  exit 2
+fi
+
 is_allowlisted() {
-  local rel="$1"
-  case "$rel" in
-    README.md) return 0 ;;
-    video-finish/Dockerfile) return 0 ;;
-    image-prep/Dockerfile) return 0 ;;
-    *) return 1 ;;
-  esac
+  local rel="$1" a
+  for a in "${ALLOWLIST[@]}"; do
+    [[ "$rel" == "$a" ]] && return 0
+  done
+  return 1
 }
 
 # Pin tests for allowlisted Dockerfiles: a policy change must fail loudly, not silently.
@@ -104,6 +127,20 @@ pin_dockerfiles() {
 }
 
 drift=()
+
+# A listed path must exist here AND still differ from cf. Identical means the delta is gone: an
+# overwrite (the local#489 shape) or a real convergence. Both make the list false, so both fail.
+for rel in "${ALLOWLIST[@]}"; do
+  if [[ ! -f "$ROOT/containers/$rel" ]]; then
+    echo "check-containers-drift: DRIFT listed local delta containers/$rel does not exist here (stale line in $LIST)" >&2
+    drift+=("$rel (listed, absent)")
+    continue
+  fi
+  if [[ -f "$UP/containers/$rel" ]] && cmp -s "$ROOT/containers/$rel" "$UP/containers/$rel"; then
+    echo "check-containers-drift: DRIFT listed local delta containers/$rel is BYTE-IDENTICAL to cf: something overwrote the local content, or the delta is gone and its line in $LIST should go" >&2
+    drift+=("$rel (listed, identical to cf)")
+  fi
+done
 
 # Every tracked local path must exist on cf (or be allowlisted).
 while IFS= read -r rel; do
@@ -133,7 +170,7 @@ while IFS= read -r rel; do
   [[ -z "$rel" ]] && continue
   is_allowlisted "$rel" && continue
   if [[ ! -e "$ROOT/containers/$rel" ]]; then
-    echo "check-containers-drift: DRIFT cf containers/$rel missing from local (run: npm run sync-containers, then re-apply intentional Dockerfile pins)" >&2
+    echo "check-containers-drift: DRIFT cf containers/$rel missing from local (run: npm run sync-containers)" >&2
     drift+=("$rel (missing)")
   fi
 done < <(
@@ -152,9 +189,9 @@ if [[ ${#drift[@]} -gt 0 || "$pin_fail" -ne 0 ]]; then
   if [[ ${#drift[@]} -gt 0 ]]; then
     echo "check-containers-drift: FAIL -- ${#drift[@]} drifting path(s): ${drift[*]}" >&2
     echo "check-containers-drift: fix with: VIVIJURE_SRC=$UP npm run sync-containers" >&2
-    echo "check-containers-drift: then restore intentional Dockerfile pins (video-finish and image-prep stay python 3.11; local comment blocks) and README.md" >&2
+    echo "check-containers-drift: the sync does not touch paths in $LIST; a listed path reported identical to cf must be restored from git (git checkout -- containers/<path>)" >&2
   fi
   exit 1
 fi
 
-echo "check-containers-drift: PASS (content matches vivijure-cf; allowlisted README + 2 Dockerfiles pin-tested)"
+echo "check-containers-drift: PASS (content matches vivijure-cf; ${#ALLOWLIST[@]} listed local deltas present and still differing, Dockerfiles pin-tested)"

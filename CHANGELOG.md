@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(containers): sync-containers.sh no longer overwrites the deltas check-containers-drift.sh allowlists
+
+The two scripts now read one list, `scripts/containers-local-divergence.txt` (local#489). The sync passes each listed path to rsync as an exclude, so `--delete` neither writes nor deletes it, and the restore step is gone. The checker fails when a listed path has become byte-identical to cf, which is exactly the shape the old sync produced while the checker reported PASS. It also fails on a listed path that no longer exists, and both scripts refuse to run without the list. `tests/containers-divergence-489.test.ts` runs the real scripts against a synthetic cf tree.
+
 ### feat(cast-image): the panel generates cast references on your own card
 
 `CAST_IMAGE_BACKEND_URL` points `cast.image` at the `containers/cast-image`
