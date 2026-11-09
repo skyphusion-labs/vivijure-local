@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(modules): GET /api/modules reports speech in hooks_unavailable when nothing serves it (local#515)
+
+This is the parity half of vivijure-cf#904. `speech` is in core's catalog. On the default compose profile nothing serves it, because `module-speech-upscale` starts only under `cloud` or `satellites`. So the panel offered a stage that could not run. `host.hooks_unavailable.speech` now says so, derived from discovery, so it clears itself when a module serving `speech` is found. The catalog keeps the hook. The local reason names the operator's knobs: the `satellites` profile, `MODULE_SPEECH_UPSCALE_URL` and `LOCAL_FINISH_SPEECH_URL`.
+
 ### fix(cast-image): a lone door that accepts and never answers fails in 10s, named, not after 10 minutes (local#490)
 
 Before each `/generate`, the panel now asks the door's `GET /health` for an answer, bounded at `CAST_IMAGE_ANSWER_TIMEOUT_MS` (10s). Any HTTP status counts as an answer, so a door with no `/health` is not refused. A door that accepted the socket and never answered used to hold the job for the full 600s generation budget. A shorter timeout on `/generate` would not help: its headers arrive only when the image is done. A TCP connect timeout cannot see this shape either, because the socket did connect. A blackholed address already fails in about 10s from undici's own connect bound. The poll error now names the phase first: `local door unreachable` or `local door generation failed`.
