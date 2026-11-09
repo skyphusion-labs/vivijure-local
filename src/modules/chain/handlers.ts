@@ -38,6 +38,7 @@ import { generateCastImage } from "./cast-image-gen.js";
 import {
   LOCAL_CAST_MODEL_TAG,
   generateCastImageLocal,
+  CastImageDoorUnreachable,
   unloadCastImageDoor,
 } from "./cast-image-local.js";
 export { invokeImageGenerate, MODELS as IMAGE_GENERATE_MODELS } from "./image-generate-core.js";
@@ -359,6 +360,11 @@ async function pickCastImageDoor(env: ChainModuleEnv): Promise<{ url: string } |
         "(comma-separate several cards). Not falling back to Workers AI (local#269).",
     };
   }
+  // local#490: a LONE door is deliberately NOT health-probed here. orderDoors skips the probe at
+  // pool size one so a door whose /health is unimplemented is never turned into a refusal, and that
+  // is load-bearing for the finish doors. Pool size one is also the common homelab shape, so the
+  // loud failure for an unanswering lone door lives in generateCastImageLocal instead: a bounded
+  // "does it answer at all" GET before every /generate (CAST_IMAGE_ANSWER_TIMEOUT_MS).
   const ordered = await orderDoors(urls);
   if (ordered.length === 0) {
     return {
@@ -453,7 +459,10 @@ export async function pollCastImage(
         // through it would put the training set on the cloud path the door exists to replace,
         // inside a failure handler, without the operator asking. Release the card and fail loud.
         await unloadCastImageDoor(doorUrl as string, { token: env.CAST_IMAGE_TOKEN });
-        return { ok: false, error: "cast.image: local door generation failed: " + (e as Error).message };
+        // local#490: name the PHASE first. "unreachable" sends an operator to the network and the
+        // compose service; "generation failed" sends them to the GPU and the model.
+        const phase = e instanceof CastImageDoorUnreachable ? "local door unreachable" : "local door generation failed";
+        return { ok: false, error: `cast.image: ${phase}: ` + (e as Error).message };
       }
     } else {
       try {
