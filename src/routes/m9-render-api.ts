@@ -15,7 +15,8 @@ import {
   filmRenderRowSeedFromJob,
   isFilmJobId,
 } from "@skyphusion-labs/vivijure-core/film-render-bridge";
-import { advanceFilmJob, startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
+import { startFilmJob } from "@skyphusion-labs/vivijure-core/film-orchestrator";
+import { advanceFilmTick, FILM_TICK_DEFERRED, FILM_TICK_DEFERRED_BODY } from "../film-advance.js";
 import { isScatterJobId } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { summarizeJob } from "@skyphusion-labs/vivijure-core/clip-job-model";
 import {
@@ -328,7 +329,9 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         return json({ error: "Scatter is retired. Start a single film.", jobId }, 410);
       }
       if (!isFilmJobId(jobId)) throw notFound("film job");
-      const r = await advanceFilmJob(oenv, jobId);
+      // local#503: a tick that threw left the film in progress (core#428). Nothing below may run.
+      const r = await advanceFilmTick(oenv, jobId, "GET /api/render/film/:id");
+      if (r === FILM_TICK_DEFERRED) return json(FILM_TICK_DEFERRED_BODY, 500);
       if (!r) throw notFound("film job");
       await insertRender(oenv, filmRowFromJob(r.job));
       const kfDone =

@@ -43,6 +43,36 @@ export const CAST_IMAGE_GENERATE_TIMEOUT_MS = 600_000;
 export const CAST_IMAGE_UNLOAD_TIMEOUT_MS = 15_000;
 
 /**
+ * local#490: how long the door has to ANSWER AT ALL before the long /generate is sent.
+ *
+ * WHY THIS IS A SEPARATE CALL AND NOT A SHORTER TIMEOUT ON /generate. /generate is synchronous: the
+ * door sends its response headers only when the image is done, so "first byte" on /generate IS the
+ * end of generation, and any bound shorter than CAST_IMAGE_GENERATE_TIMEOUT_MS would kill real work.
+ * And a TCP connect timeout cannot see the failing shape at all. Measured on Node 26 (undici fetch):
+ * a blackholed address already fails in 10020ms with UND_ERR_CONNECT_TIMEOUT, undici's own connect
+ * bound; a server that ACCEPTS the socket and never writes a response was still pending at 15000ms.
+ * The socket connected, so the connect phase was over in a millisecond. What hangs is the HTTP
+ * answer, and the only way to ask "does this host answer" without waiting for an image is a
+ * different, cheap request.
+ *
+ * GET /health is in the door contract (containers/cast-image/app.py) and is unauthenticated. ANY
+ * HTTP status counts as an answer, a 404 included, so a door whose /health is missing or reports
+ * configured:false is NOT refused here. That keeps door-pool's promise (a lone door is never turned
+ * into a refusal by a probe of what it serves); this only asks whether something answers. The
+ * door's own 503 on /generate stays the place "no usable GPU" is reported.
+ */
+export const CAST_IMAGE_ANSWER_TIMEOUT_MS = 10_000;
+
+/** The door did not answer at all: refused, timed out, or accepted and never responded. A network
+ *  fact, not a generation fact, so the caller names it as such (local#490). */
+export class CastImageDoorUnreachable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CastImageDoorUnreachable";
+  }
+}
+
+/**
  * The model label persisted in run state and emitted in `applied`.
  *
  * NOT the Hugging Face repo id. `applied` goes into the render record, and `local/` is the honest
@@ -99,6 +129,27 @@ function mimeOf(raw: unknown): string {
   return /^image\/(png|jpeg|webp)$/.test(s) ? s : "image/png";
 }
 
+/** Throws CastImageDoorUnreachable unless the door returns ANY HTTP response within the bound. */
+export async function assertCastImageDoorAnswers(
+  doorUrl: string,
+  timeoutMs: number = CAST_IMAGE_ANSWER_TIMEOUT_MS,
+): Promise<void> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${doorUrl}/health`, { signal: ctl.signal });
+    // Drain so the connection is released; the status is deliberately not judged (see the bound's note).
+    await r.arrayBuffer().catch(() => undefined);
+  } catch (e) {
+    const why = ctl.signal.aborted
+      ? `no answer to GET /health within ${timeoutMs}ms`
+      : (e as Error).message;
+    throw new CastImageDoorUnreachable(`cast.image door ${doorUrl} unreachable: ${why}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postJson(
   url: string,
   body: unknown,
@@ -138,11 +189,16 @@ export async function generateCastImageLocal(
   doorUrl: string,
   prompt: string,
   refUrls: string[],
-  opts: { token?: string; modelId?: string } = {},
+  opts: { token?: string; modelId?: string; answerTimeoutMs?: number } = {},
 ): Promise<{ bytes: Uint8Array; mime: string }> {
   // Throws on a non-allowlisted id before any network call (local#277 / local#398).
   const modelId = resolveSelfHostModel(opts.modelId ?? DEFAULT_SELF_HOST_HF_MODEL);
   const { refs } = await collectCastRefs(refUrls);
+
+  // local#490: a door that accepts and never answers fails here in CAST_IMAGE_ANSWER_TIMEOUT_MS,
+  // naming the door, instead of hanging for the whole generation budget. Per image, not per job,
+  // so a door that wedges halfway through a ten-image cast prep is caught on the next image.
+  await assertCastImageDoorAnswers(doorUrl, opts.answerTimeoutMs ?? CAST_IMAGE_ANSWER_TIMEOUT_MS);
 
   let r: Response;
   try {
@@ -153,7 +209,7 @@ export async function generateCastImageLocal(
       CAST_IMAGE_GENERATE_TIMEOUT_MS,
     );
   } catch (e) {
-    throw new Error(`cast.image door ${doorUrl} unreachable: ${(e as Error).message}`);
+    throw new CastImageDoorUnreachable(`cast.image door ${doorUrl} unreachable: ${(e as Error).message}`);
   }
 
   if (r.status === 503) {
