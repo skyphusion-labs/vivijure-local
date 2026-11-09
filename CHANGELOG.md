@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(cast-image): a lone door that accepts and never answers fails in 10s, named, not after 10 minutes (local#490)
+
+Before each `/generate`, the panel now asks the door's `GET /health` for an answer, bounded at `CAST_IMAGE_ANSWER_TIMEOUT_MS` (10s). Any HTTP status counts as an answer, so a door with no `/health` is not refused. A door that accepted the socket and never answered used to hold the job for the full 600s generation budget. A shorter timeout on `/generate` would not help: its headers arrive only when the image is done. A TCP connect timeout cannot see this shape either, because the socket did connect. A blackholed address already fails in about 10s from undici's own connect bound. The poll error now names the phase first: `local door unreachable` or `local door generation failed`.
+
 ### chore(containers): sync the five container build contexts from vivijure-cf main
 
 `npm run sync-containers` against cf `f6745e3`. It absorbs 24 paths cf changed: the door Worker gate (`cf-container/src/gate.ts` in all five), the bearer-gated `GET /auth-check` on video-finish (cf#1360), the hold tests, the removal of the `LOCAL_FINISH_ACCEPT_MISSING_TOKEN` rollout stage (nothing in this repo set it), and `onnxruntime` 1.31.1 in image-prep. The three listed local deltas are untouched, and `npm run containers:check` passes.
