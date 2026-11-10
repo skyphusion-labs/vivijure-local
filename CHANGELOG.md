@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(runpod): adopt vivijure-core 1.44.0, so the sidecar workersMax reconcile uses RunPod REST v2 (fleet-chezmoi#2084)
+
+Core moves to `^1.44.0`. RunPod REST v1 (`rest.runpod.io/v1`) retires on 2026-11-15. The RunPod sidecar restores an idle-scaled endpoint's `workersMax` before a `/run` through core's `reconcileRunpodEndpointWorkersMax` (`src/modules/runpod/shared.ts`). On core 1.43.0 that call goes to v1. From the 15th the read fails, and core#527 makes that failure block the job. Core 1.44.0 (vivijure-core#529) reads and restores through `GET` and `PATCH https://api.runpod.io/v2/serverless/{id}`, with the bounds nested as `workers.max` and `workers.min`. No local code changes. `tests/runpod-reconcile-v2-2084.test.ts` drives the sidecar's real `/invoke` for keyframe, own-gpu and finish-upscale. It asserts `GET` and then `PATCH` of the v2 URL before the `/run`, and that `rest.runpod.io` is never reached. It is red on core 1.43.0. The `/run`, `/status` and `/cancel` calls to `api.runpod.ai/v2` (the serverless invoke API) are unchanged.
+
 ### chore(deps): adopt vivijure-core 1.43.0 from 1.26.0 (local#526, local#520, local#525)
 
 Core moves from the exact pin `1.26.0` to `^1.43.0`, seventeen minor releases. Two of them changed a contract local depends on with no test noticing, and both are fixed in the manifests local serves:
