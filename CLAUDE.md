@@ -48,7 +48,7 @@ Upstream wire contract: `vivijure-cf` `docs/CONTRACT.md` (this repo has no copy;
   the same wave. Review obligation, not a CI check.
 - **No byte-identity check on `public/`.** Projectors may diverge; `scripts/sync-from-vivijure.sh`
   is a manual porting aid only.
-- **Wan cast train:** homelab does **not** wire `RUNPOD_WAN_TRAIN_ENDPOINT_ID` by default (CF path).
+- **Wan cast train:** the hosted RunPod Wan endpoint is retired (self-host only); homelab does **not** wire `RUNPOD_WAN_TRAIN_ENDPOINT_ID`.
 - **Ignore Cursor `AGENTS.md`** if present.
 
 ## Commands
