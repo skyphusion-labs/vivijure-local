@@ -175,7 +175,7 @@ COMPOSE_PROFILES=cloud docker compose up -d
 
 **Not in default (cloud profile only):** RunPod `keyframe`, `own-gpu`, cloud i2v (`seedance`,
 `kling`, `google-veo`, `minimax-hailuo`, `vidu-q3`, `alibaba-wan`, `alibaba-wan-lora`),
-`cloud-keyframe`, `speech-upscale` (RunPod `vivijure-audio-upscale`).
+`cloud-keyframe`, `speech-upscale` (RunPod `vivijure-audio-upscale`, an archived image repo).
 
 Music mastering stays on the default CPU path: `audio-master` (VPC shim, port 8784) and
 `module-audio-master` (`MODULE_AUDIO_MASTER_URL`). Do not confuse that chain with `speech-upscale`,
@@ -220,8 +220,8 @@ fail the shot; they do not passthrough.
 
 ## Profile: `full` (legacy alias)
 
-Some fleet overlays refer to `COMPOSE_PROFILES=full` as shorthand for enabling all optional module
-profiles. Equivalent to:
+Older notes refer to `COMPOSE_PROFILES=full` as shorthand for enabling all optional module
+profiles. There is no `full` profile in `compose.yaml`; set the list instead:
 
 ```bash
 COMPOSE_PROFILES=cloud,satellites docker compose up -d

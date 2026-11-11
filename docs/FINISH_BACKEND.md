@@ -1,5 +1,11 @@
 # Finish backend routing (homelab vs RunPod)
 
+> **Read this first.** Much of this page is a record of a retired homelab host and of a RunPod
+> finish chain that has since shrunk. Today: the default homelab stack is a GPU door plus CPU
+> assemble; lipsync and upscale are opt-in `satellites` sidecars (`compose.yaml`), pointed at
+> servers you run. The MuseTalk and audio-upscale image repos are archived. Sections marked
+> "Historical" are kept as the record. Do not run their commands.
+
 Tracking: [local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180) (post-musetalk cutover).
 Related: [local#153](https://github.com/skyphusion-labs/vivijure-local/issues/153) (local keyframe coupling; separate lane).
 
@@ -24,15 +30,14 @@ never passthrough fake output.
 
 | Panel | Finish GPU default | RIFE |
 |-------|-------------------|------|
-| **vivijure-local** (propagandhi / homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
-| **vivijure-cf** (production) | RunPod finish satellites (canonical testbed) | RunPod `finish-rife` on backend worker |
+| **vivijure-local** (homelab) | **None** (CPU assemble only); optional local lipsync/upscale via `satellites` profile | **Not offered locally** -- RunPod opt-in only |
+| **vivijure-cf** (production) | Upscale on RunPod (operated endpoint) | Not offered on the hosted endpoint, which makes keyframes only |
 
 Homelab default stack: **door + CPU assemble only** (no finish GPU module URLs, no `satellites`
 profile). Opt into lipsync/upscale sidecars with `COMPOSE_PROFILES=satellites` plus
-`MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` in `.env`. CF panel keeps exercising the full RunPod
-finish chain (RIFE, MuseTalk, upscale, audio-upscale) for regression and promotion.
+`MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` in `.env`.
 
-## Current behavior (pre-cutover)
+## Historical: behavior before the cutover
 
 > **Historical, pre-local#200.** vivijure-local shipped the bare no-RunPod architecture in v1.2.0
 > (epic local#200); the tables below describe the pre-cutover state and are kept for context. Concrete
@@ -158,9 +163,9 @@ sudo docker compose stop finish-rife && sudo docker compose rm -f finish-rife
 local panel adds thin HTTP wrappers only for lipsync/upscale in the finish satellite repos. Propagandhi
 stack: `fleet-chezmoi/system/stacks/propagandhi/vivijure-finish-gpu/`.
 
-## Smoke / verify matrix trim
+## Historical: smoke / verify matrix trim
 
-Post-cutover **propagandhi homelab bar**:
+The post-cutover homelab bar, as it was recorded:
 
 | Path | Motion | Keyframe | Finish GPU | RIFE | RunPod required |
 |------|--------|----------|------------|------|-----------------|
@@ -169,9 +174,9 @@ Post-cutover **propagandhi homelab bar**:
 | Optional RunPod finish smoke | any | any | `SMOKE_FINISH_BACKEND=runpod` | No (local panel) | Yes (lipsync/upscale EPs) |
 | CF production regression | own-gpu / cloud | RunPod SDXL | RunPod finish chain | Yes (RunPod) | Yes (prod EPs) |
 
-## RunPod worker quota benefit
+## Historical: RunPod worker quota benefit
 
-Local panel currently holds **idle workers** on finish endpoints for propagandhi traffic:
+The local panel used to hold **idle workers** on finish endpoints for the retired homelab host:
 
 | Endpoint | Typical `workersMax` | Freed when local finish is default |
 |----------|---------------------|-------------------------------------|
@@ -180,9 +185,11 @@ Local panel currently holds **idle workers** on finish endpoints for propagandhi
 | Video upscale | 2 | Full endpoint idle for local panel |
 | Audio upscale | 2 | **Moved to local** (local#383): set `LOCAL_FINISH_SPEECH_URL` and no speech audio reaches it |
 
-Conservative estimate: **4-7 fewer warm RunPod workers** reserved for propagandhi finish traffic.
+The estimate then was **4-7 fewer warm RunPod workers**.
 
-Wan cast LoRA train is **CF prod only** (Conrad ruling 2026-07-23). Homelab does not wire
+**Wan cast training.** The hosted RunPod Wan training endpoint is retired, and its image repo
+(`vivijure-wan-train`) is archived. Wan training is self-host only: vivijure-cf can still bind
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID` to an operator's own endpoint. Homelab does not wire
 `RUNPOD_WAN_TRAIN_ENDPOINT_ID`; local `/train-lora` defaults to SDXL on `LOCAL_BACKEND_URL`
 (the door) when wired, else the optional cloud render endpoint.
 

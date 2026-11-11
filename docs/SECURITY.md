@@ -31,7 +31,7 @@ internet exposure without additional front-door controls you operate.
 | Mode | Supported locally | Behavior |
 |------|-------------------|----------|
 | `token` | **Yes** (default) | `Authorization: Bearer <STUDIO_API_TOKEN>` on every `/api/*` request |
-| `access` | No | Cloudflare Access JWT verification (cloud host only) |
+| `access` | No | Refused (`src/auth-gate.ts`); no vivijure host uses Cloudflare Access |
 
 Implementation: `src/auth-gate.ts` (ported from upstream). The gate **fails closed**: unknown mode,
 missing token, or wrong token denies the request.
@@ -89,9 +89,11 @@ SSRF guards in `containers/*/url_guard.py` restrict outbound fetch hosts (MinIO 
 
 ---
 
+Per-consumer API tokens ARE included: named tokens with an `operator` or `consumer` scope
+(local#238; see docs/ARCHITECTURE.md Auth).
+
 ## What this build does not include
 
-- Per-consumer API tokens (`scripts/studio-consumer-token.sh` upstream pattern) -- ported (named tokens with an `operator` or `consumer` scope -- local#238; see docs/ARCHITECTURE.md Auth).
 - Cloudflare Access / SSO / device posture.
 - Rate limiting across operators (in-memory limiter only where ported).
 - Audit log shipping (stdout only).
