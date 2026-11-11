@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): adopt vivijure-core 1.46.0
+
+Core moves to `^1.46.0` from npm. Core 1.46.0 reads finish conventions only from a module's `finish_artifacts`; the binding-name fallbacks are gone (vivijure-cf#879, vivijure-core#543). Every finish fixture in `dev/manifests` declares `finish_artifacts`, finish-lipsync included. Dispatch discovery honours `TENANT_MODULE_PREFIX` (vivijure-core#542); local does not set it, so dispatch is unchanged.
+
 ## v1.13.0 -- 2026-11-11
 
 MINOR. Core moves to `^1.45.0`, so the panel tag and row line for a reused still (local#539) now show. dev/manifests are resynced from vivijure-cf (finish-rife 0.1.4 `rate_factor`, seed labels). Also two fixes from local#549 that were filed under v1.12.0 after its tag: the Pillow 13, undici and sharp bumps, and audio analyze accepting only a served artifact key. Pairs with vivijure-cf v1.47.0 (dual-panel).
