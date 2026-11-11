@@ -32,7 +32,7 @@ describe("local#524 render-frames leaves no vj-frames-route dir", () => {
       },
     );
     const after = leftover();
-    const out = `${child.stdout}\n${child.stderr}`;
+    const out = `${child.stdout}\n${child.stderr}`.replace(/\x1b\[[0-9;]*m/g, "");
     expect(child.status, out).toBe(0);
     expect(out).toMatch(/Tests\s+[1-9]\d*\s+passed/);
     expect(after, `before ${before.length} [${before.join(", ")}] after ${after.length} [${after.join(", ")}]`).toEqual(before);
