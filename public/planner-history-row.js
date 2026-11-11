@@ -307,6 +307,27 @@ function buildHistoryRow(r, childrenByParent) {
 
   li.appendChild(sub);
 
+  // local#539: what core's checks reported on this render (the picture check, an extra person in a
+  // still, shots with no still), and stills the backend returned instead of redrawing. A clean render,
+  // or one the checks never ran on, renders nothing.
+  const fdSignals = window.finishDegrade;
+  if (fdSignals && fdSignals.renderSignalLines) {
+    for (const line of fdSignals.renderSignalLines(r.output)) {
+      const warn = document.createElement("div");
+      warn.className = "planner-history-signal";
+      warn.textContent = line.text;
+      if (line.reasons.length) warn.title = line.reasons.join("\n");
+      li.appendChild(warn);
+    }
+  }
+  const reuseLine = fdSignals && fdSignals.reuseNote ? fdSignals.reuseNote(r.output) : "";
+  if (reuseLine) {
+    const reuse = document.createElement("div");
+    reuse.className = "planner-history-reuse-note";
+    reuse.textContent = reuseLine;
+    li.appendChild(reuse);
+  }
+
   const actions = document.createElement("div");
   actions.className = "planner-history-actions";
 
@@ -422,7 +443,9 @@ function buildHistoryRow(r, childrenByParent) {
   rerun.type = "button";
   rerun.className = "planner-history-action";
   rerun.textContent = "re-render";
-  rerun.title = "render this bundle again (skips plan + bundle stages)";
+  // local#539 (cf#1385): stills with unchanged settings come back from the store, not redrawn.
+  rerun.title = "render this bundle again (skips plan + bundle stages). Stills with unchanged settings come back "
+    + "reused; set a new keyframe seed for new pictures.";
   rerun.addEventListener("click", () => rerunBundle(r));
   actions.appendChild(rerun);
 
@@ -552,6 +575,24 @@ function buildHistoryRow(r, childrenByParent) {
       cap.textContent = kf.shot_id;
       a.appendChild(cap);
       wrap.appendChild(a);
+      // local#539: this still may show an extra person, or its clip failed the picture check; and
+      // whether it came back from the store. Empty for a clean, drawn still.
+      if (window.finishDegrade && window.finishDegrade.shotWarnings) {
+        for (const w of window.finishDegrade.shotWarnings(r.output, kf.shot_id, kf)) {
+          const warnEl = document.createElement("p");
+          warnEl.className = "planner-history-keyframe-warn";
+          warnEl.textContent = w;
+          wrap.appendChild(warnEl);
+        }
+      }
+      if (window.finishDegrade && window.finishDegrade.keyframeReused
+        && window.finishDegrade.keyframeReused(r.output, kf)) {
+        const reusedTag = document.createElement("span");
+        reusedTag.className = "planner-history-keyframe-reused";
+        reusedTag.textContent = window.finishDegrade.STILL_REUSED_TAG;
+        reusedTag.title = window.finishDegrade.STILL_REUSED_TITLE;
+        wrap.appendChild(reusedTag);
+      }
 
       // v0.145.2: the motion clip rendered FROM this keyframe, shown directly
       // under the still so the keyframe and its animation read as one unit.
@@ -832,7 +873,12 @@ async function regenShot(row, kf, btnEl, imgEl) {
   const confirmMsg =
     "regen keyframe for " + kf.shot_id + "?\n\n"
     + "this runs " + keyframeLabel() + " only (no motion, no assembly) and overwrites the "
-    + "thumbnail above. takes about 30 to 60 seconds.";
+    + "thumbnail above. takes about 30 to 60 seconds.\n\n"
+    // local#539 (cf#1385): regen sends this render's settings again, including its seed, so an unchanged
+    // shot comes back from the store (marked reused) instead of being redrawn.
+    + "regen keeps this render's settings, including its seed. if nothing about this shot changed, "
+    + "the same still comes back, marked reused. to get a different picture, set a new keyframe seed "
+    + "and render again (a seed of -1 draws the same picture every time).";
   if (!window.confirm(confirmMsg)) return;
 
   const regenKey = String(row.id) + ":" + kf.shot_id;
