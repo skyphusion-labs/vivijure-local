@@ -7,6 +7,11 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+- **refactor(score-bed): pick score modules by declared score_kind (#528).**
+  Music and narration were chosen by sniffing `config_schema.prompt` and
+  `config_schema.text`. core#471 picks by `score_kind`, and a module can declare
+  one without the other. The server uses `pickScoreModule`. The planner registry
+  filters on `score_kind` the same way.
 - **test(render-frames): remove the vj-frames-route directory a failing route test left behind (#524).**
   The route suite created a temp dir in `beforeEach` and a second one in the failure case, then
   `afterEach` removed only the name `dir` still held. One directory stayed in TMPDIR on every run.

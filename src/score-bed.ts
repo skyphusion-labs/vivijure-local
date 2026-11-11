@@ -8,6 +8,7 @@ import {
   servingForHook,
   validateConfig,
 } from "@skyphusion-labs/vivijure-core";
+import { pickScoreModule, scoreModulesOfKind } from "@skyphusion-labs/vivijure-core/modules/score-select";
 import { discoverConfiguredModules } from "./module-registry.js";
 import type {
   PlanEnhanceStoryboard,
@@ -24,15 +25,11 @@ export type ModuleEnv = Record<string, unknown>;
 export type ScoreBedKind = "music" | "narration";
 
 export function musicScoreModules(modules: RegisteredModule[]): RegisteredModule[] {
-  return servingForHook(modules, "score").filter(
-    (m) => m.config_schema != null && m.config_schema.prompt != null,
-  );
+  return scoreModulesOfKind(modules, "music");
 }
 
 export function narrationScoreModules(modules: RegisteredModule[]): RegisteredModule[] {
-  return servingForHook(modules, "score").filter(
-    (m) => m.config_schema != null && m.config_schema.text != null,
-  );
+  return scoreModulesOfKind(modules, "narration");
 }
 
 export function scoreModuleLabel(mod: RegisteredModule): string {
@@ -42,21 +39,6 @@ export function scoreModuleLabel(mod: RegisteredModule): string {
 
 function fetcherForModule(env: ModuleEnv, mod: RegisteredModule): FetcherLike | null {
   return resolveFetcher(env, mod.binding);
-}
-
-function candidatesForKind(modules: RegisteredModule[], kind: ScoreBedKind): RegisteredModule[] {
-  return kind === "music" ? musicScoreModules(modules) : narrationScoreModules(modules);
-}
-
-function resolveScoreModule(
-  modules: RegisteredModule[],
-  kind: ScoreBedKind,
-  moduleName?: string,
-): RegisteredModule | null {
-  const candidates = candidatesForKind(modules, kind);
-  if (candidates.length === 0) return null;
-  if (moduleName) return candidates.find((m) => m.name === moduleName) ?? null;
-  return candidates[0];
 }
 
 function resolveScoreModuleByName(modules: RegisteredModule[], moduleName: string): RegisteredModule | null {
@@ -94,17 +76,9 @@ export async function startScoreBedGenerate(
 > {
   const kind: ScoreBedKind = args.kind === "narration" ? "narration" : "music";
   const modules = await discoverConfiguredModules(env);
-  const mod = resolveScoreModule(modules, kind, args.module?.trim() || undefined);
-  if (!mod) {
-    const wanted = args.module?.trim();
-    const hint = kind === "music" ? "config_schema.prompt" : "config_schema.text";
-    return {
-      ok: false,
-      error: wanted
-        ? `score module "${wanted}" is not installed or is not a ${kind} module`
-        : `no ${kind} score module installed (bind a score module with ${hint})`,
-    };
-  }
+  const picked = pickScoreModule(modules, kind, args.module?.trim() || undefined);
+  if (!picked.ok) return { ok: false, error: picked.error };
+  const mod = picked.module;
 
   const fetcher = fetcherForModule(env, mod);
   if (!fetcher) {
