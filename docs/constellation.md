@@ -63,8 +63,8 @@ flowchart TD
 - **A module** is a small worker that does one job: keyframes, motion, finish polish, scoring.
   The Studio keeps a **registry**; the web page builds itself from `GET /api/modules`.
 - **GPU engines** do the real clip rendering. **CPU containers** assemble clips, mux audio, and
-  run beat analysis. On `vivijure-local`, both run in `docker compose` by default (GPU mocks
-  included for the demo path; point `MODULE_LOCAL_GPU_URL` at a real backend when you have one).
+  run beat analysis. On `vivijure-local`, both run in `docker compose`. There is no mock GPU:
+  set `LOCAL_BACKEND_URL` to a real GPU door to render.
 
 ## Two hosts, one contract
 
@@ -73,7 +73,7 @@ contract. Different runtime and different **default GPU path**.
 
 | Host | Intent | GPU default | When to use it |
 |---|---|---|---|
-| **vivijure-cf** (Cloudflare) | Production studio | RunPod render + finish satellites | Workers, R2, AI Gateway; canonical cloud testbed. [CF quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md). |
+| **vivijure-cf** (Cloudflare) | Production studio | Cloud motion doors; SDXL keyframes and upscale on RunPod | Workers, R2, AI Gateway. [CF quickstart](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/quickstart.md). |
 | **vivijure-local** (this repo) | Homelab / hobbyist | Local GPU door + local finish sidecars | Self-host on your box; no Cloudflare account. RunPod optional ([local#180](https://github.com/skyphusion-labs/vivijure-local/issues/180), [FINISH_BACKEND.md](FINISH_BACKEND.md)). |
 
 Canonical ICD: [vivijure-cf/docs/CONTRACT.md](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md).

@@ -54,7 +54,7 @@ v1 supports **`AUTH_MODE=token` only**:
 - Every `/api/*` request must send `Authorization: Bearer <token>`.
 - Missing or wrong token -> denied. No anonymous fallback.
 
-Cloudflare Access (`AUTH_MODE=access`) is a cloud-host concern and is **not** ported here.
+`AUTH_MODE=access` is refused here (`src/auth-gate.ts`). No vivijure host uses Cloudflare Access.
 
 Full threat model and rotation notes: [SECURITY.md](SECURITY.md).
 
@@ -259,17 +259,15 @@ rows remain an opt-in overlay when gateway creds are set and you pick an `anthro
 
 **Default door is 16GB** ([`vivijure-local-16gb`](https://github.com/skyphusion-labs/vivijure-local-16gb)).
 The 12GB door ([`vivijure-local-12gb`](https://github.com/skyphusion-labs/vivijure-local-12gb), LTX)
-is the alternate. Co-located panels often run both with door-pin scripts (see
-[fleet#962](https://github.com/skyphusion-labs/fleet-chezmoi/issues/962) for IaC reconciliation).
-Only one door may hold the GPU at a time (and Ollama must be unloaded before the door job starts).
+is the alternate. Only one door may hold the GPU at a time (and Ollama must be unloaded before the door job starts).
 
 **Engine asymmetry (local#235) -- not just a pin difference.** The two doors run different motion
 engines and different duration contracts:
 
-| Door | Typical host (fleet) | Image | Engine | `duration_grid` |
-| --- | --- | --- | --- | --- |
-| Flagship CF door | fatmike | `vivijure-local-12gb` | **ltx-video** | **absent** (flexible `seconds * fps`) |
-| Local panel door | the retired homelab host | `vivijure-local-16gb` | **cogvideox** | fps 8, 49 max_frames on all tiers |
+| Door | Image | Engine | `duration_grid` |
+| --- | --- | --- | --- |
+| 12GB door | `vivijure-local-12gb` | **ltx-video** | **absent** (flexible `seconds * fps`) |
+| 16GB door | `vivijure-local-16gb` | **cogvideox** | fps 8, 49 max_frames on all tiers |
 
 Same panel request, different clip lengths and motion characteristics depending on which door is
 bound. `module-local-gpu` snaps shot length to the door-declared grid when present, and falls back
@@ -386,7 +384,7 @@ default stack (local#209).
 | `MODULE_MUSIC_GEN_URL` | `http://module-music-gen:9158` |
 | `MODULE_NARRATION_GEN_URL` | `http://module-narration-gen:9159` |
 | `MODULE_NOTIFY_EMAIL_URL` | `http://module-notify-email:9144` |
-| `MODULE_SPEECH_UPSCALE_URL` | *(empty; `cloud` profile -- RunPod `vivijure-audio-upscale`)* |
+| `MODULE_SPEECH_UPSCALE_URL` | *(empty; `cloud` profile -- RunPod `vivijure-audio-upscale`, an archived image repo)* |
 | `MODULE_OWN_GPU_URL` | *(empty; `cloud` profile)* |
 | `MODULE_*` cloud i2v | *(empty; `cloud` profile)* |
 | `MODULE_LIPSYNC_URL` / `MODULE_UPSCALE_URL` | *(empty; `satellites` profile)* |
@@ -459,19 +457,21 @@ Finish GPU satellites are optional: default compose skips them (`satellites` pro
 The demo path assembles raw clips after motion; homelab production wires finish sidecars only when
 opted in (see [install-profiles.md](install-profiles.md)).
 
-### Cast LoRA train (homelab vs CF prod)
+### Cast LoRA train (homelab vs vivijure-cf)
 
 **SDXL cast train on the local door (homelab default).** When `LOCAL_BACKEND_URL` points at a
 vivijure-local-12gb or 16gb door that serves `action: train_lora`, `POST /api/cast/:id/train-lora`
 submits to that door (same bearer as keyframe/i2v). No RunPod required.
 
-**Wan cast train remains CF prod only.** vivijure-cf binds `RUNPOD_WAN_TRAIN_ENDPOINT_ID`; when
-wired, `/train-lora` defaults to Wan (`model_family:"wan"`). Homelab **does not** set
-`RUNPOD_WAN_TRAIN_ENDPOINT_ID` (Conrad ruling 2026-07-23).
+**Wan cast training.** The hosted RunPod Wan training endpoint is retired, and its image repo
+(`vivijure-wan-train`) is archived. Wan training is self-host only: vivijure-cf can still bind
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID` to an operator's own endpoint. Homelab **does not** set
+`RUNPOD_WAN_TRAIN_ENDPOINT_ID` (Conrad ruling 2026-07-23). When an
+operator wires it on vivijure-cf, `/train-lora` defaults to Wan (`model_family:"wan"`).
 
 | Host | Wan train | `/train-lora` SDXL path |
 |------|-----------|-------------------------|
-| vivijure-cf (prod) | `RUNPOD_WAN_TRAIN_ENDPOINT_ID` → dedicated EP | optional `model_family:"sdxl"` on render EP |
+| vivijure-cf | `RUNPOD_WAN_TRAIN_ENDPOINT_ID` → an operator's own EP (the hosted one is retired) | optional `model_family:"sdxl"` on render EP |
 | vivijure-local (homelab) | **Not wired** | **`LOCAL_BACKEND_URL` door** (preferred); else `RUNPOD_ENDPOINT_ID` if opted in |
 
 After removing a stale Wan train key from `.env`, run `npm run sync:secrets:compose` so
