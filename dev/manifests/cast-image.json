@@ -1,6 +1,6 @@
 {
   "name": "cast-image",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "api": "vivijure-module/2",
   "hooks": [
     "cast.image"
@@ -18,7 +18,8 @@
         "@cf/black-forest-labs/flux-2-klein-9b",
         "google/nano-banana-pro",
         "@cf/black-forest-labs/flux-2-klein-4b",
-        "@cf/black-forest-labs/flux-2-dev"
+        "@cf/black-forest-labs/flux-2-dev",
+        "black-forest-labs/flux-3-image-klein"
       ],
       "default": "@cf/black-forest-labs/flux-2-klein-9b",
       "label": "image model"

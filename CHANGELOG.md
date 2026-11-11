@@ -7,6 +7,16 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+- **chore(manifests): resync dev/manifests from vivijure-cf (#531).**
+  `scripts/sync-module-manifests.ts` against cf `6510041`. Cost fields landed on
+  alibaba-wan, alibaba-wan-lora, minimax-hailuo, and infinitetalk. keyframe moved
+  to 0.3.9. The script now inlines numeric consts, so infinitetalk's `MIN_SECONDS`
+  and `MAX_SECONDS` parse. cast-image's enum gained cf's proxied
+  `black-forest-labs/flux-3-image-klein`. The default stays the CF channel, and
+  the self-host refusal still rejects that id. Six fixtures have no cf module directory
+  (finish-lipsync, speech-upscale, seedance, kling, google-veo, vidu-q3). Local
+  still wires those doors, so they were not deleted and not marked do-not-sync.
+  `check-module-manifest-drift.sh` is red on those six only.
 - **refactor(score-bed): pick score modules by declared score_kind (#528).**
   Music and narration were chosen by sniffing `config_schema.prompt` and
   `config_schema.text`. core#471 picks by `score_kind`, and a module can declare

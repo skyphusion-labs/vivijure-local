@@ -1,7 +1,7 @@
 {
   "needs_tenant_r2": true,
   "name": "own-gpu",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -59,11 +59,11 @@
       "About 2-8 second clips (no hard grid)",
       "Silent motion only. Best picture, not a talking door.",
       "Cannot lock a Cast voice sample. Spoken lines will not pick this door.",
-      "One film, no scatter (look door)",
       "Slower than a cloud talking door"
     ]
   },
   "usage": {
+    "face_hold": "one",
     "native_audio": false,
     "voice": "cast_tts",
     "scatter_native_audio": false,

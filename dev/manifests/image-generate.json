@@ -1,6 +1,6 @@
 {
   "name": "image-generate",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "api": "vivijure-module/2",
   "hooks": [
     "image.generate"
@@ -21,9 +21,9 @@
         "google/nano-banana-2",
         "google/nano-banana-pro",
         "bytedance/seedream-5-pro",
+        "bytedance/seedream-5-lite",
         "xai/grok-imagine-image",
-        "google/imagen-4",
-        "openai/gpt-image-1.5",
+        "openai/gpt-image-2",
         "recraft/recraftv4"
       ],
       "default": "@cf/black-forest-labs/flux-2-klein-9b",

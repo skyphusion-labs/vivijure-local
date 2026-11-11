@@ -1,6 +1,7 @@
 {
   "name": "cloud-keyframe",
-  "version": "0.1.8",
+  "version": "0.1.13",
+  "cancelable": true,
   "api": "vivijure-module/2",
   "hooks": [
     "keyframe"
@@ -15,10 +16,12 @@
     "model": {
       "type": "enum",
       "values": [
-        "google/nano-banana-2"
+        "google/nano-banana-2",
+        "google/nano-banana-2.1",
+        "pruna/p-image-edit"
       ],
       "default": "google/nano-banana-2",
-      "label": "image model (Cloudflare Nano Banana 2)"
+      "label": "image model"
     },
     "width": {
       "type": "int",
@@ -45,6 +48,15 @@
       "type": "string",
       "default": "first_keyframe",
       "label": "film-wide reference lock (none | first_keyframe | cast:<slot>)"
+    },
+    "style": {
+      "type": "enum",
+      "values": [
+        "photoreal",
+        "anime"
+      ],
+      "default": "photoreal",
+      "label": "still look"
     }
   },
   "ui": {

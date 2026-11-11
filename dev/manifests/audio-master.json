@@ -1,6 +1,6 @@
 {
   "name": "audio-master",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "api": "vivijure-module/2",
   "hooks": [
     "master"

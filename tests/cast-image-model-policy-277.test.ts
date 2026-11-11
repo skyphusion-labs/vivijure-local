@@ -33,7 +33,11 @@ describe("cast.image model policy (local#277)", () => {
     ) as { config_schema: { model: { default: string; values: string[] } } };
     expect(m.config_schema.model.default).toBe("@cf/black-forest-labs/flux-2-klein-9b");
     expect(m.config_schema.model.values[0]).toBe("@cf/black-forest-labs/flux-2-klein-9b");
-    expect(m.config_schema.model.values.every((v) => !looksLikeSelfHostModelId(v))).toBe(true);
+    // cf's catalog now includes a proxied HF-shaped id. It is still refused as a
+    // self-host weight. The default stays the CF channel.
+    const hfShaped = m.config_schema.model.values.filter((v) => looksLikeSelfHostModelId(v));
+    expect(hfShaped).toEqual(["black-forest-labs/flux-3-image-klein"]);
+    expect(refuseSelfHostModel(hfShaped[0])).toBeTruthy();
   });
 
   it("self-host allowlist is Apache Klein 4B only", () => {
