@@ -2,6 +2,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { join } from "node:path";
 import { sweepUnresolvedJobs } from "@skyphusion-labs/vivijure-core/render-sweep";
+import { sweepStandaloneClipJobs } from "./clip-job-sweep.js";
 import { orchestratorContextFromPlatform } from "@skyphusion-labs/vivijure-core/platform";
 import { meteredObjectStore } from "@skyphusion-labs/vivijure-core/storage-quota";
 import { createApp, repoRoot } from "./app.js";
@@ -139,8 +140,12 @@ function startRenderSweep(): void {
     sweepInFlight = true;
     try {
       const env = orchestratorContextFromPlatform(platform);
-      const n = await sweepUnresolvedJobs(env);
-      if (n > 0) console.log(`render-sweep: advanced ${n} job(s)`);
+      // local#530: core's sweep drives film and scatter jobs; standalone clip jobs are swept here, side by
+      // side, so one failing does not stop the other.
+      const [core, clips] = await Promise.allSettled([sweepUnresolvedJobs(env), sweepStandaloneClipJobs(env)]);
+      if (core.status === "fulfilled" && core.value > 0) console.log(`render-sweep: advanced ${core.value} job(s)`);
+      if (core.status === "rejected") console.warn(`render-sweep failed: ${(core.reason as Error)?.message ?? String(core.reason)}`);
+      if (clips.status === "rejected") console.warn(`clip-sweep failed: ${(clips.reason as Error)?.message ?? String(clips.reason)}`);
     } catch (e) {
       console.warn(`render-sweep failed: ${(e as Error).message}`);
     } finally {

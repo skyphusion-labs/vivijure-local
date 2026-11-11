@@ -11,6 +11,20 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 Two panel files still assumed core 1.26. Core 1.38.0 (core#471) gave the `score` hook the cardinality `pick_one_per_kind`, and the module-host page (`public/app.js`) knew only `pick_one` and `chain`, so the score stage badge printed the raw token. It now reads "one per kind", as on vivijure-cf. Core 1.36.0 (core#465) raised `STORYBOARD_MAX_SCENES` from 50 to 600, and the planner's beat plan (`public/planner-audio.js`) still clamped to 50, so a beat plan for a longer board applied only to its first 50 scenes. It now clamps at 600. `tests/panel-core-shapes-527.test.ts` reads both values from the shipped files and holds them to core's `HOOK_CARDINALITY` and `STORYBOARD_MAX_SCENES`. It was red on both before this change. The render config's `pickOne` line was not changed: `score` is in its `PANEL_SKIP_HOOKS`, so that line never sees it, as on vivijure-cf.
 
+### fix(clips): the render sweep drives standalone clip jobs, so one over 20 shots finishes unpolled (local#530)
+
+Since vivijure-core 1.35.0 (core#451) a clip job is bought in claimed batches of 20, and every batch
+after the first is bought by `advanceClipJob`. A standalone clip job (`POST /api/render/clips`) wrote
+no renders row, and core's sweep drives only the film and scatter jobs it finds through rows, so only
+the job's own `GET` advanced it: a job of more than 20 shots that nobody polled stopped after 20.
+
+The door now records each standalone clip job the way vivijure-cf does (cf#1309, cf#1315, cf#1316):
+an owner marker (`renders/<clips-id>/owner.json`) and a renders row in mode `clips`. The render sweep
+loop runs a second pass, `sweepStandaloneClipJobs`, beside core's sweep, and advances unfinished
+standalone clip jobs a page at a time. The `GET` and the sweep take the same advance lease, so they
+never buy one batch twice. The `GET` answer gains `advanced`; a `GET` that loses the lease answers
+from the job as it stands. Film clip phases are unchanged: they have no owner marker, and the film
+tick drives them.
 ### fix(finish): the upscale and lip-sync steps write to the film's own key (local#529)
 
 Two films of one project that ran the same suffix finish step (upscale `_up`, lip-sync `_ls`) on
