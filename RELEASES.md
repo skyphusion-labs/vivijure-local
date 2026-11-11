@@ -2,8 +2,11 @@
 
 Self-hosted Vivijure Studio (Node, SQLite, S3/MinIO). A release is:
 
-1. Version bump in `package.json` on `main`
-2. Git tag `vX.Y.Z` pushed to origin
+1. A release PR that bumps `package.json` (and the lockfile) and adds the `CHANGELOG.md`
+   section, merged through the normal gate. No direct push to `main`, release cuts included
+   (fleet-chezmoi#1622).
+2. Git tag `vX.Y.Z` on that PR's merge commit, created by an org admin (crew cannot create
+   release tags)
 3. **GitHub Release** on that tag (`gh release create vX.Y.Z ...`)
 4. GHCR images published by `.github/workflows/build-image.yml` on tag push
    (`ghcr.io/skyphusion-labs/vivijure-local-studio:X.Y.Z` + `:latest`)
@@ -13,15 +16,18 @@ Merge to `main` alone does **not** publish images; cut a tag deliberately.
 ## Cutting a release
 
 ```bash
-# 1. Bump package.json + CHANGELOG.md (+ lockfile: npm install)
-# 2. Tag + push
-git tag v1.1.5
-git push origin v1.1.5
+# 1. Release PR: bump package.json + CHANGELOG.md (+ lockfile: npm install) and add the
+#    ledger row below. Merge it through the normal gate.
+# 2. Tag the release PR's merge commit (org admin only)
+git fetch origin main --tags
+sha="$(gh pr view <release-pr> --json mergeCommit -q .mergeCommit.oid)"
+git tag -a vX.Y.Z -m "vX.Y.Z" "$sha"
+git push origin vX.Y.Z
 
 # 3. GitHub Release
-gh release create v1.1.5 --title "v1.1.5" --notes-file notes.md
+gh release create vX.Y.Z --title "vX.Y.Z" --notes-file notes.md
 
-# 4. Confirm build-image workflow green
+# 4. Confirm build-image workflow green, then close the ledger row in a follow-up PR
 gh run list --workflow build-image.yml --limit 3
 ```
 

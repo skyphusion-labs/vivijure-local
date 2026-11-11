@@ -111,17 +111,26 @@ fires only when someone cuts a tag; this one fires while a human is still lookin
 
 ### Cut a release
 
-1. Release PR: bump `package.json`, add `CHANGELOG.md` `## vX.Y.Z`, land the PR.
-2. Tag:
+Every release goes through a PR, the same as every other change and every other repo. There is
+no direct push to `main`, release cuts included (Conrad, 2026-11-10, fleet-chezmoi#1622).
+
+1. Release PR: bump `package.json` and the lockfile, add `CHANGELOG.md` `## vX.Y.Z`, add the
+   `RELEASES.md` ledger row. It merges through the normal gate like any PR.
+2. Tag the release PR's MERGE COMMIT, not whatever `main` points at when you get to it. Only an
+   org admin (the lead or Conrad) can create a release tag; crew open the release PR and ask the
+   lead to tag.
 
 ```bash
-git fetch origin main && git checkout main && git pull --ff-only
-git tag -a vX.Y.Z -m "vX.Y.Z"
+git fetch origin main --tags
+sha="$(gh pr view <release-pr> --json mergeCommit -q .mergeCommit.oid)"
+git tag -a vX.Y.Z -m "vX.Y.Z" "$sha"
 git push origin vX.Y.Z
 ```
 
 3. Confirm `build-image.yml` green; pin fleet/compose to published image tags when rolling hosts.
 4. Verify the **artifact** (running container / API), not only CI.
+5. Close the ledger row (`source commit`, `published`) in a follow-up PR once the tag run is
+   green.
 
 Merge alone never moves `:latest` / versioned GHCR tags.
 
