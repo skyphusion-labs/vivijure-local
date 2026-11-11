@@ -58,13 +58,20 @@ export function lipsyncedKey(clipKey: string): string {
   return dot > clipKey.lastIndexOf("/") ? `${clipKey.slice(0, dot)}_ls${clipKey.slice(dot)}` : `${clipKey}_ls`;
 }
 
-/** RunPod body for the dedicated vivijure-musetalk endpoint (R2 mode). */
-export function buildLipsyncBody(input: FinishInput, cfg: LipsyncConfig): { input: Record<string, unknown> } {
+/** RunPod body for the dedicated vivijure-musetalk endpoint (R2 mode).
+ *
+ *  `output_key`: the film's own key when core sends one (core#385: every suffix step writes under
+ *  `renders/<project>/clips/<film>/`), so two films of one project never write the same `_ls` clip
+ *  (local#529). The shared `<clip>_ls` key is only the fallback for a core that sends none.
+ *  `project`: MuseTalk's R2 mode refuses a body without it ("project is required for R2 mode"), and
+ *  scopes both keys to `renders/<project>/`. */
+export function buildLipsyncBody(input: FinishInput, cfg: LipsyncConfig, project: string): { input: Record<string, unknown> } {
   return {
     input: {
+      project,
       clip_key: input.clip_key,
       audio_key: input.audio_key,
-      output_key: lipsyncedKey(input.clip_key),
+      output_key: input.output_key || lipsyncedKey(input.clip_key),
       version: cfg.version,
       bbox_shift: cfg.bbox_shift,
       ...(input.output_hash ? { output_hash: input.output_hash } : {}),
@@ -84,6 +91,9 @@ export function buildFinishBody(
     project,
     shot_id: input.shot_id,
     clip_key: input.clip_key,
+    // local#529: write where core says (the film's own key, core#385); a door with no output_key
+    // writes its shared default, which is what two films of one project used to overwrite.
+    ...(input.output_key ? { output_key: input.output_key } : {}),
     ...(input.output_hash ? { output_hash: input.output_hash } : {}),
     ...extra,
   };
