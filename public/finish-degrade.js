@@ -115,11 +115,206 @@
     return where + " did not run, so part of the finishing pass is missing from this render.";
   }
 
+  // ---- local#539: the render signals core carries to the render row ----
+  // Ported from vivijure-cf (cf#916, cf#1282, cf#1283, cf#1385), with the same wording. Local has no
+  // stage-band machinery, so each signal renders as one plain line on the row (renderSignalLines) and
+  // as warnings beside the affected still (shotWarnings). Every signal follows the same ladder: the
+  // key ABSENT means the check never ran and renders nothing; a clean result renders nothing; only a
+  // reported problem renders. A shape we do not recognise renders nothing, never "clean".
+
+  function isCount(v) {
+    return typeof v === "number" && isFinite(v) && v >= 0 && Math.floor(v) === v;
+  }
+
+  function stringList(v) {
+    var out = [];
+    if (!Array.isArray(v)) return out;
+    for (var i = 0; i < v.length; i++) {
+      if (isNonEmptyString(v[i])) out.push(String(v[i]).trim());
+    }
+    return out;
+  }
+
+  /** `output.content_validation` (core 1.25.0): `{ checked, unmeasured, reasons, degraded? }`, the clip
+   *  picture check. `degraded` lists the clips that FAILED it, `unmeasured` those it could not look at. */
+  function parseContentValidation(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (!isCount(raw.checked) || !isCount(raw.unmeasured)) return null;
+    if (raw.reasons !== undefined && !Array.isArray(raw.reasons)) return null;
+    if (raw.degraded !== undefined && !Array.isArray(raw.degraded)) return null;
+    var failedShots = [];
+    var failedReasons = [];
+    var list = Array.isArray(raw.degraded) ? raw.degraded : [];
+    for (var i = 0; i < list.length; i++) {
+      var d = list[i];
+      if (!d || typeof d !== "object" || !isNonEmptyString(d.shot_id)) continue;
+      var shot = String(d.shot_id).trim();
+      failedShots.push(shot);
+      if (isNonEmptyString(d.reason)) failedReasons.push(shot + ": " + String(d.reason).trim());
+    }
+    return {
+      failed: failedShots.length,
+      failedShots: failedShots,
+      unmeasured: raw.unmeasured,
+      reasons: failedReasons.concat(raw.unmeasured > 0 ? stringList(raw.reasons) : []),
+    };
+  }
+
+  /** `output.plate_check` (core 1.31.0): `{ checked, unclean: [{ shot_id, expected, faces }] }`, the
+   *  stills made from a plate that may show an extra person. */
+  function parsePlateCheck(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (!isCount(raw.checked) || !Array.isArray(raw.unclean)) return null;
+    var shots = [];
+    for (var i = 0; i < raw.unclean.length; i++) {
+      var u = raw.unclean[i];
+      if (u && typeof u === "object" && isNonEmptyString(u.shot_id)) shots.push(String(u.shot_id).trim());
+    }
+    return { shots: shots };
+  }
+
+  /** `output.keyframes_incomplete` (core 1.31.0): `{ adopted, expected, dropped }`, shots that got no
+   *  still and were left out of the film. */
+  function parseKeyframesIncomplete(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (!isCount(raw.adopted) || !isCount(raw.expected)) return null;
+    if (raw.dropped !== undefined && !Array.isArray(raw.dropped)) return null;
+    var shots = stringList(raw.dropped);
+    return { missing: Math.max(shots.length, raw.expected - raw.adopted, 0), shots: shots, expected: raw.expected };
+  }
+
+  function isOutput(output) {
+    return !!output && typeof output === "object" && !Array.isArray(output);
+  }
+
+  /** The shot ids `output.plate_check` names as unclean. Empty for clean, absent, or junk. */
+  function plateUncleanShots(output) {
+    if (!isOutput(output)) return [];
+    var parsed = parsePlateCheck(output.plate_check);
+    return parsed ? parsed.shots : [];
+  }
+
+  /** True only on this keyframe entry's own explicit `plate_count.clean === false`. */
+  function keyframeUnclean(kf) {
+    if (!kf || typeof kf !== "object") return false;
+    var pc = kf.plate_count;
+    return !!pc && typeof pc === "object" && !Array.isArray(pc) && pc.clean === false;
+  }
+
+  var STILL_EXTRA_PERSON = "This still may show an extra person. Regenerate it to try again.";
+
+  /** The warnings beside ONE shot's still, in plain words. Empty for the common, clean case. */
+  function shotWarnings(output, shotId, kf) {
+    var out = [];
+    var id = isNonEmptyString(shotId) ? String(shotId).trim() : "";
+    if (keyframeUnclean(kf) || (!!id && plateUncleanShots(output).indexOf(id) !== -1)) out.push(STILL_EXTRA_PERSON);
+    if (id && isOutput(output)) {
+      var cv = parseContentValidation(output.content_validation);
+      if (cv && cv.failedShots.indexOf(id) !== -1) out.push("This clip failed the picture check and may look wrong.");
+    }
+    return out;
+  }
+
+  /** The warning lines for a render row, from every signal that reported a problem. Each line is
+   *  `{ text, reasons }`: our sentence, plus the studio's reasons verbatim (content check only). */
+  function renderSignalLines(output) {
+    var out = [];
+    if (!isOutput(output)) return out;
+    var cv = parseContentValidation(output.content_validation);
+    if (cv && (cv.failed > 0 || cv.unmeasured > 0)) {
+      var parts = [];
+      if (cv.failed > 0) parts.push(cv.failed + " clip" + (cv.failed === 1 ? "" : "s") + " failed the picture check and may look wrong.");
+      if (cv.unmeasured > 0) parts.push(cv.unmeasured + " clip" + (cv.unmeasured === 1 ? " was" : "s were") + " not checked for picture problems.");
+      out.push({ text: parts.join(" "), reasons: cv.reasons });
+    }
+    var pc = parsePlateCheck(output.plate_check);
+    if (pc && pc.shots.length) {
+      var k = pc.shots.length;
+      out.push({
+        text: (k === 1 ? "1 still" : k + " stills") + " may show an extra person (" + pc.shots.join(", ") + "). Regenerate "
+          + (k === 1 ? "that still" : "those stills") + " to try again.",
+        reasons: [],
+      });
+    }
+    var kfi = parseKeyframesIncomplete(output.keyframes_incomplete);
+    if (kfi && kfi.missing > 0) {
+      var m = kfi.missing;
+      var of = kfi.expected > 0 ? " of " + kfi.expected : "";
+      out.push({
+        text: m + of + " shot" + (m === 1 && !of ? "" : "s") + " got no still, so this film was made without "
+          + (m === 1 ? "it" : "them") + (kfi.shots.length ? " (" + kfi.shots.join(", ") + ")" : "") + ".",
+        reasons: [],
+      });
+    }
+    return out;
+  }
+
+  /** `output.keyframe_reuse` (core 1.45.0, core#532): `{ stills, reused: [shot_id] }`, the stills the
+   *  backend returned from its store instead of drawing. Absent when none was reused, so absent, junk
+   *  and an empty list are null. Absent cannot tell a door that never reports the mark from one that
+   *  drew every still. */
+  function parseKeyframeReuse(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (typeof raw.stills !== "number" || !isFinite(raw.stills) || raw.stills < 0) return null;
+    if (!Array.isArray(raw.reused)) return null;
+    var reused = [];
+    for (var i = 0; i < raw.reused.length; i++) {
+      var id = raw.reused[i];
+      if (typeof id === "string" && id && reused.indexOf(id) === -1) reused.push(id);
+    }
+    if (!reused.length) return null;
+    return { stills: Math.max(raw.stills, reused.length), reused: reused };
+  }
+
+  function keyframeReusedShots(output) {
+    if (!isOutput(output)) return [];
+    var parsed = parseKeyframeReuse(output.keyframe_reuse);
+    return parsed ? parsed.reused : [];
+  }
+
+  /** True when this still came back from the store: its own `reused: true`, or the render-level list. */
+  function keyframeReused(output, kf) {
+    if (kf && kf.reused === true) return true;
+    var id = kf && typeof kf.shot_id === "string" ? kf.shot_id : "";
+    return !!id && keyframeReusedShots(output).indexOf(id) !== -1;
+  }
+
+  var STILL_REUSED_TAG = "reused";
+  var STILL_REUSED_TITLE = "This still came back from an earlier render with the same settings. It was not redrawn.";
+  var NEW_PICTURE_HINT = "To get a different picture, set a new keyframe seed and render again. A seed of -1 draws the same picture every time.";
+
+  /** One line for a render row that reused any still, or "" when none was. */
+  function reuseNote(output) {
+    if (!isOutput(output)) return "";
+    var parsed = parseKeyframeReuse(output.keyframe_reuse);
+    if (!parsed) return "";
+    var n = parsed.reused.length;
+    var lead = n === parsed.stills
+      ? (n === 1 ? "The still was" : "All " + n + " stills were")
+      : n + " of " + parsed.stills + " stills " + (n === 1 ? "was" : "were");
+    return lead + " reused from an earlier render with the same settings, not redrawn. " + NEW_PICTURE_HINT;
+  }
+
   return {
     NO_REASON: NO_REASON,
     clipsFrom: clipsFrom,
     degradeFrom: degradeFrom,
     deliverable: deliverable,
     deliveredSummary: deliveredSummary,
+    parseContentValidation: parseContentValidation,
+    parsePlateCheck: parsePlateCheck,
+    parseKeyframesIncomplete: parseKeyframesIncomplete,
+    plateUncleanShots: plateUncleanShots,
+    keyframeUnclean: keyframeUnclean,
+    shotWarnings: shotWarnings,
+    renderSignalLines: renderSignalLines,
+    STILL_EXTRA_PERSON: STILL_EXTRA_PERSON,
+    parseKeyframeReuse: parseKeyframeReuse,
+    keyframeReusedShots: keyframeReusedShots,
+    keyframeReused: keyframeReused,
+    reuseNote: reuseNote,
+    STILL_REUSED_TAG: STILL_REUSED_TAG,
+    STILL_REUSED_TITLE: STILL_REUSED_TITLE,
+    NEW_PICTURE_HINT: NEW_PICTURE_HINT,
   };
 });

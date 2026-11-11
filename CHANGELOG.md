@@ -18,6 +18,40 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
   still wires those doors, so they were not deleted and not marked do-not-sync.
   `check-module-manifest-drift.sh` is red on those six only.
 
+### fix(panel): the score stage badge reads "one per kind", and the beat plan clamps at 600 scenes (local#527)
+
+Two panel files still assumed core 1.26. Core 1.38.0 (core#471) gave the `score` hook the cardinality `pick_one_per_kind`, and the module-host page (`public/app.js`) knew only `pick_one` and `chain`, so the score stage badge printed the raw token. It now reads "one per kind", as on vivijure-cf. Core 1.36.0 (core#465) raised `STORYBOARD_MAX_SCENES` from 50 to 600, and the planner's beat plan (`public/planner-audio.js`) still clamped to 50, so a beat plan for a longer board applied only to its first 50 scenes. It now clamps at 600. `tests/panel-core-shapes-527.test.ts` reads both values from the shipped files and holds them to core's `HOOK_CARDINALITY` and `STORYBOARD_MAX_SCENES`. It was red on both before this change. The render config's `pickOne` line was not changed: `score` is in its `PANEL_SKIP_HOOKS`, so that line never sees it, as on vivijure-cf.
+
+### feat(panel): show the render signals core carries, as on vivijure-cf (local#539)
+
+The local panel did not show what core's checks report on a render, and vivijure-cf does. Each history row now shows a warning line when a check reported a problem: clips that failed the picture check or were not checked (`output.content_validation`, core 1.25.0, with the studio's reasons in the line's title), stills that may show an extra person (`output.plate_check`, core 1.31.0), and shots that got no still (`output.keyframes_incomplete`). The still strip marks the affected still (an extra person; its clip failed the picture check) and tags a still that the backend returned from its store instead of redrawing ("reused", `output.keyframe_reuse` and per-still `reused`, core 1.45.0, core#532). The row then says how to get a new picture. The regen confirm and the re-render title say that regen keeps the seed, and that a seed of -1 draws the same picture every time (vivijure-backend#563). The wording is vivijure-cf's (cf#916, cf#1282, cf#1283, cf#1385). A key that is absent, a clean result or an unrecognised shape renders nothing. On core below 1.45.0 the reuse key is absent, so that part shows nothing until the pin moves.
+### fix(clips): the render sweep drives standalone clip jobs, so one over 20 shots finishes unpolled (local#530)
+
+Since vivijure-core 1.35.0 (core#451) a clip job is bought in claimed batches of 20, and every batch
+after the first is bought by `advanceClipJob`. A standalone clip job (`POST /api/render/clips`) wrote
+no renders row, and core's sweep drives only the film and scatter jobs it finds through rows, so only
+the job's own `GET` advanced it: a job of more than 20 shots that nobody polled stopped after 20.
+
+The door now records each standalone clip job the way vivijure-cf does (cf#1309, cf#1315, cf#1316):
+an owner marker (`renders/<clips-id>/owner.json`) and a renders row in mode `clips`. The render sweep
+loop runs a second pass, `sweepStandaloneClipJobs`, beside core's sweep, and advances unfinished
+standalone clip jobs a page at a time. The `GET` and the sweep take the same advance lease, so they
+never buy one batch twice. The `GET` answer gains `advanced`; a `GET` that loses the lease answers
+from the job as it stands. Film clip phases are unchanged: they have no owner marker, and the film
+tick drives them.
+### fix(finish): the upscale and lip-sync steps write to the film's own key (local#529)
+
+Two films of one project that ran the same suffix finish step (upscale `_up`, lip-sync `_ls`) on
+the same input clip wrote ONE object, so the second film replaced the clip the first film recorded.
+Core sends each step a film-scoped `output_key` (core#385, under `renders/<project>/clips/<film>/`);
+the local finish bodies now forward it, on the local door and on the RunPod path. With no
+`output_key` (an older core) the shared key is the fallback, as before.
+
+The lip-sync body also carries `project`: vivijure-musetalk's R2 mode refuses a body without one
+("project is required for R2 mode") and scopes both keys to `renders/<project>/`. Both doors were
+checked at their current `main` (vivijure-upscale `e279631`, vivijure-musetalk `3fa16ad`): each writes
+the requested `output_key` and returns it as `clip_key`.
+
 ## v1.11.0 -- 2026-11-10
 
 MINOR. Core moves to `^1.44.0`, so the RunPod sidecar's workersMax reconcile uses RunPod REST v2 before REST v1 retires on 2026-11-15 (fleet-chezmoi#2084). Also ships everything merged since v1.9.0: v1.10.0 was bumped and given a heading on 2026-08-16 but never tagged or published, so its section below first ships in this release. Pairs with vivijure-cf v1.45.0 (dual-panel).

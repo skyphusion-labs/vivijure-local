@@ -43,3 +43,43 @@ export function clipsFrom(output: RenderOutput | null | undefined): DeliveredCli
 export function degradeFrom(output: RenderOutput | null | undefined): NormalizedDegrade | null;
 export function deliverable(output: RenderOutput | null | undefined): Deliverable;
 export function deliveredSummary(degrade: NormalizedDegrade | null | undefined): string | null;
+
+// ---- local#539: render signals (ported from vivijure-cf cf#916 / cf#1282 / cf#1283 / cf#1385) ----
+
+export interface ContentValidation {
+  failed: number;
+  failedShots: string[];
+  unmeasured: number;
+  reasons: string[];
+}
+export function parseContentValidation(raw: unknown): ContentValidation | null;
+export function parsePlateCheck(raw: unknown): { shots: string[] } | null;
+export function parseKeyframesIncomplete(raw: unknown): { missing: number; shots: string[]; expected: number } | null;
+export function plateUncleanShots(output: RenderOutput | null | undefined): string[];
+export function keyframeUnclean(kf: { plate_count?: unknown } | null | undefined): boolean;
+export function shotWarnings(
+  output: RenderOutput | null | undefined,
+  shotId: unknown,
+  kf?: { plate_count?: unknown } | null,
+): string[];
+export interface SignalLine {
+  text: string;
+  /** The studio's reasons, verbatim. */
+  reasons: string[];
+}
+export function renderSignalLines(output: RenderOutput | null | undefined): SignalLine[];
+export const STILL_EXTRA_PERSON: string;
+export interface KeyframeReuse {
+  stills: number;
+  reused: string[];
+}
+export function parseKeyframeReuse(raw: unknown): KeyframeReuse | null;
+export function keyframeReusedShots(output: RenderOutput | null | undefined): string[];
+export function keyframeReused(
+  output: RenderOutput | null | undefined,
+  kf: { shot_id?: unknown; reused?: unknown } | null | undefined,
+): boolean;
+export function reuseNote(output: RenderOutput | null | undefined): string;
+export const STILL_REUSED_TAG: string;
+export const STILL_REUSED_TITLE: string;
+export const NEW_PICTURE_HINT: string;
