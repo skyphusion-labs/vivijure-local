@@ -25,11 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: vivijure-local
       - name: Checkout vivijure-core
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: skyphusion-labs/vivijure-core
           path: vivijure-core
@@ -64,7 +64,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "local#295: quality-tier-drift will use vivijure-cf@$sha (not floating main)"
       - name: Checkout vivijure-cf (quality-tier-drift module manifests)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: skyphusion-labs/vivijure-cf
           # PINNED (local#295). Do not change to main/branch without updating
@@ -136,7 +136,7 @@ jobs:
             exit 1
           done < <(grep -hE 'from ["'\'']\.\./\.\./' vivijure/modules/keyframe/src/index.ts vivijure/modules/own-gpu/src/index.ts || true)
           echo "local#295: quality-tier cf checkout preflight OK (keyframe + own-gpu + escaped relative imports)"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
