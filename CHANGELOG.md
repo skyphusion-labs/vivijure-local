@@ -9,7 +9,7 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ### chore(deps): adopt vivijure-core 1.46.0
 
-Core moves to `^1.46.0` from npm. Core 1.46.0 reads finish conventions only from a module's `finish_artifacts`; the binding-name fallbacks are gone (vivijure-cf#879, vivijure-core#543). Every finish fixture in `dev/manifests` declares `finish_artifacts`, finish-lipsync included. Dispatch discovery honours `TENANT_MODULE_PREFIX` (vivijure-core#542); local does not set it, so dispatch is unchanged.
+Core moves to `^1.46.0` from npm. Core 1.46.0 reads finish conventions only from a module's `finish_artifacts`; the binding-name fallbacks are gone (vivijure-cf#879, vivijure-core#543). Every finish fixture in `dev/manifests` declares `finish_artifacts`, finish-lipsync included. Dispatch discovery honours `TENANT_MODULE_PREFIX` (vivijure-core#542); local does not set it, so dispatch is unchanged. CI now checks out vivijure-cf at `af2110e` (`dev/cf-quality-tier-pin`): core 1.46.0 checks the shipped finish-rife declaration, and the old pin predates its `rate_factor` (vivijure-cf#1417).
 
 ## v1.13.0 -- 2026-11-11
 

@@ -33,4 +33,8 @@ MAX_AGE_DAYS=30
 
 # 2026-11-09: bumped so core's renders tests see migrations 0017/0018
 # (finish_elapsed_ms, motion_backend). The previous pin predates both.
-SHA=dccf6e2a1a6dccf10262bf5f2c26fc5e429e03bc
+#
+# 2026-11-11: bumped for vivijure-core 1.46.0. Its finish-artifacts-shipped-879 test reads
+# the shipped finish-rife MANIFEST and needs finish_artifacts.rate_factor (finish-rife 0.1.4,
+# vivijure-cf#1417). The previous pin predates it, so core's suite failed 3 tests here.
+SHA=af2110ea4dc9d021c3b3c6cad6075cddb7266fea
