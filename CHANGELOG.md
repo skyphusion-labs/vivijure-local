@@ -25,6 +25,18 @@ standalone clip jobs a page at a time. The `GET` and the sweep take the same adv
 never buy one batch twice. The `GET` answer gains `advanced`; a `GET` that loses the lease answers
 from the job as it stands. Film clip phases are unchanged: they have no owner marker, and the film
 tick drives them.
+### fix(finish): the upscale and lip-sync steps write to the film's own key (local#529)
+
+Two films of one project that ran the same suffix finish step (upscale `_up`, lip-sync `_ls`) on
+the same input clip wrote ONE object, so the second film replaced the clip the first film recorded.
+Core sends each step a film-scoped `output_key` (core#385, under `renders/<project>/clips/<film>/`);
+the local finish bodies now forward it, on the local door and on the RunPod path. With no
+`output_key` (an older core) the shared key is the fallback, as before.
+
+The lip-sync body also carries `project`: vivijure-musetalk's R2 mode refuses a body without one
+("project is required for R2 mode") and scopes both keys to `renders/<project>/`. Both doors were
+checked at their current `main` (vivijure-upscale `e279631`, vivijure-musetalk `3fa16ad`): each writes
+the requested `output_key` and returns it as `clip_key`.
 
 ## v1.11.0 -- 2026-11-10
 
