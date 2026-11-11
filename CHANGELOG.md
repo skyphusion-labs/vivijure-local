@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.12.0 -- 2026-11-11
+
+MINOR. The panel shows the render signals core carries, as vivijure-cf does: the picture check, a still that may show an extra person, shots with no still, and a still reused rather than redrawn (local#539). Also: the score stage badge and the 600-scene beat plan (local#527), the render sweep drives standalone clip jobs (local#530), the upscale and lip-sync steps write to the film's own key (local#529), score modules are picked by declared kind (local#528), dev/manifests resynced from vivijure-cf (local#531), and a test no longer leaves a directory in TMPDIR (local#524). The core pin stays `^1.44.0`. Pairs with vivijure-cf v1.46.0 (dual-panel).
+
 - **chore(manifests): resync dev/manifests from vivijure-cf (#531).**
   `scripts/sync-module-manifests.ts` against cf `6510041`. Cost fields landed on
   alibaba-wan, alibaba-wan-lora, minimax-hailuo, and infinitetalk. keyframe moved
