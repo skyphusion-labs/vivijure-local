@@ -32,6 +32,9 @@ import {
   motionConfigPreflightError,
 } from "@skyphusion-labs/vivijure-core";
 import { discoverConfiguredModules } from "../module-registry.js";
+import type { ClipJob } from "@skyphusion-labs/vivijure-core/render-orchestrator";
+import { clipJobRowSeed, clipJobToPollView, isStandaloneClipJob, writeClipJobOwner } from "../clip-job-row.js";
+import { ensureClipJobRow, readClipJobDoc, withClipJobLease } from "../clip-job-lease.js";
 import {
   noopExecutionContext,
   orchestratorContextFromPlatform,
@@ -143,6 +146,43 @@ async function withFilmDownloadUrlBestEffort(
   }
 }
 
+/**
+ * local#530: record a standalone clip job so the render sweep can drive it (src/clip-job-row.ts).
+ * Once startClipJob returns, the GPU is spending, so this is best effort: a throw is logged, never a
+ * 5xx that would bait a retry into a second job. The next GET heals what is missing.
+ */
+export async function recordStandaloneClipJob(env: OrchestratorEnv, job: ClipJob): Promise<void> {
+  try {
+    await writeClipJobOwner(env, job.job_id);
+  } catch (e) {
+    console.log(JSON.stringify({ ev: "render.bookkeeping_deferred", op: "writeClipJobOwner", job_id: job.job_id, reason: e instanceof Error ? e.message : String(e) }));
+  }
+  await insertRenderBestEffort(env, clipJobRowSeed(job));
+  try {
+    await updateRenderFromView(env, clipJobToPollView(job));
+  } catch (e) {
+    console.log(JSON.stringify({ ev: "render.bookkeeping_deferred", op: "updateRenderFromView", job_id: job.job_id, reason: e instanceof Error ? e.message : String(e) }));
+  }
+}
+
+/**
+ * local#530: GET /api/render/clips/:id. Advances under the same lease as the sweep, so the two never
+ * buy one batch twice; a GET that loses the lease answers from the doc as it stands. A standalone
+ * job's row is kept current (and inserted if the start could not). A film's clip job carries no owner
+ * marker and gets no row here: its film row is its record and the film tick is its driver.
+ */
+export async function pollStandaloneClipJob(env: OrchestratorEnv, jobId: string): Promise<{ job: ClipJob | null; advanced: boolean }> {
+  const standalone = await isStandaloneClipJob(env, jobId);
+  const leased = await withClipJobLease(env, jobId, () => advanceClipJob(env, jobId),
+    standalone ? { ensureRow: () => ensureClipJobRow(env, jobId) } : {});
+  const job = leased.ran ? leased.value : await readClipJobDoc(env, jobId);
+  if (job && standalone) {
+    await insertRender(env, clipJobRowSeed(job));
+    await updateRenderFromView(env, clipJobToPollView(job));
+  }
+  return { job, advanced: leased.ran };
+}
+
 export function registerM9Routes(app: Hono, platform: Platform): void {
   const env = () => orchestratorContextFromPlatform(platform);
 
@@ -162,6 +202,7 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         motion_backend: a.motion_backend,
         config: a.config,
       });
+      await recordStandaloneClipJob(env(), job);
       return json({
         ok: true,
         job_id: job.job_id,
@@ -178,13 +219,14 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
 
   app.get("/api/render/clips/:id", async (c) => {
     try {
-      const job = await advanceClipJob(env(), c.req.param("id"));
+      const { job, advanced } = await pollStandaloneClipJob(env(), c.req.param("id"));
       if (!job) throw notFound("clip job");
       return json({
         ok: true,
         job_id: job.job_id,
         motion_backend: job.motion_backend,
         ...summarizeJob(job),
+        advanced,
         shots: job.shots.map((sh) => ({
           shot_id: sh.shot_id,
           status: sh.status,
