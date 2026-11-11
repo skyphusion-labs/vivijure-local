@@ -54,7 +54,7 @@
       "type": "int",
       "default": -1,
       "min": -1,
-      "label": "seed (-1 = random)"
+      "label": "seed (-1 = backend default, same picture each time)"
     },
     "identity_method": {
       "type": "enum",

@@ -1,6 +1,6 @@
 {
   "name": "finish-rife",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"
@@ -90,6 +90,14 @@
       {
         "tag": "interpolate:{interpolation_factor|2}x"
       }
-    ]
+    ],
+    "rate_factor": {
+      "knob": "interpolation_factor",
+      "default": 2,
+      "off_when": {
+        "knob": "interpolate",
+        "equals": false
+      }
+    }
   }
 }
