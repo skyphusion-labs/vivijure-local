@@ -250,7 +250,7 @@ async function invokeFinish(
   if (!rec.ok) return { ok: false, error: rec.error };
   const runBody =
     action === "lipsync_clip"
-      ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
+      ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}), req.context.project)
       : buildFinishBody(input, cfg, req.context.project, action, extra);
   const base = runpodBase(creds.endpointId);
   try {

@@ -87,7 +87,7 @@ export async function invokeLocalFinish(
   }
   const runBody =
     action === "lipsync_clip"
-      ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}))
+      ? buildLipsyncBody(input, coerceLipsyncConfig(req.config ?? {}), req.context.project)
       : buildFinishBody(input, cfg, req.context.project, action, extra);
   // Sequential VRAM: local finish GPU shares the card with Ollama + the door.
   await ensureOllamaUnloadedForGpu(env);
