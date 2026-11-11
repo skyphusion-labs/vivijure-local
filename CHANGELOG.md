@@ -7,6 +7,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+- **refactor(score-bed): pick score modules by declared score_kind (#528).**
+  Music and narration were chosen by sniffing `config_schema.prompt` and
+  `config_schema.text`. core#471 picks by `score_kind`, and a module can declare
+  one without the other. The server uses `pickScoreModule`. The planner registry
+  filters on `score_kind` the same way.
+
 ## v1.11.0 -- 2026-11-10
 
 MINOR. Core moves to `^1.44.0`, so the RunPod sidecar's workersMax reconcile uses RunPod REST v2 before REST v1 retires on 2026-11-15 (fleet-chezmoi#2084). Also ships everything merged since v1.9.0: v1.10.0 was bumped and given a heading on 2026-08-16 but never tagged or published, so its section below first ships in this release. Pairs with vivijure-cf v1.45.0 (dual-panel).
