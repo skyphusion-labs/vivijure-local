@@ -72,8 +72,8 @@
     "hono": "^4.13.17"
   },
   "overrides": {
-    "sharp": "0.35.4",
-    "undici": "7.29.0"
+    "sharp": "0.35.5",
+    "undici": "7.30.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
