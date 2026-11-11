@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Feat: a short-line shot can move to another door for its own clip, and the panel says so (vivijure-cf#930, dual panel with vivijure-cf).**
+
+Conrad's ruling (2026-11-11): a per-shot motion door applies to that one clip only, and the film's door stays the default for every other shot. Core 1.47.0 moves a lined shot off a film door whose clip floor would leave the speaker mouthing words after the line, to the first offered door that takes it without a tail. It records every shot still left with a tail. The voiced film route (`POST` in `src/routes/m9-render-api.ts`) now sends the offer (`src/door-fit-offer.ts`): the other serving driven motion doors with the film door's locality, in `ui.order`. A film door the caller named stays the default for every shot, and a short-line shot may still move off it for that one clip (Conrad's ruling, 2026-11-11), the same rule as vivijure-cf. The panel shows the new `door_fit` signal in `renderSignalLines`, in vivijure-cf's sentences. Core moves to `^1.47.0`.
+
 ## v1.14.0 -- 2026-11-11
 
 MINOR. Core moves to `^1.46.0`: finish conventions come only from a module's declared `finish_artifacts`, and the binding-name fallbacks are gone (vivijure-cf#879, vivijure-core#543). A finish module that declares nothing now gets no R2 adoption and a rate factor of 1. Every finish fixture in `dev/manifests` declares. CI checks out vivijure-cf at `af2110e` so core's suite sees the shipped finish-rife declaration. Pairs with vivijure-cf v1.48.0 (dual-panel).
