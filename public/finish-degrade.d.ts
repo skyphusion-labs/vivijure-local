@@ -54,6 +54,18 @@ export interface ContentValidation {
 }
 export function parseContentValidation(raw: unknown): ContentValidation | null;
 export function parsePlateCheck(raw: unknown): { shots: string[] } | null;
+/** vivijure-cf#930: one `door_fit` entry, as the panel reads it. */
+export interface DoorFitShot {
+  shot_id: string;
+  from?: string;
+  to?: string;
+  door?: string;
+  line_seconds: number | null;
+  clip_seconds: number | null;
+}
+/** vivijure-cf#930: `output.door_fit` (core door-fit.ts): `{ swapped, tails }`, or null for absent or junk. */
+export function parseDoorFit(raw: unknown): { swapped: DoorFitShot[]; tails: DoorFitShot[] } | null;
+
 export function parseKeyframesIncomplete(raw: unknown): { missing: number; shots: string[]; expected: number } | null;
 export function plateUncleanShots(output: RenderOutput | null | undefined): string[];
 export function keyframeUnclean(kf: { plate_count?: unknown } | null | undefined): boolean;
