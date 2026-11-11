@@ -7,6 +7,21 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(clips): the render sweep drives standalone clip jobs, so one over 20 shots finishes unpolled (local#530)
+
+Since vivijure-core 1.35.0 (core#451) a clip job is bought in claimed batches of 20, and every batch
+after the first is bought by `advanceClipJob`. A standalone clip job (`POST /api/render/clips`) wrote
+no renders row, and core's sweep drives only the film and scatter jobs it finds through rows, so only
+the job's own `GET` advanced it: a job of more than 20 shots that nobody polled stopped after 20.
+
+The door now records each standalone clip job the way vivijure-cf does (cf#1309, cf#1315, cf#1316):
+an owner marker (`renders/<clips-id>/owner.json`) and a renders row in mode `clips`. The render sweep
+loop runs a second pass, `sweepStandaloneClipJobs`, beside core's sweep, and advances unfinished
+standalone clip jobs a page at a time. The `GET` and the sweep take the same advance lease, so they
+never buy one batch twice. The `GET` answer gains `advanced`; a `GET` that loses the lease answers
+from the job as it stands. Film clip phases are unchanged: they have no owner marker, and the film
+tick drives them.
+
 ## v1.11.0 -- 2026-11-10
 
 MINOR. Core moves to `^1.44.0`, so the RunPod sidecar's workersMax reconcile uses RunPod REST v2 before REST v1 retires on 2026-11-15 (fleet-chezmoi#2084). Also ships everything merged since v1.9.0: v1.10.0 was bumped and given a heading on 2026-08-16 but never tagged or published, so its section below first ships in this release. Pairs with vivijure-cf v1.45.0 (dual-panel).
