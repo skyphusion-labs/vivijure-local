@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(panel): the score stage badge reads "one per kind", and the beat plan clamps at 600 scenes (local#527)
+
+Two panel files still assumed core 1.26. Core 1.38.0 (core#471) gave the `score` hook the cardinality `pick_one_per_kind`, and the module-host page (`public/app.js`) knew only `pick_one` and `chain`, so the score stage badge printed the raw token. It now reads "one per kind", as on vivijure-cf. Core 1.36.0 (core#465) raised `STORYBOARD_MAX_SCENES` from 50 to 600, and the planner's beat plan (`public/planner-audio.js`) still clamped to 50, so a beat plan for a longer board applied only to its first 50 scenes. It now clamps at 600. `tests/panel-core-shapes-527.test.ts` reads both values from the shipped files and holds them to core's `HOOK_CARDINALITY` and `STORYBOARD_MAX_SCENES`. It was red on both before this change. The render config's `pickOne` line was not changed: `score` is in its `PANEL_SKIP_HOOKS`, so that line never sees it, as on vivijure-cf.
+
 ### fix(finish): the upscale and lip-sync steps write to the film's own key (local#529)
 
 Two films of one project that ran the same suffix finish step (upscale `_up`, lip-sync `_ls`) on
