@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout vivijure-core
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: skyphusion-labs/vivijure-core
           path: vivijure-core
@@ -85,7 +85,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "local#295: quality-tier-drift will use vivijure-cf@$sha (not floating main)"
       - name: Checkout vivijure-cf (quality-tier-drift module manifests)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: skyphusion-labs/vivijure-cf
           # PINNED (local#295). Do not change to main/branch without updating
