@@ -9,15 +9,15 @@ compose stack registers **no RunPod modules**
 ([local#265](https://github.com/skyphusion-labs/vivijure-local/issues/265),
 [local#200](https://github.com/skyphusion-labs/vivijure-local/issues/200)).
 
-For **production** workloads (Cloudflare Workers, R2, AI Gateway, RunPod render testbed), use
+For **production** workloads (Cloudflare Workers, R2, AI Gateway), use
 [`vivijure-cf`](https://github.com/skyphusion-labs/vivijure-cf).
 
 Both hosts share [`vivijure-core`](https://github.com/skyphusion-labs/vivijure-core). Drive either
 host from an agent with [`vivijure-mcp`](https://github.com/skyphusion-labs/vivijure-mcp).
 Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 
-**Dependency pins (this repo, see `package.json` / lock):** `@skyphusion-labs/vivijure-core`
-`1.22.5`, `@skyphusion-labs/vivijure-mcp` `^1.2.1`. Product
+**Dependency pins:** see `package.json` and the lock file for the `@skyphusion-labs/vivijure-core`
+and `@skyphusion-labs/vivijure-mcp` versions. Product
 capability parity with `vivijure-cf` is the dual-panel release-wave gate; package floors can lag
 the CF host.
 
@@ -33,8 +33,8 @@ plug in via module URLs; this repo is the **control panel host** only.
 | **Who** | Homelab / hobbyist self-host | Cloudflare-hosted studio |
 | **Runtime** | Node + Docker + MinIO + Ollama | Workers + D1 + R2 |
 | **Contract** | Full parity (`CONTRACT.md`, module registry) | Same |
-| **GPU default** | Ollama + 16GB local door + CPU finish | RunPod (`vivijure-backend` + finish satellites) |
-| **RunPod** | Opt-in only (`COMPOSE_PROFILES=cloud` / satellites) | Canonical render/finish testbed |
+| **GPU default** | Ollama + 16GB local door + CPU finish | Cloud motion doors; SDXL keyframes and upscale on RunPod |
+| **RunPod** | Opt-in only (`COMPOSE_PROFILES=cloud` / satellites) | Keyframes and upscale; motion through cloud doors or your own GPU |
 | **When to pick** | Your box, LAN you control, own GPU | Production, free-tier CF stack, no homelab ops |
 
 Route checklist: [docs/PARITY.md](docs/PARITY.md). Homelab operator path: [docs/quickstart.md](docs/quickstart.md).
@@ -83,8 +83,11 @@ control (see [docs/SECURITY.md](docs/SECURITY.md)).
 ## Quick start
 
 ```bash
+git clone https://github.com/skyphusion-labs/vivijure-local
+cd vivijure-local
+npm ci                        # install the tools install:studio runs (tsx)
 npm run install:studio        # mint token + seed platform_secrets
-npm run compose:up            # pull GHCR :latest + docker compose up -d
+npm run compose:up            # docker compose pull (GHCR :latest unless VJ_IMAGE_TAG is set) + up -d
 curl -fsS http://127.0.0.1:8790/health
 ```
 

@@ -31,18 +31,17 @@ under the stated upstream license (inventoried in that repo).
 | IP-Adapter (h94) | Cast-consistent keyframes | You download | Apache-2.0 | **Fine.** |
 | Qwen3-14B (`qwen3:14b` via Ollama) | Planner (plan.enhance) | Pulled by Ollama | Apache-2.0 | **Fine.** |
 | U-2-Net `u2net.onnx` (via rembg) | image-prep CPU container | Baked | Apache-2.0 (rembg itself MIT) | **Fine.** |
-| MuseTalk stack | Opt-in local lipsync satellite (`satellites` profile) | Baked in the [vivijure-musetalk](https://github.com/skyphusion-labs/vivijure-musetalk) image | MIT + Apache-2.0 + BSD-3-Clause (full inventory in that repo) | **Fine.** |
+| MuseTalk stack | Opt-in local lipsync satellite (`satellites` profile) | Baked in the [vivijure-musetalk](https://github.com/skyphusion-labs/vivijure-musetalk) image (that repo is archived) | MIT + Apache-2.0 + BSD-3-Clause (full inventory in that repo) | **Fine.** |
 | Real-ESRGAN | Opt-in local upscale satellite | Baked in the [vivijure-upscale](https://github.com/skyphusion-labs/vivijure-upscale) image | BSD-3-Clause | **Fine.** |
 
-Not in this table because it is not on the local door: **Wan 2.2 A14B** (Apache-2.0) runs only
-on the datacenter RunPod backend (vivijure-backend); it does not fit consumer cards. Cloud i2v
+Not in this table because it is not on the local door: **Wan 2.2 A14B** (Apache-2.0) does not fit
+consumer cards. The project's hosted RunPod endpoint makes SDXL keyframes only, not Wan. Cloud i2v
 providers (Seedance, Kling, Veo, the Wan API, and friends) and Workers AI models are API
 services governed by provider terms; no weights land on your box for those steps.
 
-In review, not yet shipped: a fully local cast.image path on **FLUX.2 Klein 4B** (Apache-2.0)
-is PR [#272](https://github.com/skyphusion-labs/vivijure-local/pull/272). When it lands, the
-table gains a commercially unrestricted local image-generation path; until then it is not in
-any tagged release. Mind the family split, verified 2026-07-31 across every published variant:
+Shipped: a fully local cast.image path on **FLUX.2 Klein 4B** (Apache-2.0), from PR
+[#272](https://github.com/skyphusion-labs/vivijure-local/pull/272), in the `cast-image` compose
+profile. It is a commercially unrestricted local image-generation path. Mind the family split, verified 2026-07-31 across every published variant:
 the FLUX.2 klein **4B** line is Apache-2.0, while the klein **9B** line and FLUX.2-dev carry
 the FLUX Non-Commercial License. That is exactly why the local path builds on the 4B, and why
 the larger klein is consumed only as licensed inference via Workers AI, never self-hosted.

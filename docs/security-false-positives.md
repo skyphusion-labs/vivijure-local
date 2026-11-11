@@ -4,7 +4,7 @@ Documented dismissals for adversarial-audit (K2.7/K3) findings that are not acti
 
 ## Homelab single-operator stack
 
-Default MinIO creds, HTTP-only studio URL, and sibling-subdomain CSRF (`same-site`) reflect a **local operator** threat model. Production uses HTTPS, strong secrets, and Cloudflare Access on CF-hosted studios.
+Default MinIO creds, HTTP-only studio URL, and sibling-subdomain CSRF (`same-site`) reflect a **local operator** threat model. Production uses HTTPS, strong secrets, and the bearer token gate. No vivijure host uses Cloudflare Access.
 
 ## Record
 
