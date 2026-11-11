@@ -498,7 +498,7 @@ if (typeof window !== "undefined") window.__plannerHelpers = { snapToBeats };
 // (librosa on the fleet audio-beat-sync container over Workers VPC) and returns the beat plan
 // inline (one synchronous request, no jobId/poll), then we apply its per-scene beat-aligned
 // target_seconds.
-const PLANNER_MAX_SCENES = 50; // mirrors STORYBOARD_MAX_SCENES in src/storyboard-validate.ts
+const PLANNER_MAX_SCENES = 600; // mirrors core STORYBOARD_MAX_SCENES (600 since core 1.36.0); tests/panel-core-shapes-527.test.ts holds them equal
 let lastBeatPlan = null;
 
 function setBeatStatus(text, kind) {
