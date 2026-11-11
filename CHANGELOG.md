@@ -31,6 +31,10 @@ MINOR. The panel shows the render signals core carries, as vivijure-cf does: the
   `afterEach` removed only the name `dir` still held. One directory stayed in TMPDIR on every run.
   Each path is now removed by the name that was created. A child vitest with its own TMPDIR counts
   the leftovers before and after.
+- **fix(deps): pillow 13.0.0, undici 7.30.1, sharp 0.35.5.**
+  `containers/cast-image` pins Pillow 13.0.0. That container calls `Image.open(...).convert("RGB")`, `Image.new`, and PNG `save`. Pillow 13 drops Python 3.10, stops clipping I-mode images on PNG save, and moves `get_child_images`. None of those calls are in this container. The base image is `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime` (Python 3.11), which Pillow 13 still supports. `undici` and `sharp` move to 7.30.1 and 0.35.5 in the root overrides.
+- **fix(audio): analyze accepts only a served artifact key.**
+  `POST /api/audio/analyze` refuses an `audioKey` outside the served artifact prefixes, including `quarantine/`, before the beat read is signed.
 
 ### fix(panel): the score stage badge reads "one per kind", and the beat plan clamps at 600 scenes (local#527)
 
