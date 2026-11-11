@@ -1,6 +1,6 @@
 {
   "name": "alibaba-wan",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -12,32 +12,43 @@
     }
   ],
   "config_schema": {
+    "size": {
+      "type": "enum",
+      "values": [
+        "720p",
+        "1080p"
+      ],
+      "default": "720p",
+      "label": "output size"
+    },
     "enable_prompt_expansion": {
       "type": "bool",
       "default": false,
       "label": "expand prompt (off by default)"
-    },
-    "enable_safety_checker": {
-      "type": "bool",
-      "default": false,
-      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
     "section": "motion",
     "order": 70,
     "locality": "cloud",
-    "cost": "Pay per render",
-    "blurb": "Wan 2.6 stills-to-clip. Talks. Mouth follows the storyboard line when we have a Cast voice. Without a line, invents speech.",
+    "cost": "$0.10/s at 720p, $0.15/s at 1080p",
+    "cost_as_of": "2026-11-05",
+    "cost_usd_per_second": [
+      0.1,
+      0.15
+    ],
+    "blurb": "Wan 2.6 stills-to-clip. Talks. Mouth follows the storyboard line when we have a Cast voice, and keeps moving after the line ends. Without a line, invents speech.",
     "limits": [
-      "5, 10, or 15 second clips",
+      "5, 10, or 15 second clips. A shorter shot is rounded UP to the next of these.",
       "Mouth follows the storyboard line in the Cast voice.",
+      "The speaker keeps mouthing words after the line ends, for the rest of the clip.",
+      "A line shorter than 5 seconds always leaves that silent-mouthing tail.",
       "Without a line, invents speech from the prompt.",
-      "Cannot lock the sample you kept.",
-      "One film, no scatter"
+      "Cannot lock the sample you kept."
     ]
   },
   "usage": {
+    "face_hold": "one",
     "native_audio": true,
     "voice": "cast_tts",
     "scatter_native_audio": false,

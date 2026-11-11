@@ -1,6 +1,6 @@
 {
   "name": "minimax-hailuo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -27,15 +27,21 @@
     "section": "motion",
     "order": 40,
     "locality": "cloud",
-    "cost": "Pay per render",
-    "blurb": "Physical motion, silent. 6 or 10 seconds. Cast voice + MuseTalk if they speak.",
+    "cost": "$0.19/s",
+    "cost_as_of": "2026-11-05",
+    "cost_usd_per_second": [
+      0.19,
+      0.19
+    ],
+    "blurb": "Physical motion, silent. 6 or 10 seconds. No spoken lines.",
     "limits": [
       "6 or 10 second clips",
       "Silent motion",
-      "Speaking is Cast voice plus MuseTalk"
+      "No spoken lines. A board with a line needs a talking door"
     ]
   },
   "usage": {
+    "face_hold": "one",
     "native_audio": false,
     "voice": "cast_tts",
     "scatter_native_audio": true,

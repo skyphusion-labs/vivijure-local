@@ -1,6 +1,6 @@
 {
   "name": "finish-rife",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "api": "vivijure-module/2",
   "hooks": [
     "finish"
@@ -17,6 +17,15 @@
     }
   ],
   "config_schema": {
+    "style": {
+      "type": "enum",
+      "values": [
+        "photoreal",
+        "anime"
+      ],
+      "default": "photoreal",
+      "label": "still look"
+    },
     "interpolate": {
       "type": "bool",
       "default": true,
@@ -63,7 +72,8 @@
     "icon": "wand",
     "order": 10
   },
-  "participation": "default",
+  "participation": "opt_in",
+  "cancelable": true,
   "finish_artifacts": {
     "output_key": {
       "kind": "shot_named",

@@ -1,6 +1,6 @@
 {
   "name": "alibaba-wan-lora",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "api": "vivijure-module/2",
   "hooks": [
     "motion.backend"
@@ -27,27 +27,27 @@
       "default": -1,
       "min": -1,
       "label": "seed (-1 = random)"
-    },
-    "enable_safety_checker": {
-      "type": "bool",
-      "default": false,
-      "label": "provider safety filter (off: we already refuse CSAM)"
     }
   },
   "ui": {
     "section": "motion",
     "order": 75,
     "locality": "cloud",
-    "cost": "Pay per render",
+    "cost": "$0.35 per 5 s clip, $0.56 per 8 s clip ($0.07/s)",
+    "cost_as_of": "2026-11-05",
+    "cost_usd_per_second": [
+      0.07,
+      0.07
+    ],
     "blurb": "Detailed motion with your trained face. Silent.",
     "limits": [
       "5 or 8 second clips",
       "Silent, with your trained face",
-      "One film, no scatter (face lock)",
-      "Speaking is Cast voice plus MuseTalk"
+      "No spoken lines. A board with a line needs a talking door"
     ]
   },
   "usage": {
+    "face_hold": "hold",
     "native_audio": false,
     "voice": "cast_tts",
     "scatter_native_audio": false,

@@ -169,6 +169,14 @@ function inlineBareConsts(literal: string, modDir: string): string {
         /* skip */
       }
     }
+    // Numeric and string consts (infinitetalk MIN_SECONDS / MAX_SECONDS). The array
+    // pass above does not see `export const NAME = 2`.
+    const scalarRe =
+      /(?:export )?const ([A-Z][A-Z0-9_]*)\s*(?::\s*[^=]+)?\s*=\s*(-?\d+(?:\.\d+)?|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*;/g;
+    let sm: RegExpExecArray | null;
+    while ((sm = scalarRe.exec(src))) {
+      out = out.replace(new RegExp(`\\b${sm[1]}\\b`, "g"), sm[2]);
+    }
   }
   return out;
 }
