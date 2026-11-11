@@ -7,6 +7,12 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+- **test(render-frames): remove the vj-frames-route directory a failing route test left behind (#524).**
+  The route suite created a temp dir in `beforeEach` and a second one in the failure case, then
+  `afterEach` removed only the name `dir` still held. One directory stayed in TMPDIR on every run.
+  Each path is now removed by the name that was created. A child vitest with its own TMPDIR counts
+  the leftovers before and after.
+
 ## v1.11.0 -- 2026-11-10
 
 MINOR. Core moves to `^1.44.0`, so the RunPod sidecar's workersMax reconcile uses RunPod REST v2 before REST v1 retires on 2026-11-15 (fleet-chezmoi#2084). Also ships everything merged since v1.9.0: v1.10.0 was bumped and given a heading on 2026-08-16 but never tagged or published, so its section below first ships in this release. Pairs with vivijure-cf v1.45.0 (dual-panel).
