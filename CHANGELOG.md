@@ -7,6 +7,19 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### fix(finish): the upscale and lip-sync steps write to the film's own key (local#529)
+
+Two films of one project that ran the same suffix finish step (upscale `_up`, lip-sync `_ls`) on
+the same input clip wrote ONE object, so the second film replaced the clip the first film recorded.
+Core sends each step a film-scoped `output_key` (core#385, under `renders/<project>/clips/<film>/`);
+the local finish bodies now forward it, on the local door and on the RunPod path. With no
+`output_key` (an older core) the shared key is the fallback, as before.
+
+The lip-sync body also carries `project`: vivijure-musetalk's R2 mode refuses a body without one
+("project is required for R2 mode") and scopes both keys to `renders/<project>/`. Both doors were
+checked at their current `main` (vivijure-upscale `e279631`, vivijure-musetalk `3fa16ad`): each writes
+the requested `output_key` and returns it as `clip_key`.
+
 ## v1.11.0 -- 2026-11-10
 
 MINOR. Core moves to `^1.44.0`, so the RunPod sidecar's workersMax reconcile uses RunPod REST v2 before REST v1 retires on 2026-11-15 (fleet-chezmoi#2084). Also ships everything merged since v1.9.0: v1.10.0 was bumped and given a heading on 2026-08-16 but never tagged or published, so its section below first ships in this release. Pairs with vivijure-cf v1.45.0 (dual-panel).
