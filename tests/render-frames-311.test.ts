@@ -301,11 +301,14 @@ describe("local#311 a repeat request reuses the stored sheet", () => {
 // --- 5. THE ROUTE: GUARDS AND SHAPE ------------------------------------------------------------------
 describe("local#311 POST /api/render/frames", () => {
   let dir: string;
+  let made: string[];
   let app: ReturnType<typeof createApp>;
   let calls: { url: string; body: Record<string, unknown> }[];
 
   beforeEach(async () => {
+    made = [];
     dir = mkdtempSync(join(tmpdir(), "vj-frames-route-"));
+    made.push(dir);
     calls = [];
     const platform = makePlatform(dir, new S3ObjectPresigner(S3_CFG), { VIDEO_FINISH_VPC: okVpc(calls) });
     app = createApp(testSettingsHost(platform));
@@ -314,7 +317,10 @@ describe("local#311 POST /api/render/frames", () => {
   });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+    // Remove each directory by the path this describe created. A later test that
+    // replaces `dir` must push the new path too. Do not scan TMPDIR by prefix.
+    for (const path of made) rmSync(path, { recursive: true, force: true });
+    made = [];
   });
 
   function post(body: unknown) {
@@ -365,6 +371,7 @@ describe("local#311 POST /api/render/frames", () => {
 
   it("surfaces the container state and a non-2xx when extraction fails", async () => {
     dir = mkdtempSync(join(tmpdir(), "vj-frames-route-fail-"));
+    made.push(dir);
     const failVpc: FetcherLike = { fetch: async () => new Response("nope", { status: 404 }) };
     const platform = makePlatform(dir, new S3ObjectPresigner(S3_CFG), { VIDEO_FINISH_VPC: failVpc });
     app = createApp(testSettingsHost(platform));
