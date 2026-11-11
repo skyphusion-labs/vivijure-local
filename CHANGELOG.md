@@ -7,9 +7,25 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+## v1.13.0 -- 2026-11-11
+
+MINOR. Core moves to `^1.45.0`, so the panel tag and row line for a reused still (local#539) now show. dev/manifests are resynced from vivijure-cf (finish-rife 0.1.4 `rate_factor`, seed labels). Also two fixes from local#549 that were filed under v1.12.0 after its tag: the Pillow 13, undici and sharp bumps, and audio analyze accepting only a served artifact key. Pairs with vivijure-cf v1.47.0 (dual-panel).
+
 ### chore(deps): adopt vivijure-core 1.45.0
 
 Core moves to `^1.45.0` from npm. Core 1.45.0 carries the backend keyframe reuse mark to the render row (`keyframe_reuse` on the payload, `reused` on keyframes-only entries, vivijure-core#532), so the panel's "reused" tag and row line from local#539 now show. It also adds `requires` in `config_schema` (a value tied to shot length, refused at start by name, core#507), `finish_artifacts.rate_factor` for a finish step that changes the frame rate, install-scope module config through `invokeRegistered` (vivijure-cf#879), and beat analysis that signs only a served artifact key.
+
+### chore(manifests): resync dev/manifests from vivijure-cf
+
+`scripts/sync-module-manifests.ts` against vivijure-cf v1.47.0 (`bb116ef` plus the release commit). finish-rife moves to 0.1.4 and declares `finish_artifacts.rate_factor` (vivijure-cf#879). The keyframe and own-gpu seed labels now read "-1 = backend default", as on vivijure-cf (vivijure-cf#1406). The same six fixtures with no cf module directory were left in place.
+
+### fix(deps): pillow 13.0.0, undici 7.30.1, sharp 0.35.5
+
+`containers/cast-image` pins Pillow 13.0.0. That container calls `Image.open(...).convert("RGB")`, `Image.new`, and PNG `save`. Pillow 13 drops Python 3.10, stops clipping I-mode images on PNG save, and moves `get_child_images`. None of those calls are in this container. The base image is `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime` (Python 3.11), which Pillow 13 still supports. `undici` and `sharp` move to 7.30.1 and 0.35.5 in the root overrides.
+
+### fix(audio): analyze accepts only a served artifact key
+
+`POST /api/audio/analyze` refuses an `audioKey` outside the served artifact prefixes, including `quarantine/`, before the beat read is signed.
 
 ## v1.12.0 -- 2026-11-11
 
@@ -35,11 +51,6 @@ MINOR. The panel shows the render signals core carries, as vivijure-cf does: the
   `afterEach` removed only the name `dir` still held. One directory stayed in TMPDIR on every run.
   Each path is now removed by the name that was created. A child vitest with its own TMPDIR counts
   the leftovers before and after.
-- **fix(deps): pillow 13.0.0, undici 7.30.1, sharp 0.35.5.**
-  `containers/cast-image` pins Pillow 13.0.0. That container calls `Image.open(...).convert("RGB")`, `Image.new`, and PNG `save`. Pillow 13 drops Python 3.10, stops clipping I-mode images on PNG save, and moves `get_child_images`. None of those calls are in this container. The base image is `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime` (Python 3.11), which Pillow 13 still supports. `undici` and `sharp` move to 7.30.1 and 0.35.5 in the root overrides.
-- **fix(audio): analyze accepts only a served artifact key.**
-  `POST /api/audio/analyze` refuses an `audioKey` outside the served artifact prefixes, including `quarantine/`, before the beat read is signed.
-
 ### fix(panel): the score stage badge reads "one per kind", and the beat plan clamps at 600 scenes (local#527)
 
 Two panel files still assumed core 1.26. Core 1.38.0 (core#471) gave the `score` hook the cardinality `pick_one_per_kind`, and the module-host page (`public/app.js`) knew only `pick_one` and `chain`, so the score stage badge printed the raw token. It now reads "one per kind", as on vivijure-cf. Core 1.36.0 (core#465) raised `STORYBOARD_MAX_SCENES` from 50 to 600, and the planner's beat plan (`public/planner-audio.js`) still clamped to 50, so a beat plan for a longer board applied only to its first 50 scenes. It now clamps at 600. `tests/panel-core-shapes-527.test.ts` reads both values from the shipped files and holds them to core's `HOOK_CARDINALITY` and `STORYBOARD_MAX_SCENES`. It was red on both before this change. The render config's `pickOne` line was not changed: `score` is in its `PANEL_SKIP_HOOKS`, so that line never sees it, as on vivijure-cf.
