@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+### chore(deps): adopt vivijure-core 1.45.0
+
+Core moves to `^1.45.0` from npm. Core 1.45.0 carries the backend keyframe reuse mark to the render row (`keyframe_reuse` on the payload, `reused` on keyframes-only entries, vivijure-core#532), so the panel's "reused" tag and row line from local#539 now show. It also adds `requires` in `config_schema` (a value tied to shot length, refused at start by name, core#507), `finish_artifacts.rate_factor` for a finish step that changes the frame rate, install-scope module config through `invokeRegistered` (vivijure-cf#879), and beat analysis that signs only a served artifact key.
+
 ## v1.12.0 -- 2026-11-11
 
 MINOR. The panel shows the render signals core carries, as vivijure-cf does: the picture check, a still that may show an extra person, shots with no still, and a still reused rather than redrawn (local#539). Also: the score stage badge and the 600-scene beat plan (local#527), the render sweep drives standalone clip jobs (local#530), the upscale and lip-sync steps write to the film's own key (local#529), score modules are picked by declared kind (local#528), dev/manifests resynced from vivijure-cf (local#531), and a test no longer leaves a directory in TMPDIR (local#524). The core pin stays `^1.44.0`. Pairs with vivijure-cf v1.46.0 (dual-panel).
