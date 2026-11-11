@@ -1,5 +1,6 @@
 // M9 routes: explicit film + clip render APIs.
 
+import { doorFitOffer } from "../door-fit-offer.js";
 import type { Hono } from "hono";
 import { resolveCastLoras, untrainedCastMessage } from "@skyphusion-labs/vivijure-core/cast-loras";
 import {
@@ -339,6 +340,11 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
           audio_key: a.audio_key,
           film_titles: a.film_titles,
           dialogue_lines,
+          // vivijure-cf#930 (dual panel): doors a short-line shot may move to for its own clip.
+          ...doorFitOffer(filmModules, a.motion_backend?.trim() || undefined, {
+            spoken: (dialogue_lines ?? []).some((l) => typeof l.text === "string" && l.text.trim().length > 0),
+            explicit: !!a.motion_backend?.trim(),
+          }),
           cast_loras: castIds,
           pretrained_loras:
             resolvedLoras && Object.keys(resolvedLoras.pretrained).length

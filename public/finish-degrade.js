@@ -194,6 +194,36 @@
     return parsed ? parsed.shots : [];
   }
 
+  /** vivijure-cf#930 (dual panel with vivijure-cf): `output.door_fit` (core 1.47.0, door-fit.ts):
+   *  `{ swapped: [{ shot_id, from, to, line_seconds, planned_seconds, from_clip_seconds }], tails:
+   *  [{ shot_id, door, line_seconds, clip_seconds }] }`. Absent when no lined shot had a tail. STRICT on
+   *  the two arrays, so junk is null and never reads as clean. Entries without a shot id are dropped. */
+  function parseDoorFit(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (!Array.isArray(raw.swapped) || !Array.isArray(raw.tails)) return null;
+    var num = function (v) { return typeof v === "number" && isFinite(v) && v > 0 ? v : null; };
+    var swapped = [];
+    var tails = [];
+    for (var i = 0; i < raw.swapped.length; i++) {
+      var s = raw.swapped[i];
+      if (!s || typeof s !== "object" || !isNonEmptyString(s.shot_id) || !isNonEmptyString(s.from) || !isNonEmptyString(s.to)) continue;
+      swapped.push({ shot_id: String(s.shot_id).trim(), from: String(s.from).trim(), to: String(s.to).trim(),
+        line_seconds: num(s.line_seconds), clip_seconds: num(s.from_clip_seconds) });
+    }
+    for (var j = 0; j < raw.tails.length; j++) {
+      var t = raw.tails[j];
+      if (!t || typeof t !== "object" || !isNonEmptyString(t.shot_id) || !isNonEmptyString(t.door)) continue;
+      tails.push({ shot_id: String(t.shot_id).trim(), door: String(t.door).trim(),
+        line_seconds: num(t.line_seconds), clip_seconds: num(t.clip_seconds) });
+    }
+    return { swapped: swapped, tails: tails };
+  }
+
+  /** "1.4 s", one decimal at most. */
+  function secondsText(v) {
+    return typeof v === "number" ? (Math.round(v * 10) / 10) + " s" : "?";
+  }
+
   /** True only on this keyframe entry's own explicit `plate_count.clean === false`. */
   function keyframeUnclean(kf) {
     if (!kf || typeof kf !== "object") return false;
@@ -245,6 +275,27 @@
           + (m === 1 ? "it" : "them") + (kfi.shots.length ? " (" + kfi.shots.join(", ") + ")" : "") + ".",
         reasons: [],
       });
+    }
+    // vivijure-cf#930: same sentences as vivijure-cf's panel (finish-degrade.js stageSummary, door_fit).
+    var df = parseDoorFit(output.door_fit);
+    if (df) {
+      for (var a = 0; a < df.swapped.length; a++) {
+        var sw = df.swapped[a];
+        out.push({
+          text: sw.shot_id + " was made on " + sw.to + ", not " + sw.from + ": its " + secondsText(sw.line_seconds)
+            + " line is shorter than the " + secondsText(sw.clip_seconds) + " clip " + sw.from
+            + " makes, and the speaker would keep mouthing words after it.",
+          reasons: [],
+        });
+      }
+      for (var b = 0; b < df.tails.length; b++) {
+        var tl = df.tails[b];
+        out.push({
+          text: tl.shot_id + ": its " + secondsText(tl.line_seconds) + " line ends before the " + secondsText(tl.clip_seconds)
+            + " clip on " + tl.door + ", so the speaker keeps mouthing words after it.",
+          reasons: [],
+        });
+      }
     }
     return out;
   }
@@ -304,6 +355,7 @@
     parseContentValidation: parseContentValidation,
     parsePlateCheck: parsePlateCheck,
     parseKeyframesIncomplete: parseKeyframesIncomplete,
+    parseDoorFit: parseDoorFit,
     plateUncleanShots: plateUncleanShots,
     keyframeUnclean: keyframeUnclean,
     shotWarnings: shotWarnings,
