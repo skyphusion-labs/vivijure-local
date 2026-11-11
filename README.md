@@ -21,7 +21,7 @@ Constellation map: [`vivijure`](https://github.com/skyphusion-labs/vivijure).
 capability parity with `vivijure-cf` is the dual-panel release-wave gate; package floors can lag
 the CF host.
 
-Provider-neutral host for [Vivijure Studio](https://vivijure.com): same reference API
+Provider-neutral host for [Vivijure Studio](https://vivijure.dev): same reference API
 ([`CONTRACT.md`](https://github.com/skyphusion-labs/vivijure-cf/blob/main/docs/CONTRACT.md)).
 GPU render backends (`vivijure-local-16gb` first, `vivijure-local-12gb` alternate, finish sidecars)
 plug in via module URLs; this repo is the **control panel host** only.
@@ -78,7 +78,7 @@ control (see [docs/SECURITY.md](docs/SECURITY.md)).
 
 **Production / Cloudflare:** [vivijure-cf](https://github.com/skyphusion-labs/vivijure-cf) · **Homelab path:** [docs/quickstart.md](docs/quickstart.md)
 
-**Vivijure Studio:** https://vivijure.com · **Skyphusion Labs:** https://skyphusion.org
+**Vivijure Studio:** https://vivijure.dev · **Skyphusion Labs:** https://skyphusion.org
 
 ## Quick start
 
