@@ -1,5 +1,5 @@
 /**
- * RunPod motion.backend modules with fixed endpoint URLs (seedance, kling, ...).
+ * RunPod motion.backend modules with fixed endpoint URLs (seedance, google-veo, ...).
  */
 
 import type {
@@ -46,17 +46,6 @@ export const FIXED_MOTION: Record<string, FixedEndpointConfig> = {
       seed: typeof cfg.seed === "number" ? cfg.seed : -1,
     }),
     outFps: 24,
-  },
-  kling: {
-    endpoint: "https://api.runpod.ai/v2/kling-v2-1-i2v-pro",
-    clipSuffix: "_kling",
-    buildBody: (input, cfg) => ({
-      prompt: input.prompt,
-      image: input.keyframe_url,
-      duration: String(cfg.duration ?? "5"),
-      aspect_ratio: String(cfg.aspect_ratio ?? "16:9"),
-      mode: String(cfg.mode ?? "pro"),
-    }),
   },
   "google-veo": {
     endpoint: "https://api.runpod.ai/v2/google-veo3-1-fast-i2v",
