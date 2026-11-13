@@ -157,16 +157,11 @@ describe("the fabricating helpers are GONE from the source tree", () => {
     "../src/modules/dev/gpu-mock-handlers.js",
     "../src/modules/dev/gpu-mock-app.js",
     "../src/modules/runpod/keyframe-sidecar.js",
+    // local#279 removed the last caller of buildSilentWav (dialogue-gen now refuses with no speech
+    // provider), and with it the last export of this file. It held the GPU mock's fabricated render
+    // artifacts before local#229. Gone, so nothing can import a synthesized-media helper from it again.
+    "../src/dev/minimal-media.js",
   ])("%s no longer exists", async (spec) => {
     await expect(import(spec)).rejects.toThrow();
-  });
-
-  it("minimal-media no longer exports fabricated render artifacts", async () => {
-    const mod = (await import("../src/dev/minimal-media.js")) as Record<string, unknown>;
-    expect(mod.MIN_PNG).toBeUndefined();
-    expect(mod.buildStructuralMp4).toBeUndefined();
-    // The silent-dialogue fallback (#50) is a DIFFERENT thing and stays: it writes real silence and
-    // tags it honestly, rather than passing itself off as a render.
-    expect(typeof mod.buildSilentWav).toBe("function");
   });
 });

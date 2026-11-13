@@ -7,6 +7,8 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Chore: delete the dead `buildSilentWav` helper (`src/dev/minimal-media.ts`).** Its last caller, the dialogue-gen silent fallback, went with local#279. `tests/no-gpu-mock-229.test.ts` now asserts that the file is gone, alongside the other removed fabricating helpers.
+
 **Fix: a voiced storyboard on a studio with no speech provider is refused at the door, before any GPU spend (local#279, refusal half).**
 
 Before this, dialogue-gen wrote a silent WAV tagged `dialogue:silent-fallback` when the AI Gateway was not configured, so the stack made an artifact because the provider was not there. Now every render door (main render, render-from-keyframes, finalize, animate-cloud, animate-hybrid, the agent film route) refuses with 400 when the storyboard has spoken lines and no dialogue module is available. The refusal names the fixes: add AI Gateway credentials, render keyframes-only, or remove the spoken lines. No keyframe or clip job is started. dialogue-gen reports `configured:false` in its `/module.json` without the gateway (the local#201 mechanism), so discovery drops it. As a backstop, it returns `ok:false` "no speech provider configured" for anything that still reaches it, such as a film already in flight. A silent storyboard and a keyframes-only preview still render on a provider-less studio. The choice between a local TTS provider and documenting audio as cloud-only is still parked on local#279.
