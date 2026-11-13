@@ -40,7 +40,6 @@ const MODULES = [
   // has no compose service in any profile. A fixture is a manifest on disk; a module is a thing the
   // registry can discover. See dev/manifests/README.md.
   "finish-rife",
-  "finish-lipsync",
   "finish-upscale",
   "beat-sync",
   "audio-master",
@@ -52,16 +51,11 @@ const MODULES = [
   // module shipped without its dev-tooling entry, which meant the gate had to hand-author a
   // manifest to run at all.
   "image-generate",
-  "speech-upscale",
   "notify-email",
   "music-gen",
   "narration-gen",
   "cast-image",
-  "seedance",
-  "kling",
-  "google-veo",
   "minimax-hailuo",
-  "vidu-q3",
   "alibaba-wan",
   "alibaba-wan-lora",
   // Cloud talking door (hosted InfiniteTalk). Fixture only: local compose has no
