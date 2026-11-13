@@ -148,7 +148,7 @@ describe("gateway i2v runner (local#568)", () => {
 
 describe("keyframeHostRefusal (local#568 ruling)", () => {
   it.each([
-    "http://127.0.0.1:8790/a", "http://localhost/a", "http://10.1.2.3/a", "http://172.16.0.1/a", "http://172.31.9.9/a",
+    "http://127.0.0.1:8790/a", "http://localhost/a", "http://10.20.30.40/a", "http://172.16.0.1/a", "http://172.31.9.9/a",
     "http://192.168.0.2/a", "http://169.254.1.1/a", "http://100.64.0.1/a", "http://[::1]/a", "http://[fd00::1]/a",
     "http://[::ffff:192.168.1.1]/a", "http://nas.local/a", "http://app.localhost/a",
   ])("refuses %s", (u) => expect(keyframeHostRefusal(u)).toMatch(/not reachable from the internet/));
