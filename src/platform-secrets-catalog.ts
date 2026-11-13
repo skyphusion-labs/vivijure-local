@@ -369,14 +369,6 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
-    key: "MODULE_KLING_URL",
-    label: "Kling module URL",
-    blurb: "Cloud motion backend (Kling i2v).",
-    category: "modules",
-    sensitive: false,
-    applies_on: "immediate",
-  },
-  {
     key: "MODULE_GOOGLE_VEO_URL",
     label: "Google Veo module URL",
     blurb: "Cloud motion backend (Veo i2v).",

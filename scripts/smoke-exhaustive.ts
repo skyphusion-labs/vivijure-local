@@ -30,7 +30,6 @@ const CLIP_TIMEOUT_MS = Number(process.env.SMOKE_CLIP_TIMEOUT_MS || 25 * 60_000)
 
 const CLOUD_I2V = [
   "seedance",
-  "kling",
   "google-veo",
   "minimax-hailuo",
   "vidu-q3",
