@@ -1,4 +1,6 @@
 {
+  "_local_divergence": "do-not-sync",
+  "_local_divergence_why": "RunPod i2v door kept in local after cf#1075 and cf#921; cf dropped it, local code, seed data and tests still use it. Regenerating from cf has no counterpart.",
   "name": "google-veo",
   "version": "0.1.2",
   "api": "vivijure-module/2",

@@ -1,4 +1,6 @@
 {
+  "_local_divergence": "do-not-sync",
+  "_local_divergence_why": "local-only speech-upscale door (local#383); cf dropped the module (cf#786). Local code, compose service and tests still ship it.",
   "name": "speech-upscale",
   "version": "0.2.0",
   "api": "vivijure-module/2",
