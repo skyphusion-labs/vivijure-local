@@ -1,4 +1,6 @@
-// Minimal synthesized audio for the dialogue-gen silent fallback (#50).
+// Minimal synthesized audio. It was the dialogue-gen silent fallback (#50); local#279 removed that
+// use (dialogue-gen now refuses with no speech provider). No production caller remains; only
+// tests/no-gpu-mock-229.test.ts imports this file. A candidate for deletion in its own change.
 //
 // This file used to also hold the GPU mock's fabricated RENDER artifacts (a 1x1 red PNG standing in
 // for a keyframe, and a hand-assembled mp4 box tree standing in for a rendered clip). Those are

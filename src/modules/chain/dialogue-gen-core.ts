@@ -71,9 +71,10 @@ export type RunState =
   | { status: "done"; project: string; audio: DialogueShotAudio[]; applied: string[] }
   | { status: "failed"; error: string };
 
-/** #50: when the gateway is unset this build writes a silent placeholder WAV, so the `applied` tag must say
- *  so HONESTLY rather than claim the real `@cf/deepgram/aura-1` model. DialogueOutput carries no `degraded`
- *  field in the ICD, so the truthful `applied` tag is the signal. */
+/** #50: the `applied` tag must never claim the real `@cf/deepgram/aura-1` model when the gateway is unset.
+ *  local#279: dialogue-gen no longer writes a silent placeholder WAV; spoken lines with no provider are
+ *  refused (handlers.ts NO_SPEECH_PROVIDER_ERROR). This tag is now reached only by an EMPTY batch on a
+ *  provider-less studio, where nothing was voiced and nothing was fabricated. */
 export const SILENT_FALLBACK_TAG = "dialogue:silent-fallback" as const;
 
 export function appliedTags(audio: DialogueShotAudio[], opts: { gatewayConfigured: boolean }): string[] {

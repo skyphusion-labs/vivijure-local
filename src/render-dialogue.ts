@@ -18,12 +18,13 @@
 //
 // Hosts differ in wire shape, so each door still reads its own body. What is shared is everything
 // between "the door knows its bundle, its shots and its cast voices" and "dialogue_lines is set".
-import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
+import type { DialogueLine, RegisteredModule } from "@skyphusion-labs/vivijure-core/modules/types";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import {
   dialogueLinesFromBundleScenes,
   resolveExplicitLineVoices,
 } from "@skyphusion-labs/vivijure-core/dialogue-lines";
+import { pickDialogueModule } from "@skyphusion-labs/vivijure-core/modules/dialogue-select";
 import { bundleScenesForRender, dialogueUndeterminedMessage } from "./dialogue-derivation.js";
 
 type BundleScenes = Awaited<ReturnType<typeof readBundleScenes>>;
@@ -38,18 +39,55 @@ export interface RenderDialogueInput {
   explicit?: DialogueLine[];
   /** The bundle scenes when the door has already read them, so the bundle is not read twice. */
   bundleScenes?: BundleScenes;
+  /**
+   * local#279: the door's DISCOVERED modules (discoverConfiguredModules, so a dialogue module that
+   * self-reports configured:false is already gone) and the caller's dialogue module choice. REQUIRED, so no door can skip
+   * the check by omission: a render with spoken lines and no dialogue provider is refused here, before
+   * any GPU spend.
+   */
+  modules: RegisteredModule[];
+  dialogueBackend?: string;
 }
 
 export type RenderDialogue =
   | { ok: true; lines: DialogueLine[] | undefined }
-  | { ok: false; status: 503; error: string };
+  | { ok: false; status: 400 | 503; error: string };
+
+/** local#279: the door refusal for spoken lines on a studio with no speech provider. Names every fix. */
+export const NO_SPEECH_PROVIDER_MESSAGE =
+  "this storyboard has spoken lines, but no speech provider is configured on this studio, so the render "
+  + "was refused before any GPU spend. Fix one of: add AI Gateway credentials (CLOUDFLARE_ACCOUNT_ID, "
+  + "GATEWAY_ID, CF_AIG_TOKEN) so dialogue-gen can voice it; render keyframes-only; or remove the spoken "
+  + "lines from the storyboard.";
+
+/** A spoken line is one with non-blank text: a blank line voices nothing and needs no provider. */
+function hasSpokenLine(lines: DialogueLine[] | undefined): boolean {
+  return (lines ?? []).some((l) => typeof l.text === "string" && l.text.trim().length > 0);
+}
+
+/**
+ * local#279 (lead ruling B): refuse at the door, BEFORE any keyframe or clip job, when there are spoken
+ * lines and no dialogue provider. Without this the film spends keyframes and clips and then core fails
+ * it at the dialogue phase (dialogue-gen refuses, cf#834), or ships it silent. A caller that named a
+ * module that does not serve dialogue gets core's own pick error, here instead of mid-film.
+ */
+export function dialogueProviderRefusal(
+  modules: RegisteredModule[],
+  dialogueBackend: string | undefined,
+  lines: DialogueLine[] | undefined,
+): string | null {
+  if (!hasSpokenLine(lines)) return null;
+  const pick = pickDialogueModule(modules, dialogueBackend);
+  if (!pick.ok) return pick.error;
+  return pick.module ? null : NO_SPEECH_PROVIDER_MESSAGE;
+}
 
 /** The refusal for a door whose dialogue state could not be established (cast or bundle failure). */
 export function dialogueUndetermined(e: unknown): RenderDialogue {
   return { ok: false, status: 503, error: dialogueUndeterminedMessage(e) };
 }
 
-export async function resolveRenderDialogue(
+async function deriveRenderDialogue(
   env: Parameters<typeof readBundleScenes>[0],
   input: RenderDialogueInput,
 ): Promise<RenderDialogue> {
@@ -70,4 +108,14 @@ export async function resolveRenderDialogue(
   } catch (e) {
     return dialogueUndetermined(e);
   }
+}
+
+export async function resolveRenderDialogue(
+  env: Parameters<typeof readBundleScenes>[0],
+  input: RenderDialogueInput,
+): Promise<RenderDialogue> {
+  const r = await deriveRenderDialogue(env, input);
+  if (!r.ok) return r;
+  const refusal = dialogueProviderRefusal(input.modules, input.dialogueBackend, r.lines);
+  return refusal ? { ok: false, status: 400, error: refusal } : r;
 }

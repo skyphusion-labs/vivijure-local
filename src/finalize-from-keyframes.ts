@@ -208,6 +208,8 @@ export async function animateFromPreview(
     bundleKey: args.parent.bundle_key,
     renderedShotIds: scenes.map((s) => s.shot_id),
     voices,
+    modules,
+    dialogueBackend: mapped.dialogue_backend,
   });
   if (!finalizeDialogue.ok) return { ok: false, error: finalizeDialogue.error, status: finalizeDialogue.status };
 

@@ -17,7 +17,6 @@ import type {
 } from "@skyphusion-labs/vivijure-core";
 import type { ArtifactStore } from "../../platform/create-storage.js";
 import { untrustedLabel } from "../../log-scrub.js";
-import { buildSilentWav } from "../../dev/minimal-media.js";
 import { plannerAiMockEnabled } from "../../planner-ai-mock.js";
 import { aiRun } from "../../platform/ai-run.js";
 import type { ChainModuleEnv } from "./chain-env.js";
@@ -523,18 +522,23 @@ function ttsBytesFromAiResult(result: unknown): Uint8Array {
   throw new Error("dialogue: TTS returned non-audio payload");
 }
 
+/**
+ * local#279 backstop (lead ruling B, with A as the backstop). The render doors refuse a voiced storyboard
+ * BEFORE any spend when no speech provider is configured (src/render-dialogue.ts). Anything that still
+ * reaches this module with spoken lines and no provider (a film already in flight, a provider removed
+ * mid-film) is refused here too. This module used to write a silent WAV tagged dialogue:silent-fallback:
+ * the stack manufacturing an artifact because the provider is not there. Absent means refuse.
+ */
+export const NO_SPEECH_PROVIDER_ERROR =
+  "dialogue: no speech provider configured (set CLOUDFLARE_ACCOUNT_ID, GATEWAY_ID and CF_AIG_TOKEN for the AI Gateway)";
+
 async function synthDialogueLine(
   env: ChainModuleEnv,
   store: ArtifactStore,
   project: string,
   line: NormalizedLine,
 ): Promise<DialogueShotAudio> {
-  if (!dialogueGatewayConfigured(env)) {
-    const wav = buildSilentWav(0.25);
-    const key = audioKey(project, line.shot_id);
-    await store.put(key, wav, { httpMetadata: { contentType: AUDIO_MIME } });
-    return { shot_id: line.shot_id, audio_key: key, voice_id: line.voice };
-  }
+  if (!dialogueGatewayConfigured(env)) throw new Error(NO_SPEECH_PROVIDER_ERROR);
   const result = await aiRun(env, DIALOGUE_MODEL, buildTtsParams(line.text, line.voice));
   const bytes = ttsBytesFromAiResult(result);
   if (!bytes.byteLength) throw new Error(`dialogue: empty audio for ${line.shot_id}`);
@@ -560,6 +564,8 @@ export async function invokeDialogueGen(
       },
     };
   }
+  // local#279 backstop: spoken lines with no provider are refused, never voiced with silence.
+  if (!dialogueGatewayConfigured(env)) return { ok: false, error: NO_SPEECH_PROVIDER_ERROR };
   const jobId = req.context?.job_id || crypto.randomUUID();
   const state: DialogueRunState = {
     status: "running",

@@ -23,6 +23,7 @@ vi.mock("@skyphusion-labs/vivijure-core/film-orchestrator", async (orig) => {
 const MODULES = [
   { name: "keyframe", binding: "MODULE_KEYFRAME", version: "1.0.0", api: "vivijure-module/2", hooks: ["keyframe"], ui: { order: 1, locality: "local" } },
   { name: "door", binding: "MODULE_DOOR", version: "1.0.0", api: "vivijure-module/2", hooks: ["motion.backend"], ui: { order: 1, locality: "local" } },
+  { name: "dialogue-gen", binding: "MODULE_DIALOGUE", version: "1.0.0", api: "vivijure-module/2", hooks: ["dialogue"], ui: { order: 1 } },
 ];
 vi.mock("../src/module-registry.js", async (orig) => {
   const actual = await orig<typeof import("../src/module-registry.js")>();
