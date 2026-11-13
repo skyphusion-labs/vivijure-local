@@ -354,7 +354,6 @@ export type RunpodModuleName =
   | "finish-lipsync"
   | "finish-upscale"
   | "seedance"
-  | "kling"
   | "google-veo"
   | "minimax-hailuo"
   | "vidu-q3"
@@ -368,7 +367,6 @@ export const RUNPOD_MODULE_NAMES: readonly RunpodModuleName[] = [
   "finish-lipsync",
   "finish-upscale",
   "seedance",
-  "kling",
   "google-veo",
   "minimax-hailuo",
   "vidu-q3",
@@ -385,7 +383,7 @@ export function isFixedMotionModule(name: string): boolean {
 }
 
 /** Whether this RunPod module has the credentials it needs to actually run, per module KIND. The
- *  fixed-endpoint cloud i2v modules (seedance, kling, ...) hit their own baked-in endpoint URL, so
+ *  fixed-endpoint cloud i2v modules (seedance, google-veo, ...) hit their own baked-in endpoint URL, so
  *  they need ONLY the API key; every other RunPod module needs the key AND a resolvable endpoint id.
  *  Drives the `configured` flag the sidecar advertises (local#201): false => the panel hides it. */
 export function runpodModuleConfigured(env: RunpodModuleEnv, moduleName: RunpodModuleName): boolean {

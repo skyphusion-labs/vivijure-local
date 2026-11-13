@@ -420,13 +420,6 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9150/module.json"]
 
-  module-kling:
-    <<: [*runpod-module, *profile-cloud]
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9151", "kling"]
-    healthcheck:
-      <<: *module-health-url
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9151/module.json"]
-
   module-google-veo:
     <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9152", "google-veo"]
@@ -732,7 +725,6 @@ services:
       MODULE_LIPSYNC_URL: ${MODULE_LIPSYNC_URL:-}
       MODULE_UPSCALE_URL: ${MODULE_UPSCALE_URL:-}
       MODULE_SEEDANCE_URL: ${MODULE_SEEDANCE_URL:-}
-      MODULE_KLING_URL: ${MODULE_KLING_URL:-}
       MODULE_GOOGLE_VEO_URL: ${MODULE_GOOGLE_VEO_URL:-}
       MODULE_MINIMAX_HAILUO_URL: ${MODULE_MINIMAX_HAILUO_URL:-}
       MODULE_VIDU_Q3_URL: ${MODULE_VIDU_Q3_URL:-}

@@ -68,7 +68,7 @@ Production vivijure binds each module as a CF Worker (`MODULE_KEYFRAME`, etc.). 
 | `beat-sync`, `audio-master` | 912x | CPU via compose or module VPC shim |
 | `film-titles`, `subtitle` | 913x | Optional |
 
-Cloud-only modules (`kling`, `cloud-keyframe`, `music-gen` Workflows, etc.) are **optional install profiles** documented in `.env.example`; absent modules simply do not appear in `GET /api/modules`.
+Cloud-only modules (`seedance`, `cloud-keyframe`, `music-gen` Workflows, etc.) are **optional install profiles** documented in `.env.example`; absent modules simply do not appear in `GET /api/modules`.
 
 ## Object storage
 
