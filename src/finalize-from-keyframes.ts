@@ -7,6 +7,9 @@ import {
 } from "@skyphusion-labs/vivijure-core";
 import { discoverConfiguredModules } from "./module-registry.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
+import { resolveCastLoras } from "@skyphusion-labs/vivijure-core/cast-loras";
+import { resolveRenderDialogue } from "./render-dialogue.js";
+import { dialogueUndeterminedMessage } from "./dialogue-derivation.js";
 import {
   startFilmFromKeyframes,
   type FilmScene,
@@ -37,6 +40,8 @@ export interface AnimateFromPreviewArgs {
   defaultBackend?: "gpu" | "cloud";
   defaultCloudModel?: string;
   audioKey?: string;
+  /** local#326: the panel sends the cast bindings with finalize (planner-history-row.js), for voices. */
+  castLoras?: Record<string, unknown>;
 }
 
 function resolveCloudModel(requested: string | undefined, allowed: string[]): string | undefined {
@@ -190,6 +195,22 @@ export async function animateFromPreview(
     }
   }
 
+  // local#326 (vivijure-cf#334): the finalize family (finalize, animate-cloud, animate-hybrid) dropped
+  // authored dialogue, so a voiced preview finalized silent. Same resolution as every other door,
+  // judged on the shots this finalize makes. A cast failure leaves the voices undetermined: refuse.
+  let voices: Record<string, string>;
+  try {
+    voices = (await resolveCastLoras(env, args.castLoras ?? {})).voices;
+  } catch (e) {
+    return { ok: false, error: dialogueUndeterminedMessage(e), status: 503 };
+  }
+  const finalizeDialogue = await resolveRenderDialogue(env, {
+    bundleKey: args.parent.bundle_key,
+    renderedShotIds: scenes.map((s) => s.shot_id),
+    voices,
+  });
+  if (!finalizeDialogue.ok) return { ok: false, error: finalizeDialogue.error, status: finalizeDialogue.status };
+
   await unloadOllamaBeforeRender(env);
   const job = await startFilmFromKeyframes(
     env,
@@ -211,6 +232,7 @@ export async function animateFromPreview(
       derive_mode: args.deriveMode,
       parent_render_id: args.parent.id,
       audio_key: args.audioKey,
+      dialogue_lines: finalizeDialogue.lines,
     },
     modules,
   );

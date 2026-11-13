@@ -37,6 +37,9 @@ import type { Platform } from "../platform/types.js";
 import { isScatterJobId } from "@skyphusion-labs/vivijure-core/scatter-orchestrator";
 import { advanceFilmTick, FILM_TICK_DEFERRED, FILM_TICK_DEFERRED_BODY } from "../film-advance.js";
 import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
+import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
+import { resolveRenderDialogue } from "../render-dialogue.js";
+import { dialogueUndeterminedMessage } from "../dialogue-derivation.js";
 import { stageBundleInjectedKeyframes } from "../bundle-keyframes.js";
 import { isPublicId } from "@skyphusion-labs/vivijure-core/public-id";
 import { readKeyframeDone } from "../render-progress.js";
@@ -142,7 +145,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         if (cfgErr) throw badRequest(cfgErr);
       }
 
-      const { pretrained, wanPretrained, castIds, skipped, skippedDetail } = await resolveCastLoras(oenv, body.castLoras);
+      const { pretrained, wanPretrained, castIds, voices, skipped, skippedDetail } = await resolveCastLoras(oenv, body.castLoras);
       if (skipped.length) throw badRequest(untrainedCastMessage(skippedDetail));
 
       const mapped = mapRenderOverridesToModuleConfigs(body.renderOverrides, tier, modules);
@@ -151,6 +154,19 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         const kfErr = localGpuKeyframePreflightError(modules, motionBackend, mapped.keyframe_backend);
         if (kfErr) throw badRequest(kfErr);
       }
+      // local#326 (vivijure-cf#334 door 1): a voiced storyboard must not render silent from the main
+      // Render button. A keyframes-only preview has no film to voice.
+      let panelDialogue: DialogueLine[] | undefined;
+      if (!body.keyframesOnly) {
+        const d = await resolveRenderDialogue(oenv, {
+          bundleKey: body.bundleKey,
+          renderedShotIds: scenes.map((s) => s.shot_id),
+          voices,
+        });
+        if (!d.ok) return c.json({ error: d.error }, d.status);
+        panelDialogue = d.lines;
+      }
+
       await projectWanLorasIntoModuleConfig(oenv, motionBackend, wanPretrained, mapped.motion_config);
 
       await unloadOllamaBeforeRender(oenv);
@@ -176,6 +192,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           film_titles: body.keyframesOnly ? undefined : body.film_titles,
           pretrained_loras: Object.keys(pretrained).length ? pretrained : undefined,
           cast_loras: Object.keys(castIds).length ? castIds : undefined,
+          dialogue_lines: panelDialogue,
         },
         modules,
       );
@@ -281,6 +298,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
         audioKey?: string;
         projectId?: unknown;
         motion_backend?: string;
+        castLoras?: Record<string, unknown>;
       }>(c.req.raw);
       if (!b.bundleKey) throw badRequest("bundleKey required");
       if (!isSafeBundleKey(b.bundleKey)) {
@@ -312,6 +330,26 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           400,
         );
       }
+      // local#326 (vivijure-cf#334): render-from-keyframes must not be silent on a voiced bundle. The
+      // storyboard is already read above; a CAST resolution failure here leaves the voices undetermined,
+      // so it refuses rather than voicing the film in the default voice and reporting success.
+      let fromKfDialogue: DialogueLine[] | undefined;
+      {
+        let voices: Record<string, string>;
+        try {
+          voices = (await resolveCastLoras(oenv, b.castLoras)).voices;
+        } catch (e) {
+          return c.json({ error: dialogueUndeterminedMessage(e) }, 503);
+        }
+        const d = await resolveRenderDialogue(oenv, {
+          bundleKey: b.bundleKey,
+          renderedShotIds: scenes.map((s) => s.shot_id),
+          voices,
+          bundleScenes: parsedScenes,
+        });
+        if (!d.ok) return c.json({ error: d.error }, d.status);
+        fromKfDialogue = d.lines;
+      }
       await unloadOllamaBeforeRender(oenv);
       const job = await startFilmFromKeyframes(
         oenv,
@@ -331,6 +369,7 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           master_config: mapped.master_config,
           derive_mode: "finalized",
           audio_key: b.audioKey,
+          dialogue_lines: fromKfDialogue,
         },
         modules,
       );

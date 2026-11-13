@@ -3,12 +3,8 @@
 import { doorFitOffer } from "../door-fit-offer.js";
 import type { Hono } from "hono";
 import { resolveCastLoras, untrainedCastMessage } from "@skyphusion-labs/vivijure-core/cast-loras";
-import {
-  dialogueLinesFromBundleScenes,
-  resolveExplicitLineVoices,
-} from "@skyphusion-labs/vivijure-core/dialogue-lines";
+import { resolveRenderDialogue } from "../render-dialogue.js";
 import type { DialogueLine } from "@skyphusion-labs/vivijure-core/modules/types";
-import { readBundleScenes } from "@skyphusion-labs/vivijure-core/bundle-storyboard";
 import { summarizeFilm, type FilmJob, type FilmScene } from "@skyphusion-labs/vivijure-core/film-model";
 import type { FilmSummary } from "@skyphusion-labs/vivijure-core/film-model";
 import {
@@ -293,20 +289,15 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
       const castIds =
         resolvedLoras && Object.keys(resolvedLoras.castIds).length ? resolvedLoras.castIds : undefined;
 
-      let dialogue_lines = a.dialogue_lines;
-      if (!dialogue_lines || !dialogue_lines.length) {
-        const bundleScenes = await readBundleScenes(oenv, a.bundle_key);
-        if (bundleScenes.some((s) => s.dialogue)) {
-          dialogue_lines = dialogueLinesFromBundleScenes(bundleScenes, resolvedLoras?.voices ?? {});
-        }
-      } else if (
-        resolvedLoras &&
-        Object.keys(resolvedLoras.voices).length &&
-        dialogue_lines.some((l) => !(typeof l.voice_id === "string" && l.voice_id.trim()))
-      ) {
-        const bundleScenes = await readBundleScenes(oenv, a.bundle_key);
-        dialogue_lines = resolveExplicitLineVoices(dialogue_lines, bundleScenes, resolvedLoras.voices);
-      }
+      // local#326: the shared resolution every render door calls (src/render-dialogue.ts).
+      const filmDialogue = await resolveRenderDialogue(oenv, {
+        bundleKey: a.bundle_key,
+        renderedShotIds: a.scenes.map((s) => s.shot_id),
+        voices: resolvedLoras?.voices ?? {},
+        explicit: a.dialogue_lines,
+      });
+      if (!filmDialogue.ok) return json({ error: filmDialogue.error }, filmDialogue.status);
+      const dialogue_lines = filmDialogue.lines;
 
       const project = a.project ?? deriveProjectFromBundleKey(a.bundle_key);
       if (shouldProjectWanLoras(a.motion_backend, resolvedLoras?.wanPretrained ?? {})) {

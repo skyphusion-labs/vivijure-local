@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Fix: every render door voices the authored storyboard (local#326, parity half of vivijure-cf#334).**
+
+Authored per-shot dialogue reached core from one door only (the agent film route). The main Render button, render-from-keyframes and the finalize family (finalize, animate-cloud, animate-hybrid) started films with no `dialogue_lines`, so a voiced storyboard rendered silent with a 201. All four doors now call one resolution, `src/render-dialogue.ts`, with the same ladder as vivijure-cf: explicit lines win, otherwise lines come from the bundle storyboard, judged on the shots this render makes (vivijure-cf#1056), with cast voices. A bundle or cast read that FAILS now refuses with 503 instead of rendering silent; a missing bundle still renders silent (`src/dialogue-derivation.ts`, ported from vivijure-cf). The finalize, animate-cloud and animate-hybrid routes and render-from-keyframes now read `castLoras` (the panel already sends it with finalize) for the voices. Behaviour change: a main render of a voiced storyboard now asks for speech. Until local#279 lands, a host with no speech provider gets the tagged silent fallback.
+
 **Fix: SDXL cast train hands the card back from Ollama first, and the homelab LoRA chain is documented (local#271).**
 
 `POST /api/cast/:id/train-lora` now calls `unloadOllamaBeforeRender` before core submits the train job, the same fail-open handoff every render door makes. Before this, a train submitted inside `plan.enhance`'s keep_alive window contended with Ollama for the door's card. `tests/cast-train-ollama-handoff-271.test.ts` drives the real route. `docs/quickstart.md` (Growing later) and `docs/DEPLOYMENT.md` now give the no-RunPod, no-Cloudflare chain: `cast.image` references, local-door train, then `pretrained_loras` on keyframes.
