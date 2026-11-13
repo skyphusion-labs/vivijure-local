@@ -161,27 +161,36 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
   app.post("/api/storyboard/renders/:id/finalize", (c) =>
     handle(c, async () => {
       let audioKey: string | undefined;
+      let castLoras: Record<string, unknown> | undefined;
       try {
-        const b = await readBody<{ audioKey?: string }>(c.req.raw);
+        const b = await readBody<{ audioKey?: string; castLoras?: Record<string, unknown> }>(c.req.raw);
         audioKey = b.audioKey;
+        castLoras = b.castLoras;
       } catch {
         /* empty body ok */
       }
       return animatePreviewHandler(env(), await resolveRenderId(env(), c.req.param("id")), {
         deriveMode: "finalized",
         audioKey,
+        castLoras,
       });
     }),
   );
 
   app.post("/api/storyboard/renders/:id/animate-cloud", (c) =>
     handle(c, async () => {
-      const b = await readBody<{ model?: string; perShot?: Record<string, string>; audioKey?: string }>(c.req.raw);
+      const b = await readBody<{
+        model?: string;
+        perShot?: Record<string, string>;
+        audioKey?: string;
+        castLoras?: Record<string, unknown>;
+      }>(c.req.raw);
       return animatePreviewHandler(env(), await resolveRenderId(env(), c.req.param("id")), {
         deriveMode: "cloud-finalized",
         motionBackend: b.model,
         perShotModels: b.perShot,
         audioKey: b.audioKey,
+        castLoras: b.castLoras,
       });
     }),
   );
@@ -193,6 +202,7 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
         defaultBackend?: "gpu" | "cloud";
         defaultCloudModel?: string;
         audioKey?: string;
+        castLoras?: Record<string, unknown>;
       }>(c.req.raw);
       const modules = await discoverConfiguredModules(modEnv(), { cacheTtlMs: 60_000 });
       const allowed = new Set(cloudMotionModules(modules).map((m) => m.name));
@@ -204,6 +214,7 @@ export function registerM13Routes(app: Hono, platform: Platform): void {
         defaultBackend: b.defaultBackend === "cloud" ? "cloud" : "gpu",
         defaultCloudModel: b.defaultCloudModel,
         audioKey: b.audioKey,
+        castLoras: b.castLoras,
       });
     }),
   );
