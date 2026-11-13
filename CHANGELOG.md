@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Feat: the hosted Vidu Q3 Turbo i2v door, through the AI Gateway, replaces the RunPod `vidu-q3` door (local#568).**
+
+`cf-vidu-q3-turbo` is vivijure-cf's door of the same name, running as a local sidecar: `scripts/gateway-i2v-module-server.ts`, port 9160, profile `cloud`, `MODULE_CF_VIDU_Q3_TURBO_URL`. One generic runner (`src/modules/gateway-i2v/`) serves every ported door. Each door's params are a vendored copy of the cf module, and `tests/gateway-i2v-parity-568.test.ts` compares them with vivijure-cf's own `params.ts` from the pinned checkout. A cf Workflow step becomes a background run in the sidecar with cf's paid-generation guarantees: the provider call is retried only when it threw, and a clip is never bought twice. A store failure reports cf's fixed text. A sidecar restart fails the job instead of re-running it. The door is hidden without AI Gateway creds (local#201). It refuses before any paid call when the keyframe URL is loopback, private or `.local`, and names `S3_PRESIGN_ENDPOINT` (local#575 applies the same check to the RunPod cloud doors). The RunPod `vidu-q3` door is removed in the same change: the fixed-motion entry, the module list, the compose service, `MODULE_VIDU_Q3_URL`, the catalog row, `.env.example` and the fixture. A leftover `MODULE_VIDU_Q3_URL` now points at no service. The panel's fallback cloud model is now `cf-vidu-q3-turbo`.
+
 **Chore: delete the dead `buildSilentWav` helper (`src/dev/minimal-media.ts`).** Its last caller, the dialogue-gen silent fallback, went with local#279. `tests/no-gpu-mock-229.test.ts` now asserts that the file is gone, alongside the other removed fabricating helpers.
 
 **Fix: a voiced storyboard on a studio with no speech provider is refused at the door, before any GPU spend (local#279, refusal half).**

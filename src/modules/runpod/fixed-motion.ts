@@ -66,16 +66,6 @@ export const FIXED_MOTION: Record<string, FixedEndpointConfig> = {
       duration: Math.max(4, Math.min(10, Math.round(Number(input.seconds) || 5))),
     }),
   },
-  "vidu-q3": {
-    endpoint: "https://api.runpod.ai/v2/vidu-q3-i2v",
-    clipSuffix: "_vidu",
-    buildBody: (input, cfg) => ({
-      prompt: input.prompt,
-      image: input.keyframe_url,
-      duration: Math.max(4, Math.min(8, Math.round(Number(input.seconds) || 5))),
-      resolution: String(cfg.resolution ?? "720p"),
-    }),
-  },
   "alibaba-wan": {
     endpoint: "https://api.runpod.ai/v2/wan-2-6-i2v",
     clipSuffix: "_wan",

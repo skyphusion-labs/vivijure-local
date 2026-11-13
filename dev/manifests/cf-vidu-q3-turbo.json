@@ -1,0 +1,59 @@
+{
+  "name": "cf-vidu-q3-turbo",
+  "version": "0.1.0",
+  "api": "vivijure-module/2",
+  "hooks": [
+    "motion.backend"
+  ],
+  "provides": [
+    {
+      "id": "i2v-cloud",
+      "label": "Talking clips (Vidu Q3 Turbo)"
+    }
+  ],
+  "config_schema": {
+    "generate_audio": {
+      "type": "bool",
+      "default": true,
+      "label": "keep the model's talking audio (off: silent clip)"
+    },
+    "resolution": {
+      "type": "enum",
+      "values": [
+        "540p",
+        "720p",
+        "1080p"
+      ],
+      "default": "720p",
+      "label": "resolution"
+    }
+  },
+  "ui": {
+    "section": "motion",
+    "order": 58,
+    "locality": "cloud",
+    "cost": "$0.04/s at 540p, $0.06/s at 720p, $0.07/s at 1080p",
+    "cost_as_of": "2026-11-05",
+    "cost_usd_per_second": [
+      0.04,
+      0.07
+    ],
+    "blurb": "Talking clips from a still. 1 to 16 seconds. The next still can close the shot.",
+    "limits": [
+      "1 to 16 second clips",
+      "Same voice lock on every shot",
+      "Cannot lock the Cast voice sample. Same description, not the same take.",
+      "The ratio control is text-only on this model, so a still sets the frame."
+    ]
+  },
+  "usage": {
+    "face_hold": "two",
+    "native_audio": true,
+    "voice": "prompt_lock",
+    "scatter_native_audio": false,
+    "min_seconds": 1,
+    "max_seconds": 16,
+    "first_last": true,
+    "seed": false
+  }
+}

@@ -174,8 +174,21 @@ COMPOSE_PROFILES=cloud docker compose up -d
 ```
 
 **Not in default (cloud profile only):** RunPod `keyframe`, `own-gpu`, cloud i2v (`seedance`,
-`google-veo`, `minimax-hailuo`, `vidu-q3`, `alibaba-wan`, `alibaba-wan-lora`),
+`google-veo`, `minimax-hailuo`, `alibaba-wan`, `alibaba-wan-lora`; AI Gateway: `cf-vidu-q3-turbo`),
 `cloud-keyframe`, `speech-upscale` (RunPod `vivijure-audio-upscale`, an archived image repo).
+
+**Hosted (AI Gateway) i2v doors** (local#568). `cf-vidu-q3-turbo` (port 9160) is vivijure-cf's
+`cf-vidu-q3-turbo` door running as a local sidecar (`scripts/gateway-i2v-module-server.ts`). It calls
+Vidu Q3 Turbo through the Cloudflare AI Gateway on Unified Billing and replaces the retired RunPod
+`vidu-q3` door. It needs:
+
+- `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID` and `CF_AIG_TOKEN`. Without them `/module.json` reports
+  `configured: false` and the panel hides the door.
+- A keyframe URL the provider can fetch over the internet. The provider downloads the still, so
+  expose MinIO with the edge and set `S3_PRESIGN_ENDPOINT` ([EDGE.md](EDGE.md)). If the keyframe
+  URL is loopback, private (RFC1918) or `.local`, the door refuses with `not-configured` before any
+  paid call.
+- `MODULE_CF_VIDU_Q3_TURBO_URL=http://module-cf-vidu-q3-turbo:9160` to register it.
 
 Music mastering stays on the default CPU path: `audio-master` (VPC shim, port 8784) and
 `module-audio-master` (`MODULE_AUDIO_MASTER_URL`). Do not confuse that chain with `speech-upscale`,

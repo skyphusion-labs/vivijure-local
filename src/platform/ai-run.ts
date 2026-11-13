@@ -41,8 +41,15 @@ async function parseWorkersAiResponse(resp: Response): Promise<unknown> {
   return data.result ?? data;
 }
 
+/** Options for one call. `fetch` lets a caller hold a long call (local#568: a gateway video generation
+ *  runs minutes, past the default 300 s header timeout of Node's fetch). Defaults to the global fetch. */
+export interface AiRunOptions {
+  fetch?: (url: string, init: RequestInit) => Promise<Response>;
+}
+
 /** Mirrors vivijure aiRun(env, model, params). */
-export async function aiRun(env: AiGatewayEnv, model: string, params: unknown): Promise<unknown> {
+export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, opts: AiRunOptions = {}): Promise<unknown> {
+  const doFetch = opts.fetch ?? ((url: string, init: RequestInit) => fetch(url, init));
   lastGatewayLogId = null;
   const cfg = aiGatewayConfig(env);
   const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
@@ -85,7 +92,7 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown): 
     }
     // Gateway-routed Workers AI uses the per-model path endpoint + cf-aig-gateway-id. The unified
     // POST /ai/run { model, input } JSON envelope returns result:{} for binary models (Aura-1 TTS).
-    const resp = await fetch(workersAiPath(accountId, model), {
+    const resp = await doFetch(workersAiPath(accountId, model), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

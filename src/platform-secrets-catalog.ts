@@ -385,9 +385,9 @@ export const PLATFORM_SECRET_FIELDS: PlatformSecretField[] = [
     applies_on: "immediate",
   },
   {
-    key: "MODULE_VIDU_Q3_URL",
-    label: "Vidu Q3 module URL",
-    blurb: "Cloud motion backend (Vidu i2v).",
+    key: "MODULE_CF_VIDU_Q3_TURBO_URL",
+    label: "Vidu Q3 Turbo (AI Gateway) module URL",
+    blurb: "Hosted cloud motion backend (Vidu Q3 Turbo i2v through the Cloudflare AI Gateway).",
     category: "modules",
     sensitive: false,
     applies_on: "immediate",

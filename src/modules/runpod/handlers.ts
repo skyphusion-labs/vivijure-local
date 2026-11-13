@@ -356,7 +356,6 @@ export type RunpodModuleName =
   | "seedance"
   | "google-veo"
   | "minimax-hailuo"
-  | "vidu-q3"
   | "alibaba-wan"
   | "alibaba-wan-lora";
 
@@ -369,7 +368,6 @@ export const RUNPOD_MODULE_NAMES: readonly RunpodModuleName[] = [
   "seedance",
   "google-veo",
   "minimax-hailuo",
-  "vidu-q3",
   "alibaba-wan",
   "alibaba-wan-lora",
 ];
