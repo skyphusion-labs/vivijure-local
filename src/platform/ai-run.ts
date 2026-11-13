@@ -6,6 +6,25 @@ import {
   type AiGatewayEnv,
 } from "./ai-gateway.js";
 
+import { CappedReadError, readCappedBytes } from "../modules/gateway-i2v/shared/provider-media.js";
+
+/** Per-kind cap on a BINARY aiRun response, read before the bytes reach the artifact store (local#580).
+ *  The numbers are vivijure-cf's `modules/_shared/provider-media.ts` PROVIDER_AUDIO_MAX_BYTES (32 MB),
+ *  PROVIDER_IMAGE_MAX_BYTES (25 MB) and PROVIDER_VIDEO_MAX_BYTES (80 MB, also this repo's
+ *  provider-media.ts). Aura-1 TTS output is kilobytes; the cap is a ceiling, not a target. */
+export const AIRUN_AUDIO_MAX_BYTES = 32 * 1024 * 1024;
+export const AIRUN_IMAGE_MAX_BYTES = 25 * 1024 * 1024;
+export const AIRUN_VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+
+/** Cap for a binary response, chosen by its content type. An unknown binary type takes the image cap
+ *  (the smaller of the media caps that is not audio) so nothing is uncapped. */
+export function aiRunBinaryCap(contentType: string): number {
+  const t = contentType.split(";")[0].trim().toLowerCase();
+  if (t.startsWith("audio/")) return AIRUN_AUDIO_MAX_BYTES;
+  if (t.startsWith("video/")) return AIRUN_VIDEO_MAX_BYTES;
+  return AIRUN_IMAGE_MAX_BYTES;
+}
+
 let lastGatewayLogId: string | null = null;
 
 export function aiLogId(): string | null {
@@ -46,7 +65,7 @@ export function isWorkersAiModel(model: string): boolean {
   return model.startsWith("@");
 }
 
-async function parseWorkersAiResponse(resp: Response): Promise<unknown> {
+async function parseWorkersAiResponse(resp: Response, model: string): Promise<unknown> {
   lastGatewayLogId = gatewayLogId(resp);
   if (!resp.ok) {
     const errText = await resp.text();
@@ -56,7 +75,17 @@ async function parseWorkersAiResponse(resp: Response): Promise<unknown> {
   // TTS / image models return binary (audio/mpeg, audio/wav, image/*). The unified JSON envelope
   // is for text models only; Aura-1 on the path endpoint never wraps bytes in { result }.
   if (!ct.includes("application/json")) {
-    return resp.arrayBuffer();
+    // local#580: read through the capped reader. Over the cap is refused here, so nothing is stored.
+    const cap = aiRunBinaryCap(ct);
+    try {
+      const bytes = await readCappedBytes(resp.headers, resp.body, () => resp.arrayBuffer(), cap);
+      return bytes.buffer as ArrayBuffer;
+    } catch (e) {
+      if (e instanceof CappedReadError) {
+        throw new CappedReadError(`workers ai binary response from ${model} refused: ${e.message} (cap ${cap} bytes for ${ct || "unknown type"})`);
+      }
+      throw e;
+    }
   }
   const data = (await resp.json()) as { result?: unknown };
   return data.result ?? data;
@@ -87,7 +116,7 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
-    return parseWorkersAiResponse(resp);
+    return parseWorkersAiResponse(resp, model);
   }
 
   const multipart = (params as { multipart?: { body: ReadableStream; contentType: string } })?.multipart;
@@ -104,7 +133,7 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
       body: multipart.body as NonNullable<RequestInit["body"]>,
       duplex: "half",
     } as RequestInit & { duplex: "half" });
-    return parseWorkersAiResponse(resp);
+    return parseWorkersAiResponse(resp, model);
   }
 
   // local#568: a THIRD-PARTY model is reachable only through the universal endpoint, POST /ai/run with
@@ -123,7 +152,7 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
       headers,
       body: JSON.stringify({ model, input: params }),
     });
-    return parseWorkersAiResponse(resp);
+    return parseWorkersAiResponse(resp, model);
   }
 
   if (cfg) {
@@ -141,7 +170,7 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
       },
       body: JSON.stringify(params),
     });
-    return parseWorkersAiResponse(resp);
+    return parseWorkersAiResponse(resp, model);
   }
 
   if (!accountId || !token) {
@@ -156,5 +185,5 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
     },
     body: JSON.stringify(params),
   });
-  return parseWorkersAiResponse(resp);
+  return parseWorkersAiResponse(resp, model);
 }
