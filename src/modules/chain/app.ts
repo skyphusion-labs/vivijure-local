@@ -24,6 +24,7 @@ import {
   pollSpeechUpscale,
   type ChainModuleName,
 } from "./handlers.js";
+import { dialogueGatewayConfigured } from "./dialogue-gen-core.js";
 
 export interface ChainModuleContext {
   env: ChainModuleEnv;
@@ -42,7 +43,14 @@ export function createChainModuleApp(
   const app = new Hono();
   const name = String(manifest.name ?? moduleName);
 
-  app.get("/module.json", (c) => c.json(manifest));
+  // local#279: dialogue-gen advertises whether it has a speech provider, the local#201 mechanism.
+  // configured:false drops it from discoverConfiguredModules, so every render door sees "no dialogue
+  // provider" and refuses a voiced storyboard before any spend (src/render-dialogue.ts).
+  app.get("/module.json", async (c) => {
+    if (moduleName !== "dialogue-gen") return c.json(manifest);
+    const { env } = await getContext();
+    return c.json({ ...manifest, configured: dialogueGatewayConfigured(env) });
+  });
 
   app.post("/invoke", async (c) => {
     let req: InvokeRequest;

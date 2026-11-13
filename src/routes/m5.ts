@@ -162,6 +162,8 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           bundleKey: body.bundleKey,
           renderedShotIds: scenes.map((s) => s.shot_id),
           voices,
+          modules,
+          dialogueBackend: mapped.dialogue_backend,
         });
         if (!d.ok) return c.json({ error: d.error }, d.status);
         panelDialogue = d.lines;
@@ -346,6 +348,8 @@ export function registerM5Routes(app: Hono, platform: Platform): void {
           renderedShotIds: scenes.map((s) => s.shot_id),
           voices,
           bundleScenes: parsedScenes,
+          modules,
+          dialogueBackend: mapped.dialogue_backend,
         });
         if (!d.ok) return c.json({ error: d.error }, d.status);
         fromKfDialogue = d.lines;

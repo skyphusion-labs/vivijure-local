@@ -295,6 +295,7 @@ export function registerM9Routes(app: Hono, platform: Platform): void {
         renderedShotIds: a.scenes.map((s) => s.shot_id),
         voices: resolvedLoras?.voices ?? {},
         explicit: a.dialogue_lines,
+        modules: filmModules,
       });
       if (!filmDialogue.ok) return json({ error: filmDialogue.error }, filmDialogue.status);
       const dialogue_lines = filmDialogue.lines;
