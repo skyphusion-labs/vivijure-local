@@ -96,7 +96,7 @@ describe("local#271 cast SDXL train hands the card back from Ollama first", () =
     const unload = calls.filter((c) => c.url === `${OLLAMA}/api/generate`);
     expect(unload).toHaveLength(1);
     expect(JSON.parse(unload[0].body)).toMatchObject({ keep_alive: 0 });
-    expect(calls.some((c) => c.url.startsWith("http://door.test"))).toBe(false);
+    expect(calls.some((c) => new URL(c.url).host === "door.test:8000")).toBe(false);
   });
 
   it("asks nothing of Ollama when Ollama is not configured", async () => {
