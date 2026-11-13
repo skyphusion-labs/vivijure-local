@@ -1,5 +1,6 @@
 # Changelog
 
+
 **Dual-panel release gate:** every studio feature ships to vivijure-cf and vivijure-local in the
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
@@ -192,6 +193,7 @@ list. (The panel wiring followed; see the entry above.)
 
 ### fix(runpod): the job log points at core; detail no longer truncates at 160
 
+
 This door held the estate's last private copy of the RunPod job log, and it had
 drifted. Re-measured 2026-09-26 against `@skyphusion-labs/vivijure-core@1.22.5`:
 `DETAIL_MAX` was 160 here where cf#320 raised it to 480, and there was no
@@ -226,6 +228,7 @@ proves the pre-0022 schema loses the write silently.
 
 ### fix(plan.enhance): chat fails closed on an empty provider reply
 
+
 An empty provider reply returned `ok:true` with the note "chat skipped: empty
 reply", which `planner.ts` joined into `output` and `POST /api/chat` returned as
 HTTP 200. The skip notice reached the user AS THE ASSISTANT'S ANSWER, and the
@@ -238,6 +241,7 @@ change and are tracked separately; the reason rides a stable exported constant
 until then.
 
 ### fix(containers): emit the cf#268 finish wall-clock, so `finish_elapsed_ms` stops being NULL
+
 
 Migration 0019 added `renders.finish_elapsed_ms` here without the producers, so the column
 was permanently NULL on this host while `vivijure-cf` populated it from all five CPU
@@ -254,12 +258,14 @@ emitter is deleted. Documented in `docs/observability.md`. Closes local#401.
 
 ### chore(deps): pin vivijure-core 1.22.5
 
+
 Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
 the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
 pin of the published package already on cf v1.33.9. Does not cut a
 studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.4
+
 
 Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
 `pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
@@ -268,10 +274,12 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.0
 
+
 Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
 on one film. Not scatter-*.
 
 ### feat(render): retire scatter; films are always one job
+
 
 Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`
 always start a single film, even when `shardCount` / `shard_count` is 2+.
@@ -408,12 +416,15 @@ for the `PollResponse` failure-arm types.
 
 - **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
 
+
 ## v1.6.1
+
 
 PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
 - **video-finish `POST /overlay` returns 410 (cf#24 parity).** text-overlay retired; honest 410.
 - **Docs audit 2026-08-05:** SECURITY demo + named tokens; AUTH_MODE; compose profile honesty; dash strip.
+
 
 ## v1.6.0 -- 2026-08-02
 
@@ -824,6 +835,7 @@ a hosted-only knob it never sees.
   later delete could never match and drift forever. Found while wiring the storage reconcile, which is
   the first caller to pass an empty prefix; fixed and covered by a test asserting a reconciled key is
   the same key the write path uses.
+
 
 ## v1.4.0 -- 2026-07-26
 
