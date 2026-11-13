@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Fix: SDXL cast train hands the card back from Ollama first, and the homelab LoRA chain is documented (local#271).**
+
+`POST /api/cast/:id/train-lora` now calls `unloadOllamaBeforeRender` before core submits the train job, the same fail-open handoff every render door makes. Before this, a train submitted inside `plan.enhance`'s keep_alive window contended with Ollama for the door's card. `tests/cast-train-ollama-handoff-271.test.ts` drives the real route. `docs/quickstart.md` (Growing later) and `docs/DEPLOYMENT.md` now give the no-RunPod, no-Cloudflare chain: `cast.image` references, local-door train, then `pretrained_loras` on keyframes.
+
 **Fix: remove the dead `kling` motion door (local#567).**
 
 The `kling` door dispatched to RunPod public endpoint `kling-v2-1-i2v-pro`, which returns 404 "endpoint not found" (measured 2026-11-13 with a negative control; vivijure-cf removed its copy in vivijure-cf#921). Every render routed to it failed at submit. Removed from `src/modules/runpod/fixed-motion.ts`, the RunPod module list, compose (`module-kling`, `MODULE_KLING_URL`), the platform secrets catalog, `.env.example`, `dev/manifests/kling.json`, the exhaustive smoke list and the docs. Applied migration comments and the inert demo seed are unchanged. `tests/kling-dead-door-567.test.ts` keeps it out. Operator note: a leftover `MODULE_KLING_URL` now points at no service, and `scripts/runpod-module-server.ts kling` exits 1. The hosted Kling door (`cf-kling-v4`) comes with local#568.
