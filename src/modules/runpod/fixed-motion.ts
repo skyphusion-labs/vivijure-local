@@ -23,6 +23,7 @@ import {
   terminalErrorInOutput,
 } from "./shared.js";
 import { putClipBytes } from "./storage.js";
+import { bodyUrlRefusal, KEYFRAME_NOT_PUBLIC_HINT } from "../gateway-i2v/keyframe-host.js";
 
 export interface FixedEndpointConfig {
   endpoint: string;
@@ -155,11 +156,19 @@ export async function invokeFixedMotion(
     return { ok: false, error: "motion.backend: input needs shot_id and prompt" };
   }
   const base = runpodBase(cfg.endpoint);
+  const body = cfg.buildBody(input, req.config ?? {});
+  // local#575 (lead ruling on #568): a public RunPod endpoint FETCHES every URL in the body over the
+  // internet. A loopback, private or .local URL cannot be fetched, and the paid job would fail at the
+  // provider. Refuse before submitting, and name the fix.
+  const unreachable = bodyUrlRefusal(body);
+  if (unreachable) {
+    return { ok: false, error: `${name}: ${unreachable}; ${KEYFRAME_NOT_PUBLIC_HINT}`, reason: "not-configured" };
+  }
   try {
     const r = await fetch(`${base}/run`, {
       method: "POST",
       headers: { ...authHeader(apiKey), "content-type": "application/json" },
-      body: JSON.stringify({ input: cfg.buildBody(input, req.config ?? {}) }),
+      body: JSON.stringify({ input: body }),
     });
     if (!r.ok) return { ok: false, error: `${name} /run -> ${r.status}` };
     const jobId = ((await r.json()) as { id?: string }).id;

@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Fix: the RunPod cloud i2v doors refuse an unfetchable URL before submitting a paid job (local#575).**
+
+`seedance`, `google-veo`, `minimax-hailuo`, `alibaba-wan` and `alibaba-wan-lora` hand the public RunPod endpoint URLs it fetches over the internet: the keyframe and, for `alibaba-wan`, the driving audio. A loopback, private (RFC1918, link-local, CGNAT, ULA) or `.local` host cannot be fetched, so the job was paid for and failed at the provider. They now refuse first with `not-configured`, name the field, and point at `S3_PRESIGN_ENDPOINT` and `docs/EDGE.md`. This is the same check as the hosted gateway doors (local#568).
+
 **Fix: third-party AI models are called through Cloudflare's universal endpoint (local#577, found by the local#568 smoke).**
 
 `aiRun` sent every model to `POST /accounts/{id}/ai/run/<model>`. For a third-party model that route does not exist (400 code 7000 "No route for that URI", measured 2026-11-13), so music-gen, cloud-keyframe's proxied `google/*` and `openai/*` models, the cast.image fallback and image.generate's proxied models all failed at routing. A model without the `@cf/` prefix now goes to the documented universal endpoint `POST /accounts/{id}/ai/run` with `{model, input}`, plus `cf-aig-gateway-id` when a gateway is set. `@cf/` models keep their path. A non-2xx now throws `AiRunHttpError` with its status. The gateway i2v runner retries only a network failure, 5xx, 408 or 429; a 4xx runs exactly once.
