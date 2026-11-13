@@ -461,7 +461,10 @@ opted in (see [install-profiles.md](install-profiles.md)).
 
 **SDXL cast train on the local door (homelab default).** When `LOCAL_BACKEND_URL` points at a
 vivijure-local-12gb or 16gb door that serves `action: train_lora`, `POST /api/cast/:id/train-lora`
-submits to that door (same bearer as keyframe/i2v). No RunPod required.
+submits to that door (same bearer as keyframe/i2v). No RunPod required. The route unloads
+the Ollama planner model first (the same handoff every render door makes, local#271), so training
+does not fight `plan.enhance` for the card. The full refs, train, render chain is in
+[quickstart.md](quickstart.md#growing-later).
 
 **Wan cast training.** The hosted RunPod Wan training endpoint is retired, and its image repo
 (`vivijure-wan-train`) is archived. Wan training is self-host only: vivijure-cf can still bind

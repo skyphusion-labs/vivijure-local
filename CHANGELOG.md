@@ -1,6 +1,5 @@
 # Changelog
 
-
 **Dual-panel release gate:** every studio feature ships to vivijure-cf and vivijure-local in the
 same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 `fleet-chezmoi/claude-memory/projects/-home-conrad-dev-vivijure/memory/vivijure-hosted-parity-absolute.md`).
@@ -10,6 +9,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 **Fix: every render door voices the authored storyboard (local#326, parity half of vivijure-cf#334).**
 
 Authored per-shot dialogue reached core from one door only (the agent film route). The main Render button, render-from-keyframes and the finalize family (finalize, animate-cloud, animate-hybrid) started films with no `dialogue_lines`, so a voiced storyboard rendered silent with a 201. All four doors now call one resolution, `src/render-dialogue.ts`, with the same ladder as vivijure-cf: explicit lines win, otherwise lines come from the bundle storyboard, judged on the shots this render makes (vivijure-cf#1056), with cast voices. A bundle or cast read that FAILS now refuses with 503 instead of rendering silent; a missing bundle still renders silent (`src/dialogue-derivation.ts`, ported from vivijure-cf). The finalize, animate-cloud and animate-hybrid routes and render-from-keyframes now read `castLoras` (the panel already sends it with finalize) for the voices. Behaviour change: a main render of a voiced storyboard now asks for speech. Until local#279 lands, a host with no speech provider gets the tagged silent fallback.
+
+**Fix: SDXL cast train hands the card back from Ollama first, and the homelab LoRA chain is documented (local#271).**
+
+`POST /api/cast/:id/train-lora` now calls `unloadOllamaBeforeRender` before core submits the train job, the same fail-open handoff every render door makes. Before this, a train submitted inside `plan.enhance`'s keep_alive window contended with Ollama for the door's card. `tests/cast-train-ollama-handoff-271.test.ts` drives the real route. `docs/quickstart.md` (Growing later) and `docs/DEPLOYMENT.md` now give the no-RunPod, no-Cloudflare chain: `cast.image` references, local-door train, then `pretrained_loras` on keyframes.
 
 **Fix: remove the dead `kling` motion door (local#567).**
 
@@ -189,7 +192,6 @@ list. (The panel wiring followed; see the entry above.)
 
 ### fix(runpod): the job log points at core; detail no longer truncates at 160
 
-
 This door held the estate's last private copy of the RunPod job log, and it had
 drifted. Re-measured 2026-09-26 against `@skyphusion-labs/vivijure-core@1.22.5`:
 `DETAIL_MAX` was 160 here where cf#320 raised it to 480, and there was no
@@ -224,7 +226,6 @@ proves the pre-0022 schema loses the write silently.
 
 ### fix(plan.enhance): chat fails closed on an empty provider reply
 
-
 An empty provider reply returned `ok:true` with the note "chat skipped: empty
 reply", which `planner.ts` joined into `output` and `POST /api/chat` returned as
 HTTP 200. The skip notice reached the user AS THE ASSISTANT'S ANSWER, and the
@@ -237,7 +238,6 @@ change and are tracked separately; the reason rides a stable exported constant
 until then.
 
 ### fix(containers): emit the cf#268 finish wall-clock, so `finish_elapsed_ms` stops being NULL
-
 
 Migration 0019 added `renders.finish_elapsed_ms` here without the producers, so the column
 was permanently NULL on this host while `vivijure-cf` populated it from all five CPU
@@ -254,14 +254,12 @@ emitter is deleted. Documented in `docs/observability.md`. Closes local#401.
 
 ### chore(deps): pin vivijure-core 1.22.5
 
-
 Shot retry: a provider high-load, 429, or AiGateway 7003 resubmits
 the shot next tick (cap 3). A real 400 still fails closed. Dual-panel
 pin of the published package already on cf v1.33.9. Does not cut a
 studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.4
-
 
 Pins through fail-incomplete, keep-clip_key, and shot-line `audio_url` /
 `pre_clip_dialogue` so local matches hosted talking-door behavior. Syncs
@@ -270,12 +268,10 @@ studio tag.
 
 ### chore(deps): pin vivijure-core 1.22.0
 
-
 Keyframe hook fans across KEYFRAME_PARALLEL shot chunks (default 4)
 on one film. Not scatter-*.
 
 ### feat(render): retire scatter; films are always one job
-
 
 Scatter submit is gone. `POST /api/storyboard/render` and `POST /api/render/film`
 always start a single film, even when `shardCount` / `shard_count` is 2+.
@@ -412,15 +408,12 @@ for the `PollResponse` failure-arm types.
 
 - **fix(local-gpu): honest local-gpu cost (local#278).** Drop "Free after hardware"; self-host/vivijure-local is hobby + non-commercial; commercial use is vivijure-cf.
 
-
 ## v1.6.1
-
 
 PATCH: dependency updates (including vivijure-core pin group where already on main) and CLAUDE release-procedure docs since v1.6.0. **Order:** core before host when core changes. Tag publishes GHCR images.
 
 - **video-finish `POST /overlay` returns 410 (cf#24 parity).** text-overlay retired; honest 410.
 - **Docs audit 2026-08-05:** SECURITY demo + named tokens; AUTH_MODE; compose profile honesty; dash strip.
-
 
 ## v1.6.0 -- 2026-08-02
 
@@ -831,7 +824,6 @@ a hosted-only knob it never sees.
   later delete could never match and drift forever. Found while wiring the storage reconcile, which is
   the first caller to pass an empty prefix; fixed and covered by a test asserting a reconciled key is
   the same key the write path uses.
-
 
 ## v1.4.0 -- 2026-07-26
 
