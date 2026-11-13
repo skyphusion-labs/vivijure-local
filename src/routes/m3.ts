@@ -49,6 +49,7 @@ import {
   summarizeCastRefs,
 } from "../cast-image-orchestrator.js";
 import { exportCastBundle, importCastBundle, CAST_BUNDLE_MAX_IMPORT_BYTES } from "../cast-bundle.js";
+import { unloadOllamaBeforeRender } from "../ollama-handoff.js";
 
 function castMediaEnv(platform: Platform): CastMediaEnv {
   return {
@@ -322,9 +323,17 @@ export function registerM3Routes(app: Hono, platform: Platform): void {
   );
 
   app.post("/api/cast/:id/train-lora", (c) =>
-    handle(c, async () =>
-      handleCastTrainLora(c.req.raw, oenv(), await resolveCastId(db(), c.req.param("id"))),
-    ),
+    handle(c, async () => {
+      const castId = await resolveCastId(db(), c.req.param("id"));
+      const env = oenv();
+      // local#271 acceptance 4: SDXL cast train runs on the local door (LOCAL_BACKEND_URL), the same
+      // card plan.enhance holds through its Ollama keep_alive window. Every render door hands the card
+      // back first (unloadOllamaBeforeRender); train did not, so it contended for VRAM. Fail-open and
+      // structured like the render doors: a failed unload is logged and never blocks the submit.
+      // cast.image releases its own pipeline after the last reference image (unloadCastImageDoor).
+      await unloadOllamaBeforeRender(env);
+      return handleCastTrainLora(c.req.raw, env, castId);
+    }),
   );
 
   app.post("/api/cast/:id/train-wan-lora", (c) =>

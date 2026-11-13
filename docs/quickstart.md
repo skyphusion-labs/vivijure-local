@@ -127,6 +127,19 @@ npm run conformance:compose
   `CAST_IMAGE_BACKEND_URL` runs `cast.image` on Apache-2.0 FLUX.2 Klein 4B locally instead of
   Workers AI (~13GB VRAM). See
   [install-profiles.md](install-profiles.md#profile-cast-image-cast-references-on-your-own-card).
+- **A cast LoRA with no RunPod and no Cloudflare** (the homelab first win for a recurring
+  character). One card, in this order:
+  1. **References:** run `cast.image` on your own card (the bullet above). It writes the training
+     set onto the cast member and releases its pipeline after the last image.
+  2. **Train:** with `LOCAL_BACKEND_URL` set to a 12GB or 16GB door that serves `train_lora`,
+     press Train on `/cast` (`POST /api/cast/:id/train-lora`). The studio unloads the Ollama
+     planner model first, then submits SDXL training to the door. Training needs a portrait and at
+     least four references.
+  3. **Render:** when the cast member reads `ready`, a film that casts them sends the adapter to the
+     door as `pretrained_loras` on every keyframe.
+
+  Wan (motion) LoRA training is not part of the homelab path. See
+  [DEPLOYMENT.md](DEPLOYMENT.md#cast-lora-train-homelab-vs-vivijure-cf).
 - **Public HTTPS** (studio + MinIO for remote GPU fetch): [EDGE.md](EDGE.md)
   (`npm run install:edge`, then `COMPOSE_PROFILES=edge npm run compose:up`).
 - **Install profiles** (satellites, own GPU, filesystem storage): [install-profiles.md](install-profiles.md).
