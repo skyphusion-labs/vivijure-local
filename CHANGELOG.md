@@ -7,6 +7,10 @@ same release wave ([[vivijure-hosted-parity-absolute]] in fleet memory:
 
 ## Unreleased
 
+**Fix: remove the dead `kling` motion door (local#567).**
+
+The `kling` door dispatched to RunPod public endpoint `kling-v2-1-i2v-pro`, which returns 404 "endpoint not found" (measured 2026-11-13 with a negative control; vivijure-cf removed its copy in vivijure-cf#921). Every render routed to it failed at submit. Removed from `src/modules/runpod/fixed-motion.ts`, the RunPod module list, compose (`module-kling`, `MODULE_KLING_URL`), the platform secrets catalog, `.env.example`, `dev/manifests/kling.json`, the exhaustive smoke list and the docs. Applied migration comments and the inert demo seed are unchanged. `tests/kling-dead-door-567.test.ts` keeps it out. Operator note: a leftover `MODULE_KLING_URL` now points at no service, and `scripts/runpod-module-server.ts kling` exits 1. The hosted Kling door (`cf-kling-v4`) comes with local#568.
+
 **Feat: a short-line shot can move to another door for its own clip, and the panel says so (vivijure-cf#930, dual panel with vivijure-cf).**
 
 Conrad's ruling (2026-11-11): a per-shot motion door applies to that one clip only, and the film's door stays the default for every other shot. Core 1.47.0 moves a lined shot off a film door whose clip floor would leave the speaker mouthing words after the line, to the first offered door that takes it without a tail. It records every shot still left with a tail. The voiced film route (`POST` in `src/routes/m9-render-api.ts`) now sends the offer (`src/door-fit-offer.ts`): the other serving driven motion doors with the film door's locality, in `ui.order`. A film door the caller named stays the default for every shot, and a short-line shot may still move off it for that one clip (Conrad's ruling, 2026-11-11), the same rule as vivijure-cf. The panel shows the new `door_fit` signal in `renderSignalLines`, in vivijure-cf's sentences. Core moves to `^1.47.0`.
