@@ -16,6 +16,7 @@ import {
 } from "../src/modules/gateway-i2v/runner.js";
 import { createGatewayI2vApp } from "../src/modules/gateway-i2v/app.js";
 import { keyframeHostRefusal } from "../src/modules/gateway-i2v/keyframe-host.js";
+import { AiRunHttpError } from "../src/platform/ai-run.js";
 
 const GATEWAY = { CLOUDFLARE_ACCOUNT_ID: "acct", GATEWAY_ID: "gw", CF_AIG_TOKEN: "tok" };
 const MP4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 1, 2, 3, 4]);
@@ -81,6 +82,27 @@ describe("gateway i2v runner (local#568)", () => {
     expect(n).toBe(3);
     const p = await pollGatewayI2v(c, door as never, { poll: (r as { poll: string }).poll });
     expect(p).toEqual({ ok: false, error: "gateway 502" });
+  });
+
+  it("a 4xx from the provider API (routing, validation, auth) is attempted EXACTLY once", async () => {
+    for (const status of [400, 401, 403, 404, 422]) {
+      let n = 0;
+      runs = [];
+      const c = ctx({ generate: async () => { n++; throw new AiRunHttpError(status, `workers ai ${status}: x`); } });
+      const r = await invokeAndSettle(c);
+      expect(n, String(status)).toBe(1);
+      expect(await pollGatewayI2v(c, door as never, { poll: (r as { poll: string }).poll })).toEqual({ ok: false, error: `workers ai ${status}: x` });
+    }
+  });
+
+  it("a 5xx, 408 or 429 is retried, at most twice", async () => {
+    for (const status of [500, 503, 408, 429]) {
+      let n = 0;
+      runs = [];
+      const c = ctx({ generate: async () => { n++; throw new AiRunHttpError(status, "x"); } });
+      await invokeAndSettle(c);
+      expect(n, String(status)).toBe(3);
+    }
   });
 
   it("a completed call with no URL fails once, and is not bought again", async () => {

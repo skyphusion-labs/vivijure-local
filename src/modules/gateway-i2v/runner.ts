@@ -6,6 +6,9 @@
 // two guarantees, which cf encodes in modules/_shared/paid-generation.ts:
 //   1. never buy a clip twice: the provider call is retried only when it THREW (no success came back),
 //      at most twice, and nothing after a successful call ever reaches the provider again;
+//      STRICTER than cf (whose step retries every throw): only a failure a retry can fix is retried
+//      (network, 5xx, 408, 429; aiRunRetryable). A 4xx (routing, validation, auth) runs exactly once.
+//      The first live smoke retried a routing 400 twice for 45 s of backoff (local#568).
 //   2. never report a clip that was not stored: the download and write retry on their own, and a final
 //      failure reports cf's fixed NOT_STORED_ERROR text (core's classifier reads it as deterministic).
 // The store is authoritative for completion (clip present in a `done` state = done), as on cf.
@@ -26,6 +29,7 @@ import type {
 } from "@skyphusion-labs/vivijure-core/modules/types";
 import type { ArtifactStore } from "../../platform/create-storage.js";
 import { aiGatewayConfigured, type AiGatewayEnv } from "../../platform/ai-gateway.js";
+import { aiRunRetryable } from "../../platform/ai-run.js";
 import type { GatewayI2vDoor } from "./door.js";
 import { keyframeHostRefusal, KEYFRAME_NOT_PUBLIC_HINT } from "./keyframe-host.js";
 import { PROVIDER_VIDEO_MAX_BYTES, readProviderMedia } from "./shared/provider-media.js";
@@ -89,13 +93,17 @@ async function readState(ctx: GatewayI2vContext, door: GatewayI2vDoor<unknown>, 
   }
 }
 
-async function withRetries<T>(ctx: GatewayI2vContext, fn: () => Promise<T>): Promise<T> {
+async function withRetries<T>(
+  ctx: GatewayI2vContext,
+  fn: () => Promise<T>,
+  retryable: (e: unknown) => boolean = () => true,
+): Promise<T> {
   const sleep = ctx.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   for (let attempt = 0; ; attempt++) {
     try {
       return await fn();
     } catch (e) {
-      if (attempt >= RETRY_DELAYS_MS.length) throw e;
+      if (attempt >= RETRY_DELAYS_MS.length || !retryable(e)) throw e;
       await sleep(RETRY_DELAYS_MS[attempt]);
     }
   }
@@ -113,7 +121,7 @@ interface RunParams {
 /** cf runPaidGeneration, as a background task: generate (retried on throw), parse once, store (retried). */
 async function runGeneration(ctx: GatewayI2vContext, door: GatewayI2vDoor<unknown>, p: RunParams): Promise<void> {
   try {
-    const raw = await withRetries(ctx, () => ctx.generate(door.model, door.buildParams(p.input, p.config)));
+    const raw = await withRetries(ctx, () => ctx.generate(door.model, door.buildParams(p.input, p.config)), aiRunRetryable);
     const url = door.parseVideoUrl(raw);
     if (!url) throw new Error(NO_VIDEO_URL_ERROR);
     const key = door.clipKey(p.project, p.shotId);

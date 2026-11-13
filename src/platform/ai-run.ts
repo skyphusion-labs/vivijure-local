@@ -25,11 +25,32 @@ function unifiedRunUrl(accountId: string): string {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run`;
 }
 
+/** A non-2xx answer from the Workers AI / AI Gateway API. `status` lets a caller tell a request that
+ *  cannot succeed (4xx: routing, validation, auth) from one worth retrying (5xx, 408, 429). local#568. */
+export class AiRunHttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "AiRunHttpError";
+  }
+}
+
+/** True for a failure a retry can fix: a network error (no status), 5xx, 408 or 429. */
+export function aiRunRetryable(e: unknown): boolean {
+  if (!(e instanceof AiRunHttpError)) return true;
+  return e.status >= 500 || e.status === 408 || e.status === 429;
+}
+
+/** A Workers AI model id (`@cf/...`, `@hf/...`). Anything else (`vidu/q3-turbo`, `minimax/music-2.6`,
+ *  `google/nano-banana-pro`) is a THIRD-PARTY model. */
+export function isWorkersAiModel(model: string): boolean {
+  return model.startsWith("@");
+}
+
 async function parseWorkersAiResponse(resp: Response): Promise<unknown> {
   lastGatewayLogId = gatewayLogId(resp);
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`workers ai ${resp.status}: ${errText.slice(0, 500)}`);
+    throw new AiRunHttpError(resp.status, `workers ai ${resp.status}: ${errText.slice(0, 500)}`);
   }
   const ct = resp.headers.get("content-type") ?? "";
   // TTS / image models return binary (audio/mpeg, audio/wav, image/*). The unified JSON envelope
@@ -83,6 +104,25 @@ export async function aiRun(env: AiGatewayEnv, model: string, params: unknown, o
       body: multipart.body as NonNullable<RequestInit["body"]>,
       duplex: "half",
     } as RequestInit & { duplex: "half" });
+    return parseWorkersAiResponse(resp);
+  }
+
+  // local#568: a THIRD-PARTY model is reachable only through the universal endpoint, POST /ai/run with
+  // the envelope { model, input }. The model-in-path URL answers 400 code 7000 "No route for that URI"
+  // for it (measured 2026-11-13 for vidu/q3-turbo and minimax/music-2.6, while the envelope reached
+  // validation, code 7003, with a gateway log id). Docs: developers.cloudflare.com/ai-gateway/usage/rest-api/
+  // and each model page. cf-aig-gateway-id is accepted on this call (measured: logged with and without it).
+  if (!isWorkersAiModel(model)) {
+    if (!accountId || !token) {
+      throw new Error("Workers AI requires CLOUDFLARE_ACCOUNT_ID and CF_AIG_TOKEN (or CLOUDFLARE_API_TOKEN)");
+    }
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+    if (cfg) headers["cf-aig-gateway-id"] = cfg.gatewayId;
+    const resp = await doFetch(unifiedRunUrl(accountId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model, input: params }),
+    });
     return parseWorkersAiResponse(resp);
   }
 
