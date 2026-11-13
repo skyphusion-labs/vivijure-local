@@ -58,6 +58,8 @@ const MODULES = [
   "minimax-hailuo",
   "alibaba-wan",
   "alibaba-wan-lora",
+  // local#568: the hosted (AI Gateway) i2v doors this host ports, one per ported door.
+  "cf-vidu-q3-turbo",
   // Cloud talking door (hosted InfiniteTalk). Fixture only: local compose has no
   // infinitetalk sidecar. Operators bind MODULE_INFINITETALK_URL to the hosted
   // worker or a RunPod module the same way they bind other cloud i2v doors.

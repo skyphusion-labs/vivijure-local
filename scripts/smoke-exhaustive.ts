@@ -32,7 +32,7 @@ const CLOUD_I2V = [
   "seedance",
   "google-veo",
   "minimax-hailuo",
-  "vidu-q3",
+  "cf-vidu-q3-turbo",
   "alibaba-wan",
 ] as const;
 
@@ -261,7 +261,6 @@ function moduleConfigFor(backend: string): Record<string, unknown> {
       return { resolution: "480p", aspect_ratio: "16:9", camera_fixed: true, generate_audio: false };
     case "google-veo":
       return { generate_audio: false };
-    case "vidu-q3":
     case "alibaba-wan":
       return { resolution: "480p", shot_type: "single" };
     default:

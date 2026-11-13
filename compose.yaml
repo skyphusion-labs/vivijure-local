@@ -434,13 +434,6 @@ services:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9153/module.json"]
 
-  module-vidu-q3:
-    <<: [*runpod-module, *profile-cloud]
-    command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9154", "vidu-q3"]
-    healthcheck:
-      <<: *module-health-url
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9154/module.json"]
-
   module-alibaba-wan:
     <<: [*runpod-module, *profile-cloud]
     command: ["npx", "tsx", "scripts/runpod-module-server.ts", "9155", "alibaba-wan"]
@@ -463,6 +456,27 @@ services:
     healthcheck:
       <<: *module-health-url
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9157/module.json"]
+    environment:
+      DATABASE_PATH: /app/vivijure-local/data/studio.db
+      <<: *ai-gateway-env
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_BUCKET: vivijure
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+
+  # local#568: the hosted (Cloudflare AI Gateway) i2v door, ported from vivijure-cf cf-vidu-q3-turbo.
+  # Replaces the RunPod vidu-q3 door. Port 9160: 9151 (kling) and 9154 (vidu-q3) are NOT reused, so a
+  # stale MODULE_*_URL can never reach a different door. Hidden until the AI Gateway creds are set.
+  module-cf-vidu-q3-turbo:
+    <<: [*module-sidecar, *profile-cloud]
+    volumes:
+      - studio-data:/app/vivijure-local/data:ro
+    command: ["npx", "tsx", "scripts/gateway-i2v-module-server.ts", "9160", "cf-vidu-q3-turbo"]
+    healthcheck:
+      <<: *module-health-url
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9160/module.json"]
     environment:
       DATABASE_PATH: /app/vivijure-local/data/studio.db
       <<: *ai-gateway-env
@@ -727,7 +741,7 @@ services:
       MODULE_SEEDANCE_URL: ${MODULE_SEEDANCE_URL:-}
       MODULE_GOOGLE_VEO_URL: ${MODULE_GOOGLE_VEO_URL:-}
       MODULE_MINIMAX_HAILUO_URL: ${MODULE_MINIMAX_HAILUO_URL:-}
-      MODULE_VIDU_Q3_URL: ${MODULE_VIDU_Q3_URL:-}
+      MODULE_CF_VIDU_Q3_TURBO_URL: ${MODULE_CF_VIDU_Q3_TURBO_URL:-}
       MODULE_ALIBABA_WAN_URL: ${MODULE_ALIBABA_WAN_URL:-}
       MODULE_ALIBABA_WAN_LORA_URL: ${MODULE_ALIBABA_WAN_LORA_URL:-}
       MODULE_CLOUD_KEYFRAME_URL: ${MODULE_CLOUD_KEYFRAME_URL:-}

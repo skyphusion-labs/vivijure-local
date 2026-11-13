@@ -1281,7 +1281,7 @@ async function animateHybridRender(row, btnEl, backends) {
         body: JSON.stringify({
           backends: backends,
           defaultBackend: "gpu",
-          defaultCloudModel: (cloudModelOptions()[0] && cloudModelOptions()[0][0]) || "seedance",
+          defaultCloudModel: (cloudModelOptions()[0] && cloudModelOptions()[0][0]) || "cf-vidu-q3-turbo",
         }),
       },
     );
