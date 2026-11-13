@@ -184,10 +184,13 @@ Vidu Q3 Turbo through the Cloudflare AI Gateway on Unified Billing and replaces 
 
 - `CLOUDFLARE_ACCOUNT_ID`, `GATEWAY_ID` and `CF_AIG_TOKEN`. Without them `/module.json` reports
   `configured: false` and the panel hides the door.
-- A keyframe URL the provider can fetch over the internet. The provider downloads the still, so
-  expose MinIO with the edge and set `S3_PRESIGN_ENDPOINT` ([EDGE.md](EDGE.md)). If the keyframe
-  URL is loopback, private (RFC1918) or `.local`, the door refuses with `not-configured` before any
-  paid call.
+- A keyframe URL the provider can fetch over the internet. The provider downloads `start_image`
+  (and `end_image`) itself, so expose MinIO with the edge and set `S3_PRESIGN_ENDPOINT`
+  ([EDGE.md](EDGE.md)). If the keyframe URL is loopback, private (RFC1918) or `.local`, the door
+  refuses with `not-configured` before any paid call. The host must also serve the image to a
+  non-browser client: a host that refuses the provider's fetch (for example by User-Agent) gets
+  `7003 "Request validation failed"` from the model, with no field named (local#568). Sending the
+  still inline instead is tracked in local#578.
 - `MODULE_CF_VIDU_Q3_TURBO_URL=http://module-cf-vidu-q3-turbo:9160` to register it.
 
 Music mastering stays on the default CPU path: `audio-master` (VPC shim, port 8784) and
